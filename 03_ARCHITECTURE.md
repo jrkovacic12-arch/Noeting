@@ -1,0 +1,196 @@
+# Noeting — Architecture, Privacy and Agent Design
+
+> **Status:** React Native + Expo + TypeScript + SQLite selected for mobile V1 (D-011). M1 source and schema v1 implemented on 2026-10-13; real-SQLite automated checks passed. Native runtime/device behavior and security acceptance remain unverified.
+>
+> **Principle:** Local-first and user-controlled; verify privacy properties rather than assuming them.
+
+## 1. Architectural goals (direction)
+
+- The core note/task application should work offline.
+- Local storage should be primary; no mandatory account for single-device use.
+- The user should own and be able to export their data in readable forms.
+- AI should be replaceable and should receive only necessary data.
+- Synchronization, if added, should be optional and protected by encryption before remote transfer.
+- Third-party integrations and agent actions should be permission-controlled.
+- Do not let distributed synchronization block validation of a useful phone-first experience.
+
+These goals follow the original document and the later conversation about a privacy-focused personal agent. The selected mobile stack now has an M1 source implementation; no native APK or physical-device validation is claimed.
+
+### Selected V1 platform and local persistence
+
+- **Approved:** React Native + Expo + TypeScript; on-device SQLite (D-011). Build Android/iOS-capable mobile UI, with no account or backend required for core use.
+- **Resolved M1 versions:** Expo `57.0.28`, React `19.2.3`, React Native `0.86.3`, `expo-sqlite` `57.0.4`, TypeScript `6.0.3`; lockfile installation was checked using Node `24.19.0` and npm `11.9.0`. M1 uses a single Today screen with a Capture modal. Expo Router, Notifications, and FileSystem/Sharing remain later package candidates.
+- **M1 reliability boundary:** versioned SQLite migrations; unique stable entry/task IDs; exact unchanged `original_text`; saving a directly captured Task and its linked Entry atomically; store completed/pinned task state durably; surface failed writes rather than pretending Save succeeded.
+- **Implemented M1 schema:** `src/data/repository.ts` defines schema version **1**, with `entries` and `tasks`; `src/data/sqlite.ts` opens `noeting.db` through Expo SQLite. `reminders`, linked reflections/creations, deletion semantics, and backup format remain later design work.
+- **Validation:** prove persistence after full restart, offline operation, transaction rollback on failure, and database migration behavior on actual target devices. A local SQLite database does not itself guarantee encryption at rest or a successful backup.
+- **HTML prototype:** reference for behavior/copy, **not native React Native components**; never claim it has been migrated.
+
+### Implemented M1 persistence contract — 2026-10-13; device evaluation pending
+
+- Use versioned SQLite migrations with initial `entries` and `tasks` tables. Store immutable `entries.original_text`; a Task references its source Entry. Start with `pending` / `completed` status and durable pin state. Reminders and richer lifecycle fields are outside this first schema.
+- Allocate a stable capture request ID once per draft; derive stable Entry and Task IDs from it. Retain the request ID for retries. A uniqueness constraint on capture identity and a single linked Task per direct Task capture make retry idempotent. Retrying an already committed capture returns its existing records rather than creating new ones; changed content under that same request ID is rejected.
+- Commit the Entry and its optional Task in one transaction, with a foreign key protecting the link. Roll back all writes on failure. Enforce the three-pending-pin limit and completion/pin update atomically, rather than relying only on disabled UI controls.
+- Serialize each capture's save attempts and disable additional Save taps while a write is pending. Show success and discard the draft only after the transaction commits; retain input, type, and IDs on failure. Do not parse note text into dates or deadlines.
+- The user confirmed Android as the first physical smoke-test target on 2026-10-13; Android/iOS remains the selected platform direction. Resolved versions are recorded above; physical-device and native-build compatibility remain to be checked.
+
+The user-facing choices are in [02_PRODUCT.md](02_PRODUCT.md). This contract is implemented in source and exercised by real-SQLite repository tests; it does not claim passed device tests or new historical product approval. Actual run/test evidence belongs in [06_CURRENT_STATE.md](06_CURRENT_STATE.md).
+
+**Current security/delivery limits:** SQLite is plain and unencrypted. `app.json` sets Android `allowBackup: false` as a protective M1 default; this is configuration, not verified backup exclusion on a device. iOS OS-backup behavior, encryption, export/restore, and broader local threat-model checks remain unresolved. App icons and `com.noeting.app` development identifiers are placeholders requiring review before distribution.
+
+### Android build preparation — 2026-10-13; artifact not produced
+
+- Expo Continuous Native Generation created the local `android/` project from `app.json` and the locked packages. `android/` and `ios/` stay ignored; preserve local native edits and deliberately regenerate when configuration changes. `npm run android` / `npm run ios` now use Expo native run commands rather than merely opening the development server.
+- Prepared Linux tools outside the checkout: Microsoft OpenJDK **17.0.20.1**, Android command-line tools **23.0**, platform-tools **37.0.1**, Android API **36 revision 2**, build-tools **36.0.0** (plus **35.0.0** installed by Android Gradle Plugin), NDK **27.1.12297006**, and CMake **3.22.1 / 3.30.5**. The build uses Gradle **9.3.1**, two workers, ARM64, and CMake 3.22.1. No emulator or attached-phone runtime is available here.
+- `scripts/setup-java.py` verifies the Microsoft signing-key fingerprint, signed repository metadata, package-index checksum, and pinned package checksum before extraction. `scripts/setup-android-sdk.py` verifies Google SDK archive sizes and checksums and reuses verified tool downloads/installations. Tools default to `/workspace/.jdks` and `/workspace/.android-sdk`; Gradle/Expo state stays in writable workspace caches.
+- `scripts/build-android.mjs` orchestrates those helpers and the generated Gradle release build, pins the official Gradle distribution SHA-256, preserves existing native trees, and refuses stale recorded generation inputs. Java 21 alone did not satisfy the project's Java 17 toolchain; the verified Java 17 JDK corrected that prerequisite.
+- The vendor JDK did not include the cloud proxy CA. Gradle now uses the maintained system trust store at `/etc/ssl/certs/java/cacerts`, with non-secret proxy routing in its writable cache; TLS and artifact verification remain enabled. No credentials are copied into project files or setup instructions.
+- The expected test build embeds its JavaScript/Hermes bundle, targets `arm64-v8a` and Android **7.0+ (API 24)**, and uses the generated development signing key. `scripts/verify-android-apk.py` is intended to check signature, ZIP integrity, embedded bytecode/native libraries, ABI/SDK identity, 16 KB alignment, backup configuration, and blocked permissions after an APK exists. These are expected artifact properties, not verified APK/runtime results.
+- `app.json` additionally blocks unused M1 permissions `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`, `SYSTEM_ALERT_WINDOW`, and `VIBRATE`. Merged APK-manifest enforcement remains unverified. A test APK would not be a store release; signing, branding, identifiers, encryption, and device acceptance remain separate work.
+
+Actual build progress, the current network blocker, and executable build/verification commands are maintained in [06_CURRENT_STATE.md](06_CURRENT_STATE.md). The wrapper and verifier have not completed successfully end to end because no APK has been produced.
+
+**Web validation:** The same UI and repository use Expo SQLite's browser-local WASM storage on web. `scripts/serve-web.mjs` serves the export with cross-origin isolation headers required by that runtime. Use one app tab at a time: Expo SQLite holds exclusive browser file handles. A competing tab shows a startup error; close the owning tab and retry to reload the failed worker without deleting data. Five real-storage browser tests passed. This is a development-validation target, not evidence of native offline reliability or an independently approved web product.
+
+
+## 2. Proposed layered design
+
+```text
+User interface
+  Capture · Today · Library · Review (Create is a linked action)
+         |
+Application domain
+  Entries · Tasks · Projects · Scheduling · Search
+         |
+Later optional AI/agent services (not in V1)
+  Classify · Extract suggestions · Summarize · Prioritize
+  Structured requests · Permissions · Logs · Approval
+         |
+Local persistence          Replaceable AI runtime
+  Entries/tasks/files      Local model (if feasible)
+  Optional search index    Optional explicitly enabled cloud model
+         |
+Future adapters (optional)
+  Import/export · Calendar · Email · Desktop · Encrypted sync
+```
+
+**Boundary:** The AI model proposes interpretations and actions. The application validates data, enforces permissions, schedules reminders, and commits state changes.
+
+## 3. Preliminary data model (candidate, not schema commitment)
+
+The original note proposed a small `Entry` and `Source` model. Task management and agent ambitions motivate *candidate* additions:
+
+```text
+Entry
+  id
+  type                # e.g., thought, observation, question, idea,
+                      # source_note, experiment, reflection, creation
+  original_text
+  created_at
+  updated_at
+  source_id?          # provenance, not the same as category
+  status?             # optional; exact semantics TBD
+  next_review_at?
+
+Source
+  id
+  title
+  type                # book, person, web, work, life, etc.
+  reference?
+
+Task
+  id
+  title
+  description?
+  status
+  priority?           # user-confirmed
+  due_at?             # only if explicitly provided/accepted
+  remind_at?
+  related_entry_id?
+  project_id?
+
+Project
+  id
+  title
+  status
+
+AgentAction               # later or as soon as AI can mutate state
+  id
+  proposed_action
+  scope
+  approval_status
+  execution_status
+  created_at
+```
+
+**Optional cross-loop linking (candidate, not a schema change):** A reflection/experiment/creation may reference its originating Entry, and a later reflection may reference a completed Task or the Task's related Entry. Existing optional relationships are a starting point; only introduce a generic typed link if real workflows show that a single reference is insufficient. Links express provenance, **not** automatic conversion, scheduling, or a required lifecycle. Preserve original text, accepted task state, and independently authored outcomes.
+
+Additional relationships, scheduling records, summary provenance, and versioning may become necessary. Do not prematurely construct a large knowledge graph. Keep original captures separate from generated interpretations and accepted tasks.
+
+## 4. AI responsibilities and boundaries
+
+| Operation | Proposed AI role | Deterministic application responsibility |
+| --- | --- | --- |
+| Categorize note | Suggest type and confidence/rationale if needed | Preserve original, allow correction |
+| Extract task | Draft structured task candidate | Require acceptance; validate fields |
+| Daily brief | Summarize selected, authorized records | Select scope, show source basis, store only if allowed |
+| Prioritization | Suggest limited priorities with reasons | User confirms; no invented due dates |
+| Reminder | Optionally help word a message | OS/app scheduler delivers at set time |
+| Review/create | Find links, contradictions, synthesis on request | Protect original notes and user decisions |
+| External action (later) | Plan a requested action | Check permission, confirm where required, log result |
+
+**Proposal status:** Opt-in background AI and permissioned suggestions remain under evaluation; see [P-001/P-004](05_DECISIONS.md). The table above describes *technical responsibilities*, not user approval of a particular AI configuration.
+
+## 5. Privacy/security requirements to design and test
+
+**Data minimization**
+- Identify the exact data sent to each model, tool, and integration.
+- Treat note contents as private; do not default to uploading an entire vault.
+- Local inference reduces cloud exposure but does not eliminate local security risks.
+
+**Storage and secrets**
+- Establish a threat model before choosing encryption-at-rest measures.
+- Protect integration tokens and encryption keys using appropriate platform facilities.
+- Consider local backups, notification previews, search indexes, temporary files, and error logs; these can leak data too.
+
+**Permissions and auditability**
+- Separate read/search, task mutation, calendar modification, communication, and external execution permissions.
+- Apply least privilege; untrusted source content and model outputs must not become instructions to execute actions.
+- Record consequential agent actions and their approval/execution outcomes.
+- Design a way to inspect and reverse safe changes where feasible.
+
+**Cloud and sync (future)**
+- Cloud AI is an **optional design possibility**, not an accepted provider or privacy guarantee.
+- Decide if cloud processing is allowed, which records can be sent, and what explicit consent looks like.
+- If sync is added, encrypt before remote transmission and determine key recovery/conflict handling separately.
+
+## 6. Reliable reminders are not an LLM capability
+
+A language model may interpret “remind me to…” or draft context. Actual timing and delivery must be implemented with deterministic scheduling and the host platform's notification mechanisms. Delivery guarantees depend on OS permissions/background restrictions and require device testing.
+
+Do not treat a note's vague future language as a scheduled commitment. Store user-accepted times and time zones deliberately.
+
+## 7. Possible later AI deployment modes (unselected; outside V1)
+
+- **No AI:** manual categorization and deterministic summaries for validating the interaction model.
+- **On-device AI:** stronger local data control, but device performance, model quality, battery, and size need tests.
+- **Optional cloud AI:** potentially greater model capability with network/privacy trade-offs and explicit disclosure.
+- **Hybrid:** selective routing under clear policy; additional complexity.
+
+V1 uses no AI. Any later AI experiment can evaluate these modes without making a model adapter or provider selection a prerequisite for M1.
+
+## 8. Platform and delivery sequence
+
+The **original source** sketched this platform order: phone-only → desktop using the same model → manual import/export → optional automatic encrypted sync. Later discussion also proposed **feature maturity** stages: information management → contextual intelligence → assistant integrations → agent actions.
+
+These are **two different axes** (platform rollout vs. intelligence/capability maturity), not a single agreed version numbering scheme. Exact versions and ordering remain open. Portability is a goal from the start even if a full import/export UI comes later.
+
+## 9. Architecture investigations (unresolved)
+
+The authoritative **decision register and status** lives in [05_DECISIONS.md](05_DECISIONS.md), particularly O-001, O-002, O-004, O-005, and O-006. The technical work needed to inform those decisions includes:
+
+- Stack selected (D-011); implement and test migration strategy, platform notification APIs, offline search and local export.
+- Define local threat scenarios, key protection, backup/log leakage, and meaningful export formats.
+- For later AI experiments, determine mode (on-device/cloud/hybrid), data exposure/consent, and optional background processing; these do not block the no-AI V1.
+- For later agent actions, specify least-privilege permissions, approval records, and audit/rollback behavior.
+
+The V1 interaction examples and tests are in [07_V1_WORKFLOW_DRAFT.md](07_V1_WORKFLOW_DRAFT.md). The mobile stack is accepted under D-011; these unresolved design investigations do not prove an implementation or finalize package versions and detailed schema.
