@@ -48,7 +48,7 @@ Use an Expo Go version compatible with SDK 57 or an Android/iOS development buil
 
 Web validation: `npm run web` exports web and starts the header-aware server on `127.0.0.1:8081`. Alternatively, after `npm run export:web`, run `npm run serve:web`. With that server running, run `npm run test:ui` separately. Browser SQLite requires the supplied cross-origin isolation headers.
 
-After the environment network change is applied, the Android build wrapper prepares/reuses verified toolchains and local native outputs, builds the standalone ARM64 test variant, copies its APK to the ignored artifact directory, and runs static verification:
+With the recorded dependency-host access restored, the Android build wrapper prepares/reuses verified toolchains and local native outputs, builds the standalone ARM64 test variant, copies its APK to the ignored artifact directory, and runs static verification:
 
 ```sh
 npm run build:android:test
@@ -60,7 +60,7 @@ Only after a successful build produces the artifact, rerun its independent stati
 npm run verify:android:apk
 ```
 
-Native compilation is currently blocked from end-to-end validation by the dependency host; the verifier cannot validate an absent APK. After verified production, follow the installation/device checklist in `07_V1_WORKFLOW_DRAFT.md`. An ARM64 Android 7.0+ device is the expected target; architecture/SDK compatibility and actual native behavior remain untested.
+The earlier dependency-host restriction was resolved, but full native compilation has not yet been rerun to completion. No APK exists, so the verifier cannot run against an artifact. After a successful build and static verification, follow the installation/device checklist in `07_V1_WORKFLOW_DRAFT.md`. An ARM64 Android 7.0+ device is the expected target; architecture/SDK compatibility and actual native behavior remain untested.
 
 ## 2. Exact next action — only maintained here
 

@@ -158,5 +158,6 @@
 | O-005 | How are reminders, importance, urgency, and user-confirmed priorities represented? | Open |
 | O-006 | What is the local security threat model and encryption approach? | Open |
 | O-007 | When, if ever, does Noeting need external integrations, desktop, or sync? | Open |
+| O-008 | How should a user-accepted Task derived from an existing Note preserve provenance without rewriting the Note, given the M1 trigger requires a Task-kind Entry? Decide relationship, migration, retry, and deletion rules before implementing that flow. | Open — design alternatives only; no schema change approved |
 
 **Recording future decisions:** Use a new `D-###` entry with date, status, choice, alternatives considered, rationale, and consequences. If a decision changes, mark the older entry `Superseded` rather than silently rewriting history.
