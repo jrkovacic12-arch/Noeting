@@ -117,9 +117,19 @@ These examples assume that a dismissed suggestion leaves no accepted task, confi
 
 The open-decision register is [05_DECISIONS.md](05_DECISIONS.md); the **sole current next action** is in [06_CURRENT_STATE.md](06_CURRENT_STATE.md). This draft records hypothetical behavior, an interactive prototype, and limited automated checks. High-level V1 scope is accepted under D-010; this draft is not a fully approved detailed specification or real-life usability validation. Use the M1 contracts and gate in `02_PRODUCT.md`, `03_ARCHITECTURE.md`, and `04_ROADMAP.md` for the native first slice.
 
+## Proposed M2 workflow checks — not implemented or executed
+
+These are candidate acceptance scenarios for the accepted V1 direction, **not** evidence of native behavior or an expansion of the M1 device gate. The exact Note-to-Task relationship is open under O-008 in `05_DECISIONS.md`.
+
+- [ ] **Library retrieval:** Save a Note containing multiline text and deliberate whitespace; close/restart the app offline and find its exact original content through Library search/filter. Confirm a Note alone creates no Task.
+- [ ] **Deliberate Note-to-Task transition (subject to O-008):** Start **New task** from an existing Note, dismiss, and verify no commitment was made. Repeat with explicit acceptance and verify exactly one Task is created, with the original Note unchanged and an inspectable provenance link; retries and restarts do not create duplicates.
+- [ ] **Reflect/Create linking:** From a saved Note, independently author a Reflection or Creation. Verify the new entry is separately editable, remains linked after restart, and never overwrites original source text. Verify no mandatory reflection follows task completion.
+- [ ] **Edit/delete/recovery boundaries (design pending):** Decide behavior for linked entries and tasks before implementing destructive operations; verify rejected edits, deletion attempts, or interrupted migrations do not silently corrupt surviving source material. Export/restore testing remains a planned M3 gate unless separately reprioritized.
+- [ ] **Deterministic Today:** Optional Today note and overview are finite, derive only from existing entries and accepted tasks, and invent no deadlines or new commitments.
+
 ## M1 native-device smoke checklist — pending, 2026-10-13
 
-Record device model, Android version, ABI, APK/build identity, connection state, and each result in `06_CURRENT_STATE.md`. The user confirmed Android as the initial target; no device run is claimed. The expected standalone test APK is ARM64 (`arm64-v8a`) for Android **7.0+ / API 24**, with its bundle embedded; its artifact, architecture/SDK support, and runtime are **not yet validated**. The current dependency-network blocker and build/verification commands are maintained only in `06_CURRENT_STATE.md`.
+Record device model, Android version, ABI, APK/build identity, connection state, and each result in `06_CURRENT_STATE.md`. The user confirmed Android as the initial target; no device run is claimed. The expected standalone test APK is ARM64 (`arm64-v8a`) for Android **7.0+ / API 24**, with its bundle embedded; its artifact, architecture/SDK support, and runtime are **not yet validated**. The current Android build status and build/verification commands are maintained only in `06_CURRENT_STATE.md`.
 
 - [ ] Confirm the build completed and the static APK verifier passed before transfer. The expected ignored artifact path is `artifacts/noeting-m1-android-arm64-test.apk`; no APK exists yet. Record its SHA-256 and signer-certificate digest from verification, then confirm the phone is ARM64 and Android 7.0 or newer.
 - [ ] Install the verified test APK on the chosen phone and record install/launch results. With a USB-connected authorized device, use `adb install -r artifacts/noeting-m1-android-arm64-test.apk`; otherwise transfer the verified file and use the phone's package installer. Do not uninstall existing app data to resolve a signing mismatch: preserve it and investigate. This expected APK uses a development key and placeholder identity/branding, not store-release signing.

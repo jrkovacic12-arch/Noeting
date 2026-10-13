@@ -52,6 +52,18 @@ Actual build progress, the current network blocker, and executable build/verific
 **Web validation:** The same UI and repository use Expo SQLite's browser-local WASM storage on web. `scripts/serve-web.mjs` serves the export with cross-origin isolation headers required by that runtime. Use one app tab at a time: Expo SQLite holds exclusive browser file handles. A competing tab shows a startup error; close the owning tab and retry to reload the failed worker without deleting data. Five real-storage browser tests passed. This is a development-validation target, not evidence of native offline reliability or an independently approved web product.
 
 
+### M2 Note-to-Task linkage and data-recovery questions (open; not implemented)
+
+The M1 `tasks_require_task_entry` SQLite trigger permits a Task only when its linked Entry has `kind = 'task'`. Consequently, the proposed action of creating an accepted Task **from an existing Note** cannot simply point `tasks.entry_id` at that Note. It would fail at the database boundary. This is a concrete difference between the M1 schema and the candidate M2 workflow, not a known runtime defect in M1.
+
+**Alternatives for O-008 (neither selected):** (a) create a separate Task-origin Entry while recording an explicit link to the unchanged Note; or (b) revise the relationship and trigger rules to allow an accepted derived Task with auditable provenance. The chosen design must keep source text intact, require explicit acceptance, avoid duplicate accepted tasks on retries, and specify link/deletion behavior. Do not change the existing trigger without a versioned migration and tests.
+
+**Proposed M2/M3 data checkpoints, not accepted implementation commitments:**
+- Test migration from existing schema v1 with real saved notes/tasks, including rollback, foreign-key integrity, and refusal of newer schemas.
+- Define whether edits are represented as revisions or separate derived content; distinguish editing a Task title from modifying its original captured Entry.
+- Define deletion behavior for linked material before enabling irreversible delete. M3 currently owns readable export/backup and restore; whether a recovery facility must ship before deletion is a sequencing decision to make explicitly.
+- Specify export content, integrity and restore tests, plus the local threat model. Plain SQLite is not encryption at rest, and Android `allowBackup: false` is not a substitute for a user-controlled backup.
+
 ## 2. Proposed layered design
 
 ```text
@@ -186,7 +198,7 @@ These are **two different axes** (platform rollout vs. intelligence/capability m
 
 ## 9. Architecture investigations (unresolved)
 
-The authoritative **decision register and status** lives in [05_DECISIONS.md](05_DECISIONS.md), particularly O-001, O-002, O-004, O-005, and O-006. The technical work needed to inform those decisions includes:
+The authoritative **decision register and status** lives in [05_DECISIONS.md](05_DECISIONS.md), particularly O-001, O-002, O-004, O-005, O-006, and O-008. The technical work needed to inform those decisions includes:
 
 - Stack selected (D-011); implement and test migration strategy, platform notification APIs, offline search and local export.
 - Define local threat scenarios, key protection, backup/log leakage, and meaningful export formats.

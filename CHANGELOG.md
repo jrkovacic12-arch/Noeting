@@ -102,3 +102,11 @@ No changes were needed to `02_PRODUCT.md`, `03_ARCHITECTURE.md`, or `04_ROADMAP.
 - Eight real-SQLite checks passed again; the prior five browser passes remain prior evidence rather than a rerun. **No APK was produced, no Android runtime or phone test was run, and the native M1 gate remains open.** The original archive is unchanged.
 
 - Exercised the complete native-prerequisite install script successfully and passed `npm run prepare:android`; saved the updated install/start instructions alongside the specific `repo.reactnative.dev` network addition. Full APK compilation/static validation and physical-device acceptance remain pending.
+
+## 2026-10-13 — Public README and documentation-only M2 clarification
+
+- Added a public-facing `README.md` describing the vision, implemented M1 boundary, local verification commands, known privacy/recovery limits, and links to authoritative project documents.
+- Corrected stale Android dependency-blocker wording in `06_CURRENT_STATE.md` and the M1 checklist reference. **The sole exact next action is unchanged:** attempt the Android test build, verify the artifact, then run device checks; no compilation, APK, or device success is claimed.
+- Documented the M1 schema's Task-kind-entry constraint versus proposed Note-derived Tasks in `03_ARCHITECTURE.md`; opened O-008 in `05_DECISIONS.md` without choosing a schema or promoting research into an accepted decision.
+- Clarified M1's count-only Notes UI and candidate M2 source-preserving workflows in `02_PRODUCT.md`; proposed a sequenced M2 plan and unexecuted scenarios in `04_ROADMAP.md` and `07_V1_WORKFLOW_DRAFT.md`.
+- No code, schema, tests, configuration, milestone-completion claims, founding philosophy, or accepted V1 scope changed. All M2 checks remain proposed and unrun.

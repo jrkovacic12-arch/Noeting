@@ -78,6 +78,10 @@ The original concept proposed **Capture / Today / Library / Review / Create**. T
 - **Daily overview:** compact deterministic summary drawn from existing records; no fabricated tasks or deadlines.
 - **Data reliability and ownership:** on-device SQLite, working offline without an account, durable restart behavior, readable export/backup.
 
+**Current M1 limitation:** Saved Notes persist in SQLite but the native UI shows only a note count; Library retrieval, search, and Note-derived task creation are not implemented.
+
+**M2 behavior clarification (proposed detail within accepted V1 direction, not a newly approved schema):** A previously saved Note remains an unchanged, non-committal source. If the user deliberately chooses **New task** from that Note, the accepted Task must be distinguishable from the Note, retain provenance to the original, and be editable without rewriting the captured words. Dismissal or navigation away creates no commitment. A new reflection or creation is separately authored and linked rather than replacing the source. The exact Note-to-Task relationship is an open design decision (O-008 in `05_DECISIONS.md`), not supported by the M1 schema as written.
+
 **Stage boundary:** M1 only implements persistent Capture → Today plus a minimal task list; later stages implement remaining V1 features. AI, cloud sync, integrations, autonomous agent actions, and advanced organization are outside V1. Detailed delete semantics, task lifecycle/deferment, date/time zone handling, encryption approach, and cross-loop handoffs are not yet signed off.
 
 ### Implemented M1 behavior contract — 2026-10-13; device evaluation pending
@@ -153,4 +157,4 @@ For prototype checks and the pending native-device checklist, see [07_V1_WORKFLO
 - Does the simple linked-creation path support original thinking without requiring a separate V1 Create screen?
 - Are voluntary thinking-to-action and action-to-reflection handoffs understandable and useful in real life, or do they add cognitive overhead?
 
-The **canonical register of open product and technical decisions** is [05_DECISIONS.md](05_DECISIONS.md) (O-001–O-007). See [03_ARCHITECTURE.md](03_ARCHITECTURE.md) for unresolved technical investigations and [06_CURRENT_STATE.md](06_CURRENT_STATE.md) for the exact next action.
+The **canonical register of open product and technical decisions** is [05_DECISIONS.md](05_DECISIONS.md) (O-001–O-008). See [03_ARCHITECTURE.md](03_ARCHITECTURE.md) for unresolved technical investigations and [06_CURRENT_STATE.md](06_CURRENT_STATE.md) for the exact next action.

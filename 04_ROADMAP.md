@@ -51,7 +51,14 @@ A concise V1 specification exists with at least one complete flow from capture t
 
 **M1 validation plan (physical-device gate pending):** Follow the implemented behavior/persistence contracts in [02_PRODUCT.md](02_PRODUCT.md) and [03_ARCHITECTURE.md](03_ARCHITECTURE.md). Check exact multiline/whitespace text; Note creates no Task; direct Task creates exactly one linked Pending Task; injected write failure rolls back and keeps the input; rapid/repeated Save and retry do not duplicate records; completion and up to three pending pins persist across restart and pin limits survive concurrent attempts. Automated real-SQLite checks passed; run the actual Expo native runtime plus full termination/relaunch in airplane mode on the first physical Android device (user-confirmed target). Record automated and physical-device evidence separately in `06_CURRENT_STATE.md`; host SQLite and browser checks cannot pass the native gate.
 
-**M2 — Remaining core workflows (V1 target, not M1):** Library search/filter/edit/delete, optional Today note, deliberate Reflect/Create linked entries, Review, and deterministic daily overview.
+**M2 — Remaining core workflows (V1 target, not M1):** Library search/filter/edit/delete, optional Today note, deliberate Reflect/Create linked entries, Review, and deterministic daily overview. No M2 features are claimed implemented.
+
+**Recommended M2 implementation sequence (proposal, not a change to D-010 or a new milestone approval):**
+1. **Read before extending:** surface saved Notes in Library, then search/filter offline. Proposed check: a captured multiline Note can be found verbatim after a full app restart; no note is silently converted into a Task.
+2. **Link before deriving:** decide O-008 and migration/deletion semantics, then implement separately authored Reflect/Create entries and Review. Consider deliberate Note-to-Task conversion only after an accepted linkage model exists; S6–S7 remain research scenarios, not automatic extra V1 requirements. Proposed check: source text and links survive restart; dismissing a task proposal creates no task.
+3. **Complete accepted M2 surfaces:** optional Today note, deterministic daily overview, and deliberate edit/delete behaviors. Proposed check: summaries use existing records only; edits and deletions follow reviewed provenance/recovery rules and do not silently destroy linked source content.
+
+These are suggested ordering and test conditions, **not passed tests or finalized acceptance criteria**. M1's physical-device gate remains separate and must be completed first. M3 retains OS reminders, readable export/restore, migrations, and security checks; determine the recovery prerequisite for destructive deletion before shipping that behavior.
 
 **M3 — V1 operational reliability:** user-set due/reminder scheduling with permission/error states and device notification tests; readable export/backup and restore validation, database migrations, and privacy/security checks. Final V1 acceptance remains open until tested.
 
