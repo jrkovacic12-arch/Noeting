@@ -1,0 +1,42 @@
+{
+  "name": "noeting",
+  "description": "Offline Note and Task capture with a deliberate Today view",
+  "license": "0BSD",
+  "version": "0.1.0",
+  "main": "index.ts",
+  "dependencies": {
+    "expo": "~57.0.28",
+    "expo-crypto": "~57.0.4",
+    "expo-sqlite": "~57.0.4",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-web": "~0.21.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0",
+    "@types/node": "^24.19.2",
+    "@types/react": "~19.2.2",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "npm run export:web && npm run serve:web",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/repository.test.ts",
+    "test:ui": "playwright test",
+    "export": "expo export --platform all --max-workers 2",
+    "check": "npm run typecheck && npm test",
+    "export:web": "expo export --platform web --max-workers 2",
+    "serve:web": "node scripts/serve-web.mjs",
+    "build:android:test": "node scripts/build-android.mjs",
+    "verify:android:apk": "python3 scripts/verify-android-apk.py",
+    "prepare:android": "node scripts/build-android.mjs --prepare-only"
+  },
+  "private": true
+}
