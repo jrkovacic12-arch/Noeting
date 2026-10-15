@@ -2,7 +2,7 @@
 
 > **Updated:** 2026-10-15 (0.4.0 Settings and PR finalization)
 >
-> **Phase:** Capture/Today/Library/Review/Settings implemented, including local appearance preference and a complete dark palette. Accumulated changes are finalized on `codex/settings-themes-finalize`; main is unchanged. Physical acceptance remains pending.
+> **Phase:** Capture/Today/Library/Review/Settings implemented, including local appearance preference and a complete dark palette. Accumulated changes are finalized in [PR #3](https://github.com/jrkovacic12-arch/Noeting/pull/3) from `codex/settings-themes-finalize` to main; the PR is open and unmerged. Main is unchanged. Physical acceptance remains pending.
 >
 > **Current verification:** Clean npm install, TypeScript, 18 real-SQLite checks, 16 browser workflows, Android/iOS/web exports and five APK-verifier regression tests passed. Two appearance workflows passed again on final colors/logo. ARM64 compilation and static APK verification passed (0.4.0/code 10, unchanged signer); new native runtime/phone performance and physical appearance acceptance are not claimed. Earlier native results below remain historical.
 
