@@ -45,3 +45,8 @@ yarn-error.*
 artifacts/
 test-results/
 playwright-report/
+work/
+
+# Python validation caches
+__pycache__/
+*.pyc

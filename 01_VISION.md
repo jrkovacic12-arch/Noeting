@@ -28,13 +28,13 @@ The long-term ambition is a personal AI agent. This is a direction, **not** a cl
 
 ### Thinking loop
 
-**Notice → Capture → Reflect → Connect → Experiment/Create → Revisit → Stop**
+**Notice → Capture → Reflect → Connect → Experiment/Create → Revisit **
 
 Preserve thought that arises from life, conversations, mistakes, observations, work, books, papers, films, the web, and spontaneous associations. Make reflection and original output more important than accumulating content.
 
 ### Action loop
 
-**Capture → Clarify → Prioritize → Act → Review → Stop**
+**Capture → Clarify → Prioritize → Act → Review **
 
 Separate actionable commitments from interesting ideas. Surface a manageable set of priorities, clarify what can wait, and support follow-through without manufacturing new obligations.
 
@@ -48,7 +48,7 @@ Separate actionable commitments from interesting ideas. Surface a manageable set
 2. **Capture with minimal interruption.** Saving should be fast; a quick capture should not automatically open a chat, feed, or recommendation stream.
 3. **Creation over accumulation.** Information becomes more useful through interpretation, experiments, and original work.
 4. **Clarity over activity.** Task management should reduce the number of competing priorities, not just create a longer list.
-5. **Finite experiences.** Today/review experiences should have a natural stopping point: **Enough for today.**
+5. **User-directed sessions.** Today/review remain finite views of saved records. No deliberate-stop control, completion screen, or closing prompt is required; users close the app themselves. This supersedes the earlier explicit-stop design following phone feedback on 2026-10-13 (D-012).
 6. **Privacy, autonomy, portability.** User data is primarily local; external services and agent access should be optional, bounded, understandable, and reversible.
 7. **AI is instrumental, not authoritative.** AI may assist with organizing, synthesis, planning, or critique; it must not silently decide personal commitments or alter source notes.
 8. **Real life is the primary environment.** The app should help users return to reading, working, living, and creating.
@@ -80,7 +80,7 @@ Progress should be judged by whether Noeting helps someone:
 - Recognize their actual commitments and select a realistic next action.
 - Reflect on how their thinking changes over time.
 - Produce or test something original.
-- Finish the interaction and leave the app.
+- Choose when to leave the app without a required closing flow.
 
 Do **not** optimize primarily for daily active use, session length, number of notes, AI messages, or time in app. The question remains: **What behavior does this repeatedly train?**
 

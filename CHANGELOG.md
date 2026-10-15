@@ -1,5 +1,34 @@
 # Noeting — Documentation Change Log (started 2026-10-11)
 
+## Phone testing and merge approval — 2026-10-15
+
+- User reports testing the PR-version APK on their phone and explicitly requests merging PR #3. Record this as user-reported acceptance for merge; model/OS and per-feature outcomes were not supplied. Proposed next slices remain subject to user choice; see `06_CURRENT_STATE.md`.
+
+## 0.4.0 — 2026-10-15
+
+- Add Settings with local Light/Dark/Same as system selection and a semantic dark palette across the app. D-016 records the accepted scope.
+- Add Expo system appearance support, SQLite-backed preferences, live device theme updates and failed-save rollback.
+- Correct two dependency lockfile version labels to match their existing resolved tarballs, and ignore Python validation caches.
+- Finalize the accumulated app/branding/navigation work for a PR; current validation and review state are maintained in `06_CURRENT_STATE.md`.
+
+## 0.3.3 — 2026-10-14
+
+- Reduce potential Review-to-Library Back lag by retaining the ScrollView and visited screen bodies rather than recreating Library cards on return. Phone performance confirmation is pending.
+- Make the toolbox dim backdrop immediate and stationary; animate only the sheet upward.
+- Verification and APK delivery evidence are maintained in `06_CURRENT_STATE.md`.
+
+## 0.3.2 — 2026-10-14
+
+- Replace Add task text with a borderless plus icon and an accessible 44-point target.
+- Record the user-approved lesson on bounded simulator troubleshooting and focused verification in `00_START_HERE.md`.
+- TypeScript, focused task-capture browser workflow and ARM64 APK checks passed. No new native runtime pass claimed. Updated APK published and fetched checksum verified; current link is maintained in `06_CURRENT_STATE.md`.
+
+## 0.3.1 — 2026-10-14
+
+- Implement D-015: three-row bottom tools, backdrop dismissal/session drafts, Save labels, 300 ms long press, previous-screen Back with layout-aware scroll restoration, Today-only double-back exit and a centered swipeable Undo control.
+- TypeScript, 18 SQLite checks and 14 browser workflows passed; both signed ABI APK verifiers passed. Android upgrade/Back/forms/sheet/clipboard behavior verified across partial runs on the same final APK. Full native edit/Undo/relaunch suite blocked by accessibility automation; physical acceptance remains pending.
+- Phone APK published on a separate download branch under existing approval, with main unchanged and fetched checksum verified. Current link/evidence are maintained in `06_CURRENT_STATE.md`.
+
 ## Scope and evidence
 
 Reconciled eight supplied Markdown files. This was **editorial maintenance only**: no prototype was built, no usability tests were run, and no proposals were upgraded to accepted V1 requirements. At the initial cleanup, the referenced authentic original was unavailable and was **not** recreated. It was subsequently provided and has now been added unchanged (see update below).
@@ -110,3 +139,76 @@ No changes were needed to `02_PRODUCT.md`, `03_ARCHITECTURE.md`, or `04_ROADMAP.
 - Documented the M1 schema's Task-kind-entry constraint versus proposed Note-derived Tasks in `03_ARCHITECTURE.md`; opened O-008 in `05_DECISIONS.md` without choosing a schema or promoting research into an accepted decision.
 - Clarified M1's count-only Notes UI and candidate M2 source-preserving workflows in `02_PRODUCT.md`; proposed a sequenced M2 plan and unexecuted scenarios in `04_ROADMAP.md` and `07_V1_WORKFLOW_DRAFT.md`.
 - No code, schema, tests, configuration, milestone-completion claims, founding philosophy, or accepted V1 scope changed. All M2 checks remain proposed and unrun.
+
+
+## 2026-10-13 — Standalone Android APK and static verification
+
+- Completed the M1 ARM64 Android build and static APK verification end to end. Artifact identity, checks, and the no-attached-device result are recorded in `06_CURRENT_STATE.md`; the next action is physical-device acceptance before M2.
+- Fixed sandbox-safe GPG public-key verification without relaxing signature/checksum validation. Corrected the verifier's Hermes library name and current `aapt2` SDK/namespace parsing; five regression tests passed. TypeScript and all eight SQLite tests passed again.
+- Updated architecture, README, roadmap, and the static portion of the device checklist. Native launch, offline force-stop/relaunch, phone reboot, and the physical M1 exit gate remain unrun. No feature/schema or founding-source changes.
+
+
+## 2026-10-13 — Read-only Library and native simulated-phone validation
+
+- Added Library retrieval/search/type filters, original words, task status and deliberate stopping without changing schema v1. TypeScript, eight SQLite tests, seven real-storage browser tests and five verifier regression tests passed.
+- Followed the user's simulated-phone testing instruction: added x86_64 build support and an isolated AOSP native smoke harness. Android 9 native capture/pins/completion, offline relaunch, Library, SQLite integrity/exact text and full reboot persistence passed in a staged run; the Android 15 system startup failed before app launch.
+- Recorded artifact/device evidence and remaining physical/native-failure-path limits in `06_CURRENT_STATE.md`; updated product, architecture, roadmap and workflow evidence. Physical acceptance remains open; the original source and schema are unchanged.
+
+
+## 2026-10-13 — Updated ARM64 APK for phone testing
+
+- Rebuilt the current Library-enabled source as the ARM64 phone APK at the user's request; native compilation and all static checks passed. Artifact identity and delivery status are maintained in `06_CURRENT_STATE.md`.
+- Physical-phone acceptance remains pending. Public upload has not occurred; the public repository's download route awaits the user's approval because direct chat attachment is unavailable on this host.
+
+- After explicit user approval, uploaded the phone-test APK on a separate public GitHub download branch and verified its downloaded bytes against the local SHA-256. The main branch is unchanged; link and artifact identity are maintained in `06_CURRENT_STATE.md`.
+
+
+## 2026-10-13 — Version 0.2.0 approved phone UX and thinking workflows
+
+- Recorded D-012/D-013: remove all stop functionality, use right-edge pin icons, add prototype-based Today note/Reflect/Create/Review and a visible summary card, remove Library's combined reset control. Updated current vision/design while preserving the founding archive.
+- Implemented additive schema v2, stable atomic linked-entry saves and persistent Today selection. Eleven SQLite tests, nine real-storage browser tests, five verifier tests and 54 HTML simulated checks passed.
+- Both 0.2.0 native ABI builds/static checks passed with version code 2 and preserved signer. Twenty-five Android 9 emulator assertions passed for non-destructive upgrade, all new workflows, source preservation and offline full reboot; physical-phone acceptance remains pending. Exact evidence/artifact identity lives in `06_CURRENT_STATE.md`.
+
+- Published only the 0.2.0 ARM64 test APK through the previously approved public download branch and verified the fetched bytes against its SHA-256; main remains unchanged.
+
+## 2026-10-13 — Version 0.2.1 phone styling refinement
+
+- Replaced the stacked pin glyph with crisp transparent density assets from the prototype silhouette; removed its button border/backplate. Filled green and muted outline states retain accessible labels and a 44-point touch target. No runtime dependency added.
+- Aligned completion boxes to the first task text line for single-line and wrapped titles. Today note now uses platform serif typography, curly quotation marks, a warm outlined card, compact Reflect/Create and text-only Change. Original saved text and schema v2 are unchanged.
+- TypeScript, nine real-storage browser workflow tests and 54 prototype checks passed. Three phone widths (360/390/430) passed measured alignment, borderless target and overflow checks; screenshot reviewed. Android runtime evidence from 0.2.0 remains historical; this cosmetic update requires phone visual acceptance. Artifact validation/download identity is maintained in `06_CURRENT_STATE.md`.
+
+- ARM64 0.2.1/code 3 compilation and static checks passed with the unchanged signer; x86_64 runtime evidence/artifact remains 0.2.0.
+
+- Published the verified 0.2.1 APK on a separate approved public download branch; fetched download SHA-256 matches. Main remains unchanged.
+
+## 2026-10-14 — Version 0.2.2 clean launcher and startup
+
+- Preserved the existing clean blue foreground logo, removed the adaptive icon's template grid background, and selected the clean foreground for fallback icon/favicon. No image redesign or new runtime dependency.
+- Added a persistent Expo config plugin selecting a plain paper launch background, suppressing the Android 12+ animated startup icon and removing template grid drawables/references. It survives native regeneration; the existing development signer is retained.
+- Generated native resource checks passed: clean icon preview reviewed, no grid drawable/reference, expected launch-theme values and exact signer file match. App/data source is unchanged; no browser/repository or native runtime tests were rerun for this configuration-only update. Build/download evidence is maintained in `06_CURRENT_STATE.md`.
+
+- ARM64 0.2.2/code 4 build and static verifier passed with the existing signer. Compiled startup-theme, flat-background and absent-grid resource checks passed; device cold-launch visual acceptance is pending.
+
+- Published the verified 0.2.2 phone APK on a separate approved public download branch and checked the fetched SHA-256; main remains unchanged.
+
+## 2026-10-14 — Version 0.2.3 supplied Noeting branding
+
+- Added all four supplied SVG/EPS files byte-for-byte in `assets/brand/source/`. EPS files are stored as originals, not executed; raster assets are derived from the symbol SVG.
+- Replaced the starter blue icon with the supplied symbol on the paper background, including adaptive foreground/monochrome, fallback icon and favicon. Added the same symbol beside the app name in header/loading states. Preserved source colors/proportions and the plain startup theme.
+- Reproducible asset authoring: `scripts/render-brand-assets.py`; Inkscape/Pillow are authoring tools only. Four original-byte comparisons, adaptive safe-circle inclusion, monochrome silhouette and TypeScript passed. Data/schema and task/thinking workflows are unchanged. Latest build/preview/download evidence lives in `06_CURRENT_STATE.md`.
+
+- Web export passed; header symbol and Capture fit at 320/360/430 pixels with no page overflow. Capture opens correctly and the screenshot was reviewed. No broad workflow tests were repeated for this branding change.
+
+- ARM64 0.2.3/code 5 compilation and APK verification passed with the preserved signer. Exact artifact identity is recorded in `06_CURRENT_STATE.md`; physical symbol appearance remains to be checked.
+
+- Published only the 0.2.3 APK on a separate approved public download branch; verified fetched SHA-256 against the local build. Main remains unchanged.
+
+## 2026-10-14 — Version 0.3.0 approved management and navigation
+
+- Recorded D-014 and implemented schema v3 preserving first captures, old Task state/timestamps, links and prior selection. Atomic direct-Note selection, consistent task edits, retained removal, pin/selection release and versioned Undo.
+- Added X form closers, Review/Library edit/removal icons, Today Task/note Copy/Edit/Remove tools via long-press and accessible activation. Centered branding and bottom icon navigation with centered + follow scrolling direction with top/short-page/tab-reset behavior. Added supported Expo Clipboard writes.
+- TypeScript, eighteen SQLite tests and twelve real-storage browser tests passed, including frozen schema-v2 upgrade, migration rollback, edit/remove failures, retry/stale Undo, source preservation, clipboard/gestures, restart and scrolling. The first browser run used an obsolete manual-selection/ARIA-false expectation; corrected tests reflect approved behavior and DOM omission of false attributes. Exact build/native/download evidence is maintained in `06_CURRENT_STATE.md`.
+
+- Both ABI builds/static verifiers and 23 Android 9 native assertions passed: preserved v2→v3 upgrade, clipboard, edit/remove/Undo, source/legacy data and offline relaunch. Native harness uses settled field-value waits and measured transient Undo touches; details/artifacts live in `06_CURRENT_STATE.md`.
+
+- Published only the verified 0.3.0 phone APK on a separate approved public download branch; fetched SHA-256 matches the local ARM64 artifact. Main remains unchanged.

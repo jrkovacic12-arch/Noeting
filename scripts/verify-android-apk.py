@@ -58,6 +58,7 @@ def application_attributes(xmltree):
         attribute = re.match(r"^\s*A:\s+([^\s=(]+)(?:\([^)]*\))?=(.*)$", line)
         if attribute and stack and stack[-1][1] == "application":
             name, value = attribute.group(1), attribute.group(2).strip()
+            name = name.replace("http://schemas.android.com/apk/res/android:", "android:", 1)
             require(name not in attributes, f"Duplicate application attribute: {name}")
             attributes[name] = value
     require(application_count == 1, "APK manifest must have exactly one application")
@@ -90,7 +91,8 @@ def verify(args, result):
     result["sha256"] = digest.hexdigest()
 
     expected_abis = set(args.abi or ["arm64-v8a"])
-    required_libraries = {"libexpo-sqlite.so", "libhermes.so", "libreactnative.so"}
+    # React Native 0.86's HermesExecutor explicitly loads "hermesvm".
+    required_libraries = {"libexpo-sqlite.so", "libhermesvm.so", "libreactnative.so"}
     with zipfile.ZipFile(apk) as archive:
         corrupt = archive.testzip()
         require(corrupt is None, f"APK ZIP integrity failed for {corrupt}")
@@ -132,7 +134,12 @@ def verify(args, result):
     aapt2 = build_tools / "aapt2"
     badging = run_tool(aapt2, ["dump", "badging", str(apk)], "aapt2Badging", result)
     package = badging_value(badging, r"^package: name='([^']+)'", "package name")
-    minimum_sdk = int(badging_value(badging, r"^sdkVersion:'([^']+)'", "minimum SDK"))
+    version_name = badging_value(badging, r"^package:.*versionName='([^']+)'", "version name")
+    version_code = int(badging_value(badging, r"^package:.*versionCode='([^']+)'", "version code"))
+    config = json.loads((Path(__file__).resolve().parent.parent / "app.json").read_text())["expo"]
+    require(version_name == config["version"], f"Expected version {config['version']}, found {version_name}")
+    require(version_code == config["android"].get("versionCode", 1), f"Unexpected version code: {version_code}")
+    minimum_sdk = int(badging_value(badging, r"^(?:minSdkVersion|sdkVersion):'([^']+)'", "minimum SDK"))
     target_sdk = int(badging_value(badging, r"^targetSdkVersion:'([^']+)'", "target SDK"))
     launcher = badging_value(badging, r"^launchable-activity: name='([^']+)'", "launcher activity")
     require(package == "com.noeting.app", f"Unexpected package: {package}")
@@ -146,7 +153,7 @@ def verify(args, result):
     attributes = application_attributes(xmltree)
     allow_backup = boolean_attribute(attributes, "android:allowBackup")
     require(allow_backup is False, "Merged manifest must explicitly set android:allowBackup=false")
-    result["manifest"] = {"package": package, "minSdk": minimum_sdk, "targetSdk": target_sdk, "launcher": launcher, "allowBackup": allow_backup, "debuggable": boolean_attribute(attributes, "android:debuggable", False)}
+    result["manifest"] = {"package": package, "versionName": version_name, "versionCode": version_code, "minSdk": minimum_sdk, "targetSdk": target_sdk, "launcher": launcher, "allowBackup": allow_backup, "debuggable": boolean_attribute(attributes, "android:debuggable", False)}
     permissions = run_tool(aapt2, ["dump", "permissions", str(apk)], "aapt2Permissions", result)
     result["permissions"] = sorted(set(re.findall(r"^uses-permission(?:-sdk-\d+)?: name='([^']+)'", permissions, re.MULTILINE)))
     blocked = {"android.permission.READ_EXTERNAL_STORAGE", "android.permission.WRITE_EXTERNAL_STORAGE", "android.permission.SYSTEM_ALERT_WINDOW", "android.permission.VIBRATE"}

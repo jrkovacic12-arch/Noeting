@@ -6,7 +6,12 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const options = process.argv.slice(2);
-if (options.some(option => option !== '--prepare-only')) throw new Error('Supported option: --prepare-only');
+if (options.some(option => !['--prepare-only', '--abi=arm64-v8a', '--abi=x86_64'].includes(option))) {
+  throw new Error('Supported options: --prepare-only, --abi=arm64-v8a, --abi=x86_64');
+}
+const abiOptions = options.filter(option => option.startsWith('--abi='));
+if (abiOptions.length > 1) throw new Error('Choose only one Android ABI.');
+const abi = abiOptions[0]?.slice('--abi='.length) ?? 'arm64-v8a';
 const sdk = resolve(process.env.ANDROID_HOME ?? process.env.ANDROID_SDK_ROOT ?? resolve(root, '../.android-sdk'));
 const gradleHome = resolve(process.env.GRADLE_USER_HOME ?? resolve(root, '../.cache/gradle'));
 const jdkRoot = resolve(root, '../.jdks');
@@ -94,13 +99,13 @@ if (options.includes('--prepare-only')) {
 }
 
 await run(join(root, 'android/gradlew'), [
-  ':app:assembleRelease', '-PreactNativeArchitectures=arm64-v8a', '-Pandroid.cmakeVersion=3.22.1',
+  ':app:assembleRelease', `-PreactNativeArchitectures=${abi}`, '-Pandroid.cmakeVersion=3.22.1',
   '--no-daemon', '--max-workers=2', '-Dorg.gradle.parallel=false',
   '-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g',
 ], join(root, 'android'));
 await mkdir(join(root, 'artifacts'), { recursive: true });
-const artifact = join(root, 'artifacts/noeting-m1-android-arm64-test.apk');
+const artifact = join(root, `artifacts/noeting-m1-android-${abi === 'arm64-v8a' ? 'arm64' : abi}-test.apk`);
 await copyFile(join(root, 'android/app/build/outputs/apk/release/app-release.apk'), artifact);
-await run('python3', [join(root, 'scripts/verify-android-apk.py'), artifact, '--build-tools', join(sdk, 'build-tools/36.0.0')]);
-console.log(`Standalone ARM64 test APK: ${artifact}`);
-console.log('This APK uses the generated development signing key. Validate it on Android before M2; it is not a store release.');
+await run('python3', [join(root, 'scripts/verify-android-apk.py'), artifact, '--abi', abi, '--build-tools', join(sdk, 'build-tools/36.0.0')]);
+console.log(`Standalone ${abi} test APK: ${artifact}`);
+console.log('This APK uses the generated development signing key. Validate it on a physical Android device before release; it is not a store release.');

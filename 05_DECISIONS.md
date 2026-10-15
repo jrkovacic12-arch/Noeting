@@ -7,7 +7,7 @@
 ## D-001 — Attention and original thought remain foundational
 
 - **Date recorded:** 2026-10-10 (original concept predates this record; precise original date unspecified)
-- **Status:** Accepted direction
+- **Status:** Accepted direction; explicit-stop requirement subsequently superseded by D-012
 - **Decision:** Noeting must protect sustained attention, favor rapid capture and reflection, and encourage creation over consumption. Interfaces should have a natural stopping point.
 - **Why:** This is the founding concept in the original note.
 - **Consequences:** No infinite feeds, streak pressure, default AI chatter, or forced engagement loops.
@@ -104,6 +104,44 @@
 - **Consequences:** The HTML/JS wireframe is a **behavior and design reference**, not directly reusable native UI code. Expo Router, `expo-sqlite`, Expo Notifications, and file export/sharing are **suggested packages**; exact versions, plugin configuration, schema, security controls, and first test device remain implementation details to verify. No backend is needed for core V1.
 - **Reference:** [03_ARCHITECTURE.md](03_ARCHITECTURE.md), [04_ROADMAP.md](04_ROADMAP.md)
 
+## D-012 — Remove explicit stop functionality; users close the app themselves
+
+- **Date:** 2026-10-13
+- **Status:** Accepted direction, explicitly requested after phone feedback. Supersedes the explicit-stop portion of D-001/D-010 and the earlier M1 implementation.
+- **Decision:** Remove Finish session, Enough for today, deliberate-stop cards, stop screens and related closing prompts. Retain attention protection, local data and user-directed activity without requiring an app-managed stop flow.
+- **UX:** Use a compact right-edge pin icon with filled/outlined states; remove Library's combined clear-search/filter control. Add prototype-based Today note with Reflect/Create and Change; use a visible summary card, not a modal/button; include Review.
+- **Reference:** `01_VISION.md`, `02_PRODUCT.md`; authentic founding archive remains unchanged as historical source.
+
+## D-013 — Prototype-based thinking and Review implementation
+
+- **Date:** 2026-10-13
+- **Status:** Authorized scope following approval and the user's prototype reference; schema details are implementation choices within that scope.
+- **Decision:** One chosen non-task entry stays on Today until deliberately changed, matching the prototype. Reflect/Create author separate linked entries; Review shows completed tasks and linked thinking. The summary card shows current open/completed/saved-record totals; no unsupported due dates, AI or invented commitments.
+- **Implementation:** Schema v2 adds `thinking_links` and `today_selection` without rebuilding or rewriting existing `entries`/`tasks`. Reflections/creations are note entries with a separate provenance/type link. Saves are atomic and stable-request retries are idempotent; source text is unchanged. Delete/edit and Note-derived Tasks remain later work (O-008 is still open).
+- **Consequences:** Preserve existing phone records during upgrade. Build version 0.2.0/code 2 with the same development signer. Real migration/rollback and runtime evidence are maintained in `06_CURRENT_STATE.md`.
+
+## D-014 — Editing, recoverable removal and compact scrolling navigation
+
+- **Date:** 2026-10-14
+- **Status:** Accepted after the user reviewed the proposed approach and instructed “proceed.”
+- **Decision:** Use X form closers; direct Note saves choose Today automatically and atomically, while linked saves do not. Review has completed-task removal and linked-note edit/removal; Library has edit/removal for all entries. Today Task/note long-press tools expose Copy/Edit/Remove, with accessible activation/actions.
+- **Navigation:** Remove top Capture/text tabs, center the supplied symbol/name, and use bottom Today/Library/Review icons with a centered +. Both bars show at the top, on upward scrolling or tab changes; sustained downward motion hides them, with short-page visibility and threshold handling.
+- **Data:** Edits change displayed words while keeping the first capture. Removal hides the entry and related direct Task from every list, offers Undo, and never cascades to dependent reflections. Removing Today clears selection. Additive schema v3, unchanged old-row values, atomic failure/retry handling and offline persistence are required. This supersedes D-013's manual-only Today selection behavior. Reminders, export and O-008 remain separate.
+
+## D-015 — Bottom tools, dismissal and Android Back
+
+- **Date:** 2026-10-14
+- **Status:** Accepted after review, with the user's final Today-only exit and Undo-label corrections, followed by “Proceed.”
+- **Decision:** Toolbox slides from the bottom with only Copy/Edit/Remove action rows; no content, title or X. Forms keep X closers and use “Save.” Outside taps dismiss sheets/forms except during writes. Session-only drafts restore text and stable capture identity when reopened; saving clears the matching draft. Long press is 300 ms and scrolling cancels activation.
+- **Back:** Dismiss an open form/sheet first. Library/Review return to the previously visited screen, preserving search/filter and its scroll offset. Only Today arms double-back exit: the first press shows “Press back again to exit.” and the second within two seconds exits. Navigation/opening/dismissing forms resets the countdown.
+- **Undo:** Centered small “Undo” control only, with no removal-status sentence. Eight-second timeout and downward swipe dismiss the control while retaining the removal. SQLite schema and removal receipts are unchanged.
+
+## D-016 — Settings and local appearance preference (2026-10-15)
+
+**Accepted:** The user requested a Settings screen with Light, Dark and Same as system, then authorized finalization and a PR. Default to system, apply changes immediately and save the choice locally. A small Settings icon joins the right side of the bottom bar. Use charcoal-green surfaces, warm text and mint accents in dark mode, including forms, toolbox, search, icons and status bar. Retain existing screen history and Today-only double-back exit. Changes save automatically; Settings is a screen rather than a Save form.
+
+**Implementation choices:** SQLite key-value preferences are separate from captured records; loading failure permits app startup with system appearance and a retryable Settings message. Failed saves restore the previous choice. Larger type/density options are future proposals, not included here.
+
 ## Proposals to evaluate — not accepted decisions
 
 ### P-001 — Bounded background AI
@@ -144,7 +182,7 @@
 
 - **Status:** Implementation choices made within the authorized M1 slice; implemented in source and exercised by real-SQLite automated checks. These choices do not create new historical user acceptance of detailed UX or pass physical-device evaluation.
 - **Implemented:** The behavior contract in [02_PRODUCT.md](02_PRODUCT.md) and persistence contract in [03_ARCHITECTURE.md](03_ARCHITECTURE.md): Pending/Completed only, persistent pins on pending tasks, immutable original text, atomic linked saves, retry deduplication, and recoverable failed-save UI. Schema v1 uses `entries` / `tasks` in `noeting.db`.
-- **Device/configuration choices:** The user confirmed Android as the first physical validation target on 2026-10-13. Resolved SDK/package versions and the protective Android `allowBackup: false` default are recorded in `03_ARCHITECTURE.md`; native build/device compatibility remains unverified.
+- **Device/configuration choices:** The user confirmed Android as the first physical validation target on 2026-10-13. Resolved SDK/package versions and the protective Android `allowBackup: false` default are recorded in `03_ARCHITECTURE.md`; the native test build is statically verified; actual validation outcomes and subsequent simulated-phone instruction are recorded in `06_CURRENT_STATE.md`.
 - **Evidence still needed:** The physical-device M1 gate in [04_ROADMAP.md](04_ROADMAP.md); actual automated evidence is in `06_CURRENT_STATE.md`. Deferment, dates/reminders, edit/delete semantics, encryption/iOS backup policy, and cross-loop additions remain separate unresolved work.
 
 ## Open decisions

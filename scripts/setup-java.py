@@ -81,7 +81,9 @@ def validate_signing_chain(cache):
     with tempfile.TemporaryDirectory(prefix="java-key-verification-", dir=cache) as temporary_name:
         keyring_home = Path(temporary_name)
         keyring_home.chmod(0o700)
-        gpg = ["gpg", "--batch", "--no-auto-key-retrieve", "--homedir", str(keyring_home)]
+        # Public-key import/signature verification needs no private-key agent.
+        # Managed sandboxes may forbid starting its socket/process.
+        gpg = ["gpg", "--batch", "--no-autostart", "--no-auto-key-retrieve", "--homedir", str(keyring_home)]
         inspected = subprocess.run(gpg + ["--with-colons", "--show-keys", str(key)], capture_output=True, text=True, check=True)
         fingerprints = [line.split(":")[9] for line in inspected.stdout.splitlines() if line.startswith("fpr:")]
         if fingerprints != [FINGERPRINT]:
