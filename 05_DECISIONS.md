@@ -88,7 +88,7 @@
 ## D-010 — Adopt the first working app feature scope and staged delivery
 
 - **Date recorded:** 2026-10-12
-- **Status:** Accepted V1 direction; M1 source implemented on 2026-10-13, with remaining V1 implementation and device acceptance pending.
+- **Status:** Accepted V1 direction; export/backup timing partially superseded by D-018. Current implementation and device evidence live in `06_CURRENT_STATE.md`.
 - **Decision:** Build a local-first mobile app covering **Capture** (Note / Task, immediate close), **Today** (one task list, edit/complete, up to three pinned tasks, optional Today note), **Library** (search/filter/edit/delete), **Review** (Reflect/Create as deliberate linked entries), **user-set reminders**, a **deterministic daily overview**, and **export/backup**. Core note/task operation works offline and requires no account. **AI is not needed in V1**.
 - **Why:** The user instructed that the previously recommended first-app feature set be used, reported that the updated prototype worked as intended, and selected implementation as the next step.
 - **Consequences:** This is a high-level feature boundary, **not** evidence of reliability or a fully signed-off specification. Deliver incrementally: M1 focuses on local Capture → Today persistence before Library/Review, reminders, and export. No default feed, AI chatter, silent commitment creation, sync, or agent execution.
@@ -142,7 +142,52 @@
 
 **Implementation choices:** SQLite key-value preferences are separate from captured records; loading failure permits app startup with system appearance and a retryable Settings message. Failed saves restore the previous choice. Larger type/density options are future proposals, not included here.
 
-## Proposals to evaluate — not accepted decisions
+## D-017 — Reopen completed Tasks (2026-10-15)
+
+- **Status:** Accepted; the user approved implementation of the proposed course with “proceed.” Implemented in 0.5.0 source; validation evidence lives in `06_CURRENT_STATE.md`.
+- **Decision:** Reopen removes the completed Task from Review and returns the same Task to Today's pending list. No Undo control, confirmation dialog or success prompt. Preserve identity, words, creation time and source links; clear completion time and leave unpinned. Library status and counts reflect the change; persist across restarts. A failed write retains the completed state and reports a retryable error.
+- **Why:** The user explicitly corrected the earlier proposal: “do not add Undo control or confirmation for Reopen task. Behaviour is just that it removed from Review and reappear on Today.”
+- **Alternatives:** Reopen with temporary Undo was rejected. Existing removal Undo is unaffected.
+
+## D-018 — Defer backup/export/restore to accounts (2026-10-15)
+
+- **Status:** Accepted sequencing change; partially supersedes D-010's export/backup timing.
+- **Decision:** Defer backup/export and restore to the later account implementation, alongside optional hosted storage and PC-web/Android sync. Do not make backup/export/restore the next local-development slice. Core local/offline use remains available without an account.
+- **Boundary:** No account, hosting provider, sync protocol or recovery architecture is approved for implementation. Accounts and sync remain outside the present V1 work; account-phase recovery design is still required.
+
+## D-019 — Approve linked Tasks and the local development course (2026-10-15)
+
+- **Status:** Accepted; user instructed “proceed” after reviewing the relationship and sequence.
+- **Decision:** Adopt the P-007 Note-to-Task relationship below and resolve O-008 for this slice. Implement D-017 Reopen, Note-derived Tasks, distinct Reflection/Creation retrieval with source navigation, optional local reminders and focused phone usability checks. Backup/export/restore remains deferred under D-018.
+- **Implementation choices:** Schema v4 adds separate Task-source links and reminder intent without rewriting old records. Each Task has one source; a Note may have multiple Tasks. Reminders are explicitly chosen one-shot local times stored as UTC instants; timezone changes retain that moment. Completion/removal cancels future reminders; Reopen/Undo removal never silently reschedules them. No exact-alarm permission is requested; Android may delay inexact alarms. Native OS scheduling is reconciled at startup, foreground and changes; errors remain retryable.
+- **Consequences:** Existing offline/no-account workflows remain. Browser validation never claims native notification scheduling. Physical delivery, reboot and large-system-text acceptance require actual device evidence. No account/sync/AI implementation is authorized by this course.
+
+## D-020 — Scheduled pins, unlimited pinning and compact entry navigation (2026-10-15)
+
+- **Status:** Accepted; user reviewed the proposal and instructed “proceed.” Implemented in 0.6.0; actual validation lives in `06_CURRENT_STATE.md`.
+- **Decision:** Replace notification reminders with a clock icon for scheduled pinning. Apply due pins while the app is open and catch up when it reopens/resumes; no claim of exact execution while closed. Pins are unlimited and newest pin time sorts first. A due schedule on an already-pinned Task is consumed without moving it. Completion still unpins; Reopen remains unpinned with no Undo or confirmation and now uses a U-turn arrow icon.
+- **Cards/navigation:** New task uses a + icon on Notes/Reflections/Creations. Selecting Notes reveals All notes/Reflections/Creations; All and Tasks hide those subfilters. Reflection/Creation original previews open the source directly, replacing Open source. Plain Note cards show only nonzero linked Task/Reflection/Creation counts beside captured-time metadata, with an expand icon opening a separate entry screen. That screen includes entry actions, original/source text when applicable, and grouped linked entries. Back preserves the previous list/search/filter/scroll state, including nested entry navigation. Icons retain accessible labels and 44-point targets.
+- **Upgrade/order choices:** Schema v5 removes pin-cap triggers, preserves prior Task/source data, and stores pin timestamps plus a tie-breaking order. Old pins use their creation time as a deterministic fallback because historical pin times were never recorded. Outstanding non-consumed 0.5.0 reminders become scheduled pins; elapsed/cancelled reminders are not revived. Completion/removal cancels scheduled pins; removal Undo restores its old pin position but never reschedules a timed pin. Overdue pins retain their scheduled time so they do not jump ahead of a newer manual pin.
+- **Notifications:** Retain Expo Notifications only to cancel old 0.5.0 OS schedules on first launch, with retry on failure. The app no longer requests notification permission or schedules notifications. A device must launch the update to run legacy cleanup. Later removal of the migration dependency is separate cleanup work.
+- **Supersedes:** Prior three-pin limits (D-010/P-006), notification-reminder behavior in D-019, and the earlier always-visible thinking filters/modal source-detail design. Existing independent links, originals/current edits, no-account/offline behavior and D-018 account-phase backup sequencing remain.
+
+## D-021 — Entry taps, linked-action menus and completion controls (2026-10-15)
+
+- **Status:** Accepted through the user's “proceed,” including the additional completion-checkbox request. Supersedes D-020's expand control and direct New task action.
+- **Decision:** Tap a Note/card body to open its entry screen; remove expand. Text remains selectable, and long press on Note text must not navigate. Keep action controls outside the body target. A top-right + on every active Note/Task/Reflection/Creation opens exactly Reflect, Create and New task. Dismissal creates nothing; existing source/draft/save rules remain.
+- **Task sources:** New task may use a Task as its source. Each child remains a separate Task with one immutable source-at-creation snapshot; edits, completion, reopening and removal never cascade to parent or children. This extends D-019 rather than introducing subtasks or completion dependencies.
+- **Controls:** Draw the clock and left U-turn Reopen arrow with matching strokes. The clock sits at the right edge immediately before the Task pin. The Today-note choice is a bottom-right pin; filled means selected, and pressing it again keeps selection. Keep accessible action labels and 44-point targets.
+- **Completion:** Add checkboxes to Library Tasks, the Task entry itself and linked Tasks on entry screens. Checking completes/unpins/cancels scheduled pinning; unchecking reopens pending/unpinned with no schedule restoration, confirmation or Undo. Update all views and persist. Existing removal Undo remains separate.
+- **Alternatives:** Retaining expand, separate Reflect/Create buttons, or using + solely for task creation was replaced by the user's approved design. Device selection gestures/system-font visual acceptance still need phone checks.
+
+## D-022 — Reduce Task card actions (2026-10-15)
+
+- **Status:** Accepted direct user instruction; implemented in 0.7.1 source. Refines D-021.
+- **Decision:** Today Task rows have no per-task +. Completed Tasks have no + in Review, Library, full entry details or linked-entry groups. Pending Tasks retain + in Library and entry screens; completing/reopening updates its visibility immediately.
+- **Source navigation:** Remove redundant From note/From task buttons from Task cards. Tap the Task body, then its original preview on the entry screen to reach the source, including removed sources. Source links/snapshots, completion/Reopen and scheduled pin behavior are unchanged.
+- **Reason:** The user requested fewer repeated actions and identified the original preview as the source-navigation path. This changes UI only; schema v6 is unchanged.
+
+## Proposal register — accepted items reference decision records
 
 ### P-001 — Bounded background AI
 
@@ -185,6 +230,15 @@
 - **Device/configuration choices:** The user confirmed Android as the first physical validation target on 2026-10-13. Resolved SDK/package versions and the protective Android `allowBackup: false` default are recorded in `03_ARCHITECTURE.md`; the native test build is statically verified; actual validation outcomes and subsequent simulated-phone instruction are recorded in `06_CURRENT_STATE.md`.
 - **Evidence still needed:** The physical-device M1 gate in [04_ROADMAP.md](04_ROADMAP.md); actual automated evidence is in `06_CURRENT_STATE.md`. Deferment, dates/reminders, edit/delete semantics, encryption/iOS backup policy, and cross-loop additions remain separate unresolved work.
 
+### P-007 — Note-derived Task relationship (2026-10-15; accepted as D-019)
+
+- **Interaction:** A saved Note offers **New task**. Open a form with the source read-only and a separate editable task field, initially filled with the Note's current words. Only Save creates a pending, unpinned Task in Today; dismissal creates nothing. Stay on the current screen after saving and preserve Today-note selection.
+- **Relationship:** One Note may source multiple independent Tasks. Each Task keeps its own Task-kind Entry and one explicit source link, separate from reflection/creation links. Do not convert or overwrite the source Note. Show **From note** on the Task and related Tasks on the Note; navigation must reveal the relationship from either side.
+- **Independence:** Editing or completing/reopening a Task never edits the Note; editing the Note never rewrites existing Tasks. Preserve the Note's immutable first capture and the exact source words at task creation so later edits remain understandable.
+- **Removal:** Removing a Note never removes its Tasks; removing a Task never removes its Note. A removed Note remains inspectable as source material with a removed label. No automatic restoration or cascading changes.
+- **Reliability:** Atomic Task/Entry/link creation and stable-request retry deduplication; repeated Save taps produce one Task, while separate deliberate creations may produce multiple. Additive migration must preserve old captures, tasks and thinking links; failed writes/migrations roll back. Test restart durability, edits/removal independence and source navigation.
+- **Status:** Accepted by the user’s “proceed”; D-019 records approval. Implemented with schema v4; actual verification is recorded in `06_CURRENT_STATE.md`.
+
 ## Open decisions
 
 | ID | Question | Owner/status |
@@ -196,6 +250,6 @@
 | O-005 | How are reminders, importance, urgency, and user-confirmed priorities represented? | Open |
 | O-006 | What is the local security threat model and encryption approach? | Open |
 | O-007 | When, if ever, does Noeting need external integrations, desktop, or sync? | Open |
-| O-008 | How should a user-accepted Task derived from an existing Note preserve provenance without rewriting the Note, given the M1 trigger requires a Task-kind Entry? Decide relationship, migration, retry, and deletion rules before implementing that flow. | Open — design alternatives only; no schema change approved |
+| O-008 | How should a user-accepted Task derived from an existing Note preserve provenance without rewriting the Note, given the M1 trigger requires a Task-kind Entry? Decide relationship, migration, retry, and deletion rules before implementing that flow. | Resolved for the approved relationship under D-019/P-007; schema v4 implemented, validation recorded in current state |
 
 **Recording future decisions:** Use a new `D-###` entry with date, status, choice, alternatives considered, rationale, and consequences. If a decision changes, mark the older entry `Superseded` rather than silently rewriting history.

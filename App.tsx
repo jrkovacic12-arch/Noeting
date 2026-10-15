@@ -2,13 +2,15 @@ import { randomUUID } from 'expo-crypto';
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Animated, BackHandler, Image, PanResponder, ToastAndroid, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable,
+  ActivityIndicator, Animated, AppState, BackHandler, Image, PanResponder, ToastAndroid, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable,
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { openRepository } from './src/data/sqlite';
-import type { Entry, Repository, Snapshot, ThinkingKind, Removal } from './src/data/repository';
+import type { Entry, Repository, Snapshot, ThinkingKind, Removal, Task, PinSchedule } from './src/data/repository';
 
+import { localPinFields, parseLocalPinTime } from './src/reminders';
+import { clearLegacyNotifications } from './src/notificationDriver';
 import { ThemeProvider, useTheme, type Palette, type ThemePreference } from './src/theme';
 
 function useAppTheme() {
@@ -17,7 +19,8 @@ function useAppTheme() {
   return {...theme,styles};
 }
 type Kind = Entry['kind'];
-type Screen = 'today' | 'library' | 'review' | 'settings';
+type MainScreen = 'today' | 'library' | 'review' | 'settings';
+type Screen = MainScreen | 'entry';
 type Draft = {text:string; requestId:string};
 const entryLabel = (entry: Entry) => entry.thinkingKind === 'reflection' ? 'Reflection' : entry.thinkingKind === 'creation' ? 'Creation' : entry.kind === 'task' ? 'Task' : 'Note';
 
@@ -49,12 +52,18 @@ function Icon({name}: {name:IconName}) {
   const {styles,colors}=useAppTheme();
   return <Image accessible={false} source={iconSources[name]} style={[styles.controlIcon,{tintColor:name==='remove'?colors.danger:colors.green}]} />;
 }
-function IconButton({name, label, onPress, disabled=false}: {name:IconName | 'close' | 'plus'; label:string; onPress:()=>void; disabled?:boolean}) {
-  const {styles}=useAppTheme();
+function IconButton({name, label, onPress, disabled=false}: {name:IconName | 'close' | 'plus' | 'clock' | 'reopen' | 'back'; label:string; onPress:()=>void; disabled?:boolean}) {
+  const {styles,colors}=useAppTheme();
   return <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled}
     accessibilityState={{disabled}} onPress={onPress}
     style={({pressed})=>[styles.iconTarget,disabled&&styles.disabled,pressed&&styles.pressed]}>
-    {name === 'close' || name === 'plus' ? <View accessible={false} style={styles.closeGlyph}>
+    {name === 'clock' ? <View accessible={false} style={styles.closeGlyph}>
+      <View style={[styles.clockFace,{borderColor:colors.green}]} />
+      <View style={[styles.clockVertical,{backgroundColor:colors.green}]} /><View style={[styles.clockHorizontal,{backgroundColor:colors.green}]} />
+    </View> : name === 'reopen' ? <View accessible={false} style={styles.closeGlyph}>
+      <View style={[styles.returnCurve,{borderColor:colors.green}]} />
+      <View style={[styles.returnHead,{top:2,backgroundColor:colors.green,transform:[{rotate:'-45deg'}]}]} /><View style={[styles.returnHead,{top:6,backgroundColor:colors.green,transform:[{rotate:'45deg'}]}]} />
+    </View> : name === 'back' ? <Text accessible={false} allowFontScaling={false} style={[styles.arrowGlyph,{color:colors.green}]}>←</Text> : name === 'close' || name === 'plus' ? <View accessible={false} style={styles.closeGlyph}>
       <View style={[styles.closeLine,name==='plus'&&styles.plusLine,{transform:[{rotate:name==='close'?'45deg':'0deg'}]}]} />
       <View style={[styles.closeLine,name==='plus'&&styles.plusLine,{transform:[{rotate:name==='close'?'-45deg':'90deg'}]}]} />
     </View> : <Icon name={name} />}
@@ -73,9 +82,15 @@ function Noeting() {
   const {styles,colors,preference,dark,saving:themeSaving,error:themeError,changeTheme}=useAppTheme();
   const [repository, setRepository] = useState<Repository | null>(null);
   const [snapshot, setSnapshot] = useState<Snapshot>({ entries: [], tasks: [], chosenEntryId: null });
+  const [pinSchedules, setPinSchedules] = useState<PinSchedule[]>([]);
+  const legacyCleaned = useRef(false);
+  const [detailEntryId,setDetailEntryId] = useState<string | null>(null);
+  const [reminderTask, setReminderTask] = useState<Task | null>(null);
+  const [reminderDate, setReminderDate] = useState('');
+  const [reminderTime, setReminderTime] = useState('');
   const [startupAttempt, setStartupAttempt] = useState(0);
   const [startupError, setStartupError] = useState(false);
-  const [dialog, setDialog] = useState<'capture' | 'linked' | 'choose' | 'edit' | 'toolbox' | null>(null);
+  const [dialog, setDialog] = useState<'capture' | 'linked' | 'choose' | 'edit' | 'toolbox' | 'derive' | 'reminder' | 'actions' | null>(null);
   const [kind, setKind] = useState<Kind>('note');
   const [thinkingKind, setThinkingKind] = useState<ThinkingKind>('reflection');
   const [source, setSource] = useState<Entry | null>(null);
@@ -84,6 +99,7 @@ function Noeting() {
   const drafts = useRef(new Map<string,Draft>());
   const draftKey = useRef<string | null>(null);
   const busyLock = useRef(false);
+  const selectingText = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [captureError, setCaptureError] = useState<string | null>(null);
@@ -93,13 +109,13 @@ function Noeting() {
   const visitedScreens = useRef(new Set<Screen>(['today']));
   const sheetMotion = useRef(new Animated.Value(1)).current;
   useEffect(() => {
-    if(dialog !== 'toolbox'){sheetMotion.stopAnimation();sheetMotion.setValue(1);return;}
+    if(dialog !== 'toolbox' && dialog !== 'actions'){sheetMotion.stopAnimation();sheetMotion.setValue(1);return;}
     sheetMotion.setValue(1);
     const animation=Animated.timing(sheetMotion,{toValue:0,duration:180,useNativeDriver:Platform.OS !== 'web'});
     animation.start();
     return () => animation.stop();
   },[dialog,sheetMotion]);
-  const history = useRef<{screen:Screen; y:number}[]>([]);
+  const history = useRef<{screen:Screen; y:number; entryId?:string|null}[]>([]);
   const lastBack = useRef(0);
   const restoringScroll = useRef(false);
   const pendingScroll = useRef<{screen:Screen;y:number} | null>(null);
@@ -121,6 +137,7 @@ function Noeting() {
   }, [toast]);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | Kind>('all');
+  const [noteFilter,setNoteFilter] = useState<'all' | ThinkingKind>('all');
 
   useEffect(() => {
     let active = true;
@@ -128,22 +145,49 @@ function Noeting() {
     (async () => {
       try {
         const repo = await openRepository();
+        await repo.applyDuePins();
         const data = await repo.readSnapshot();
-        if (active) { setSnapshot(data); setRepository(repo); }
+        const schedules = await repo.readScheduledPins();
+        if (active) {
+          setSnapshot(data); setPinSchedules(schedules); setRepository(repo);
+          try { await clearLegacyNotifications(); legacyCleaned.current=true; }
+          catch { if(active)setError('Could not cancel old notification reminders. Refresh saved items to retry.'); }
+        }
       } catch { if (active) setStartupError(true); }
     })();
     return () => { active = false; };
   }, [startupAttempt]);
 
+  useEffect(() => {
+    const listener = AppState.addEventListener('change', state => {
+      if(state === 'active' && repository) void mutate(async () => undefined);
+    });
+    return () => listener.remove();
+  }, [repository]);
+
+  useEffect(() => {
+    if(!repository)return;
+    const waiting=pinSchedules.filter(p=>p.status==='waiting' && p.dueAt);
+    if(!waiting.length)return;
+    const next=Math.min(...waiting.map(p=>Date.parse(p.dueAt!)));
+    let timer:ReturnType<typeof setTimeout>;
+    const apply=()=>{
+      if(busyLock.current){timer=setTimeout(apply,250);return;}
+      void mutate(async()=>undefined);
+    };
+    timer=setTimeout(apply,Math.max(0,Math.min(2147483647,next-Date.now())));
+    return ()=>clearTimeout(timer);
+  },[repository,pinSchedules]);
+
   const pending = snapshot.tasks.filter(task => task.status === 'pending')
-    .sort((a, b) => Number(b.pinned) - Number(a.pinned));
+    .sort((a,b)=>Number(b.pinned)-Number(a.pinned) || (a.pinned ? (b.pinnedAt ?? '').localeCompare(a.pinnedAt ?? '') || b.pinOrder-a.pinOrder : 0));
   const completed = snapshot.tasks.filter(task => task.status === 'completed').reverse();
   const pinnedCount = pending.filter(task => task.pinned).length;
   const visibleEntries = snapshot.entries.filter(entry => !entry.removed);
   const notes = visibleEntries.filter(entry => entry.kind === 'note');
   const search = query.trim().toLowerCase();
   const libraryEntries = visibleEntries.filter(entry =>
-    (filter === 'all' || entry.kind === filter) && entry.text.toLowerCase().includes(search)
+    (filter === 'all' || (entry.kind === filter && (filter !== 'note' || noteFilter === 'all' || entry.thinkingKind === noteFilter))) && entry.text.toLowerCase().includes(search)
   ).reverse();
   const tasksByEntry = new Map(snapshot.tasks.map(task => [task.entryId, task]));
   const entriesById = new Map(snapshot.entries.map(entry => [entry.id, entry]));
@@ -176,13 +220,12 @@ function Noeting() {
         else {lastBack.current=now;ToastAndroid.show('Press back again to exit.',ToastAndroid.SHORT);}
       }else{
         lastBack.current=0;
-        const previous=history.current.pop() ?? {screen:'today' as Screen,y:0};
-        restoreScreen(previous.screen,previous.y);
+        goBack();
       }
       return true;
     });
     return ()=>listener.remove();
-  },[dialog,screen,text]);
+  },[dialog,screen,text,detailEntryId]);
 
   function startCapture(nextKind: Kind) {
     if (busyLock.current || !repository) return;
@@ -191,10 +234,51 @@ function Noeting() {
     setKind(nextKind); setDialog('capture');
   }
 
+  function openLinkedActions(entry:Entry) {
+    if(busyLock.current || entry.removed)return;
+    draftKey.current=null;lastBack.current=0;setSource(entry);setCaptureError(null);setDialog('actions');
+  }
   function startLinked(entry: Entry, nextKind: ThinkingKind) {
     if (busyLock.current || !repository) return;
     loadDraft(`linked:${entry.id}:${nextKind}`);
     setSource(entry); setThinkingKind(nextKind); setDialog('linked');
+  }
+
+  function startDerived(entry: Entry) {
+    if (busyLock.current || !repository || entry.removed) return;
+    loadDraft(`derive:${entry.id}`,entry.text);
+    setSource(entry); setDialog('derive');
+  }
+  function showEntry(entry: Entry) {
+    if(busyLock.current)return;
+    draftKey.current=null;lastBack.current=0;setDialog(null);navigate('entry',entry.id);
+  }
+  function startReminder(task: Task) {
+    if(busyLock.current)return;
+    const fields=localPinFields(pinSchedules.find(r=>r.taskId===task.id && r.status==='waiting')?.dueAt);
+    setReminderDate(fields.date);setReminderTime(fields.time);setReminderTask(task);
+    draftKey.current=null;lastBack.current=0;setCaptureError(null);setDialog('reminder');
+  }
+  async function saveReminder(cancel=false) {
+    if(!repository || !reminderTask || busyLock.current)return;
+    let dueAt: string | null;
+    try {dueAt=cancel?null:parseLocalPinTime(reminderDate,reminderTime);}
+    catch(err){setCaptureError((err as Error).message);return;}
+    busyLock.current=true;setBusy(true);setCaptureError(null);
+    try {
+      await repository.setScheduledPin(reminderTask.id,dueAt);
+      await repository.applyDuePins();
+      setPinSchedules(await repository.readScheduledPins());setDialog(null);
+    } catch {setCaptureError('Could not save this scheduled pin. Please try again.');}
+    finally {busyLock.current=false;setBusy(false);}
+  }
+  async function refreshRecords() {
+    await repository!.applyDuePins();
+    if(!legacyCleaned.current){
+      try {await clearLegacyNotifications();legacyCleaned.current=true;}
+      catch {setError('Could not cancel old notification reminders. Refresh saved items to retry.');}
+    }
+    setSnapshot(await repository!.readSnapshot());setPinSchedules(await repository!.readScheduledPins());
   }
 
   async function save() {
@@ -202,11 +286,12 @@ function Noeting() {
     busyLock.current = true; setBusy(true); setCaptureError(null);
     try {
       if (dialog === 'edit' && target) await repository.editEntry(target.id, text);
+      else if (dialog === 'derive' && source) await repository.saveDerivedTask({requestId:requestId.current,sourceEntryId:source.id,text});
       else if (dialog === 'linked' && source) await repository.saveLinked({ requestId: requestId.current, sourceEntryId: source.id, kind: thinkingKind, text });
       else await repository.saveCapture({ requestId: requestId.current, kind, text });
       if(draftKey.current)drafts.current.delete(draftKey.current);
       draftKey.current=null; setDialog(null); setText('');
-      try { setSnapshot(await repository.readSnapshot()); }
+      try { await refreshRecords(); }
       catch { setError('Your entry was saved, but the list could not refresh. Please refresh saved items.'); }
     } catch {
       setCaptureError('Could not confirm the save. Your text is still here. Please try again.');
@@ -218,7 +303,7 @@ function Noeting() {
     busyLock.current = true; setBusy(true); setError(null);
     try {
       await action(repository);
-      try { setSnapshot(await repository.readSnapshot()); }
+      try { await refreshRecords(); }
       catch { setError('Your change was saved, but the list could not refresh. Please refresh saved items.'); }
       return true;
     } catch { setError('Could not save the change. Please try again.'); return false; }
@@ -229,10 +314,10 @@ function Noeting() {
     if (await mutate(repo => repo.chooseTodayNote(entry.id))) { setDialog(null); navigate('today'); }
   }
 
-  function restoreScreen(next:Screen,y:number) {
+  function restoreScreen(next:Screen,y:number,nextEntryId?:string|null) {
     setBarsVisible(true); lastBack.current=0;
     scrolling.current.y=y; scrolling.current.travel=0; scrolling.current.direction=0;
-    if(next===screen){
+    if(next===screen && (next!=='entry' || nextEntryId===detailEntryId)){
       scrollView.current?.scrollTo({y,animated:false});
       return;
     }
@@ -240,6 +325,7 @@ function Noeting() {
     // Retained Library inputs must not keep their keyboard over another screen.
     Keyboard.dismiss();
     visitedScreens.current.add(next);
+    if(next==='entry')setDetailEntryId(nextEntryId ?? null);
     setScreen(next);
   }
   function restorePendingScroll() {
@@ -249,9 +335,18 @@ function Noeting() {
     pendingScroll.current=null;
     requestAnimationFrame(()=>{restoringScroll.current=false;});
   }
-  function navigate(next:Screen) {
-    if(next!==screen)history.current.push({screen,y:scrolling.current.y});
-    restoreScreen(next,0);
+  useEffect(()=>{
+    if(screen==='entry' && pendingScroll.current)requestAnimationFrame(restorePendingScroll);
+  },[screen,detailEntryId]);
+
+  function navigate(next:Screen,entryId?:string) {
+    if(next!==screen || (next==='entry' && entryId!==detailEntryId))history.current.push({screen,y:scrolling.current.y,entryId:detailEntryId});
+    restoreScreen(next,0,entryId);
+  }
+  function goBack() {
+    if(busyLock.current)return;
+    const previous=history.current.pop() ?? {screen:'today' as Screen,y:0};
+    restoreScreen(previous.screen,previous.y,previous.entryId);
   }
   function startEdit(entry:Entry) {
     if (busyLock.current) return;
@@ -289,7 +384,7 @@ function Noeting() {
       },
     };
   }
-  function navigation(next:Screen) {
+  function navigation(next:MainScreen) {
     const label = next === 'today' ? 'Today' : next === 'library' ? 'Library' : next === 'review' ? 'Review' : 'Settings';
     return <Pressable accessibilityRole="tab" accessibilityLabel={label} aria-selected={screen === next}
       accessibilityState={{selected:screen === next}} onPress={() => navigate(next)}
@@ -298,26 +393,108 @@ function Noeting() {
     </Pressable>;
   }
 
-  function actions(entry: Entry) {
-    return <View style={styles.taskActions}>
-      <Button label="Reflect" disabled={busy} onPress={() => startLinked(entry, 'reflection')} />
-      <Button label="Create" disabled={busy} onPress={() => startLinked(entry, 'creation')} />
-      {entry.kind === 'note' && <Button label="Today note" disabled={busy} onPress={() => void selectNote(entry)} />}
+  function completion(task:Task, linked=false) {
+    const checked=task.status==='completed';
+    const disabled=busy || !!entriesById.get(task.entryId)?.removed;
+    return <Pressable accessibilityRole="checkbox" accessibilityLabel={`${checked?'Reopen':'Complete'} ${linked?'linked task: ':''}${task.title}`}
+      accessibilityState={{checked,disabled}} aria-checked={checked} disabled={disabled} onPress={()=>{setToast(null);void mutate(repo=>checked?repo.reopenTask(task.id):repo.completeTask(task.id));}}
+      style={({pressed})=>[styles.iconTarget,pressed&&styles.pressed,disabled&&styles.disabled]}>
+      <View style={[styles.checkbox,checked&&{borderColor:colors.green,backgroundColor:colors.green}]}>
+        {checked && <><View style={[styles.checkShort,{backgroundColor:colors.onAccent}]} /><View style={[styles.checkLong,{backgroundColor:colors.onAccent}]} /></>}
+      </View>
+    </Pressable>;
+  }
+  function todayPin(entry:Entry) {
+    const active=snapshot.chosenEntryId===entry.id;
+    return <Pressable accessibilityRole="button" accessibilityLabel={`Choose as Today note: ${entry.text}`} accessibilityState={{selected:active,disabled:busy}}
+      {...(Platform.OS==='web'?{'aria-pressed':active}:{})} disabled={busy} style={({pressed})=>[styles.iconTarget,pressed&&styles.pressed,busy&&styles.disabled]}
+      onPress={()=>{if(!active)void mutate(repo=>repo.chooseTodayNote(entry.id));}}><PinIcon active={active} /></Pressable>;
+  }
+  function taskPinControls(task:Task) {
+    if(task.status!=='pending')return null;
+    const schedule=pinSchedules.find(r=>r.taskId===task.id && r.status==='waiting');
+    return <View style={styles.edgeControls}>
+      <IconButton name="clock" label={`${schedule?'Change scheduled pin':'Schedule pin'}: ${task.title}`} disabled={busy} onPress={()=>startReminder(task)} />
+      <Pressable accessibilityRole="button" accessibilityLabel={`${task.pinned?'Unpin':'Pin'} ${task.title}`}
+        {...(Platform.OS==='web'?{'aria-pressed':task.pinned}:{})} accessibilityState={{selected:task.pinned,disabled:busy}} disabled={busy}
+        onPress={()=>void mutate(repo=>repo.setPinned(task.id,!task.pinned))} style={({pressed})=>[styles.iconTarget,busy&&styles.disabled,pressed&&styles.pressed]}>
+        <PinIcon active={task.pinned} />
+      </Pressable>
     </View>;
   }
-
-  function entryCard(entry: Entry) {
-    const task = tasksByEntry.get(entry.id);
-    const original = entry.sourceEntryId ? entriesById.get(entry.sourceEntryId) : undefined;
-    return <View key={entry.id} testID={`entry-${entry.id}`} style={styles.panel}>
-      <View style={styles.panelHeader}><Text style={styles.eyebrow}>{entryLabel(entry).toUpperCase()}{task ? ` · ${task.status === 'completed' ? 'Completed' : 'Pending'}` : ''}</Text><View style={styles.taskActions}>
-        <IconButton name="edit" label={`Edit ${entryLabel(entry).toLowerCase()}: ${entry.text}`} disabled={busy} onPress={() => startEdit(entry)} />
-        <IconButton name="remove" label={`Remove ${entryLabel(entry).toLowerCase()}: ${entry.text}`} disabled={busy} onPress={() => void removeEntry(entry)} />
-      </View></View>
-      <Text testID={`original-${entry.id}`} selectable style={styles.originalText}>{entry.text}</Text>
-      {original && <View style={styles.source}><Text style={styles.eyebrow}>ORIGINAL · UNCHANGED{original.removed ? ' · Removed' : ''}</Text><Text selectable style={styles.muted}>{original.originalText}</Text></View>}
-      <Text style={styles.muted}>Captured {new Date(entry.createdAt).toLocaleString()}</Text>
-      {actions(entry)}
+  function taskDetails(task: Task) {
+    const schedule=pinSchedules.find(r=>r.taskId===task.id && r.status==='waiting');
+    return <View style={[styles.taskBody,{gap:4}]}>
+      {schedule?.dueAt && <Text style={styles.localStatus}>Pins {new Date(schedule.dueAt).toLocaleString()}</Text>}
+    </View>;
+  }
+  function entryBody(entry:Entry, full=false, quote=false, label?:string) {
+    const counts=linkedCounts(entry);
+    const content=<>
+      {quote?<Text style={styles.quote}>“<Text testID="chosen-note-text" selectable>{entry.text}</Text>”</Text>:<Text testID={`original-${entry.id}`} selectable style={styles.originalText}>{entry.text}</Text>}
+      <View style={{gap:3}}><Text style={styles.localStatus}>Captured {new Date(entry.createdAt).toLocaleString()}</Text>
+        {!!counts && <Text testID={`linked-counts-${entry.id}`} style={styles.localStatus}>{counts}</Text>}
+      </View>
+    </>;
+    if(full)return <View style={styles.entryBody}>{content}</View>;
+    return <Pressable accessibilityRole="button" accessibilityLabel={label ?? `Open entry: ${entry.text}`} disabled={busy}
+      onPressIn={()=>{selectingText.current=false;}} onLongPress={()=>{selectingText.current=true;}} delayLongPress={350}
+      onPress={()=>{if(!selectingText.current && !(Platform.OS==='web' && globalThis.getSelection?.()?.toString()))showEntry(entry);}}
+      style={styles.entryBody}>{content}</Pressable>;
+  }
+  function children(entry:Entry) {
+    return visibleEntries.filter(e=>e.taskSourceId===entry.id || e.sourceEntryId===entry.id);
+  }
+  function linkedCounts(entry:Entry) {
+    const related=children(entry);
+    return (['task','reflection','creation'] as const).map(kind=>{
+      const count=related.filter(e=>kind==='task'?e.kind==='task':e.thinkingKind===kind).length;
+      const label=kind==='task'?'Task':kind==='reflection'?'Reflection':'Creation';
+      return count?`${count} ${label}${count===1?'':'s'}`:null;
+    }).filter(Boolean).join(' · ');
+  }
+  function entryCard(entry: Entry, full=false) {
+    const task=tasksByEntry.get(entry.id);
+    const sourceId=entry.sourceEntryId ?? entry.taskSourceId;
+    const original=sourceId?entriesById.get(sourceId):undefined;
+    return <View key={entry.id} testID={full?'entry-detail-content':`entry-${entry.id}`} style={styles.panel}>
+      <View style={styles.panelHeader}><View style={styles.entryHeading}>
+        {task && completion(task)}
+        <Text style={[styles.eyebrow,{flex:1}]}>{entryLabel(entry).toUpperCase()}{task ? ` · ${task.status==='completed'?'Completed':'Pending'}` : ''}{entry.removed?' · Removed':''}</Text>
+      </View>{!entry.removed && <View style={styles.cornerActions}>
+        <IconButton name="edit" label={`Edit ${entryLabel(entry).toLowerCase()}: ${entry.text}`} disabled={busy} onPress={()=>startEdit(entry)} />
+        <IconButton name="remove" label={`Remove ${entryLabel(entry).toLowerCase()}: ${entry.text}`} disabled={busy} onPress={()=>void removeEntry(entry)} />
+        {(!task || task.status==='pending') && <IconButton name="plus" label={`Linked actions: ${entry.text}`} disabled={busy} onPress={()=>openLinkedActions(entry)} />}
+      </View>}</View>
+      {entryBody(entry,full)}
+      {original && (entry.thinkingKind || full) && <Pressable accessibilityRole="button" accessibilityLabel={`Open original ${original.kind}: ${entry.text}`} disabled={busy} onPress={()=>showEntry(original)} style={styles.source}>
+        <Text style={styles.eyebrow}>ORIGINAL · UNCHANGED{original.removed?' · Removed':''}</Text><Text numberOfLines={full?undefined:3} style={styles.muted}>{original.originalText}</Text>
+      </Pressable>}
+      {full && entry.text!==entry.originalText && <View style={styles.source}><Text style={styles.eyebrow}>FIRST CAPTURE · UNCHANGED</Text><Text selectable style={styles.originalText}>{entry.originalText}</Text></View>}
+      {full && entry.taskSourceText!=null && <View style={styles.source}><Text style={styles.eyebrow}>SOURCE WHEN TASK WAS CREATED</Text><Text selectable style={styles.originalText}>{entry.taskSourceText}</Text></View>}
+      {task?.status==='pending' && <View style={styles.entryFooter}>{taskDetails(task)}{taskPinControls(task)}</View>}
+      {(full || (entry.kind==='note' && !entry.removed)) && <View style={styles.entryFooter}>
+        {full?<IconButton name="copy" label="Copy entry" disabled={busy} onPress={()=>void copyEntry(entry)} />:<View />}
+        {entry.kind==='note' && !entry.removed && todayPin(entry)}
+      </View>}
+    </View>;
+  }
+  function linkedGroups(entry:Entry) {
+    const related=children(entry);
+    return <View style={styles.screenContent}><Text accessibilityRole="header" style={styles.panelTitle}>Linked entries</Text>
+      {related.length===0 && <Text style={styles.muted}>No linked entries yet.</Text>}
+      {(['task','reflection','creation'] as const).map(kind=>{
+        const group=related.filter(e=>kind==='task'?e.kind==='task':e.thinkingKind===kind);
+        if(!group.length)return null;
+        return <View key={kind} style={styles.screenContent}><Text accessibilityRole="header" style={styles.eyebrow}>{kind==='task'?'TASKS':kind==='reflection'?'REFLECTIONS':'CREATIONS'} · {group.length}</Text>
+          {group.map(child=>{const task=tasksByEntry.get(child.id);return <View key={child.id} style={styles.source}>
+            <View style={styles.panelHeader}><View style={styles.entryHeading}>{task && completion(task,true)}<Text style={[styles.eyebrow,{flex:1}]}>{entryLabel(child).toUpperCase()}{task?` · ${task.status}`:''}</Text></View>
+              {(!task || task.status==='pending') && <IconButton name="plus" label={`Linked actions: ${child.text}`} disabled={busy} onPress={()=>openLinkedActions(child)} />}</View>
+            {entryBody(child,false,false,`Open linked ${entryLabel(child).toLowerCase()}: ${child.text}`)}
+            {task?(task.status==='pending' && <View style={styles.entryFooter}>{taskDetails(task)}{taskPinControls(task)}</View>):<View style={styles.entryFooter}><View />{todayPin(child)}</View>}
+          </View>;})}
+        </View>;
+      })}
     </View>;
   }
 
@@ -374,42 +551,28 @@ function Noeting() {
           <View style={styles.panelHeader}><Text accessibilityRole="header" style={styles.panelTitle}>Tasks</Text>
             <IconButton name="plus" label="Add task" disabled={busy} onPress={() => startCapture('task')} />
           </View>
-          <Text style={styles.pinCount}>{pinnedCount} / 3 pinned</Text>
-          {pending.length === 0 ? <Text style={styles.empty}>No pending tasks</Text> : pending.map(task => <View key={task.id}
-            testID={`task-${task.id}`} style={[styles.task, task.pinned && styles.pinnedTask]}>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Complete ${task.title}`} disabled={busy}
-              accessibilityState={{ disabled: busy }} onPress={() => void mutate(repo => repo.completeTask(task.id))}
-              delayLongPress={300} onLongPress={() => openTools(entriesById.get(task.entryId)!)} style={({ pressed }) => [styles.completeTarget, pressed && styles.pressed]}><View style={styles.checkbox} /></Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Task tools: ${task.title}`}
-              {...accessibleTools(entriesById.get(task.entryId)!)} onPress={() => openTools(entriesById.get(task.entryId)!)}
-              onLongPress={() => openTools(entriesById.get(task.entryId)!)} delayLongPress={300} disabled={busy}
-              style={[styles.taskBody,styles.pendingTaskBody]}><Text style={styles.taskTitle}>{task.title}</Text></Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={`${task.pinned ? 'Unpin' : 'Pin'} ${task.title}`}
-              {...(Platform.OS === 'web' ? { 'aria-pressed': task.pinned } : {})}
-              accessibilityState={{ selected: task.pinned, disabled: busy || (!task.pinned && pinnedCount >= 3) }}
-              disabled={busy || (!task.pinned && pinnedCount >= 3)}
-              onPress={() => void mutate(repo => repo.setPinned(task.id, !task.pinned))}
-              delayLongPress={300} onLongPress={() => openTools(entriesById.get(task.entryId)!)}
-              style={({ pressed }) => [styles.pinButton,
-                (busy || (!task.pinned && pinnedCount >= 3)) && styles.disabled, pressed && styles.pressed]}>
-              <PinIcon active={task.pinned} />
-            </Pressable>
+          <Text style={styles.pinCount}>{pinnedCount} pinned</Text>
+          {pending.length===0?<Text style={styles.empty}>No pending tasks</Text>:pending.map(task=><View key={task.id} testID={`task-${task.id}`} style={[styles.task,task.pinned&&styles.pinnedTask]}>
+            <View style={styles.taskTopRow}>
+              <Pressable accessibilityRole="button" accessibilityLabel={`Complete ${task.title}`} disabled={busy} accessibilityState={{disabled:busy}} onPress={()=>void mutate(repo=>repo.completeTask(task.id))}
+                delayLongPress={300} onLongPress={()=>openTools(entriesById.get(task.entryId)!)} style={({pressed})=>[styles.completeTarget,pressed&&styles.pressed]}><View style={styles.checkbox} /></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel={`Open entry: ${task.title}`} {...accessibleTools(entriesById.get(task.entryId)!)} onPress={()=>showEntry(entriesById.get(task.entryId)!)}
+                onLongPress={()=>openTools(entriesById.get(task.entryId)!)} delayLongPress={300} disabled={busy} style={[styles.taskBody,styles.pendingTaskBody]}><Text style={styles.taskTitle}>{task.title}</Text></Pressable>
+            </View>
+            <View style={styles.entryFooter}>{taskDetails(task)}{taskPinControls(task)}</View>
           </View>)}
         </View>
         <View testID="today-thinking" style={styles.panel}>
           <Text accessibilityRole="header" style={styles.panelTitle}>Today note</Text>
           <Text style={styles.muted}>One note you chose to think about.</Text>
           {chosen ? <View style={styles.thinking}>
-            <Text style={styles.eyebrow}>{entryLabel(chosen).toUpperCase()}</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="Today note tools" {...accessibleTools(chosen)}
-              disabled={busy} onPress={() => openTools(chosen)} onLongPress={() => openTools(chosen)} delayLongPress={300}>
-              <Text style={styles.quote}>“<Text testID="chosen-note-text">{chosen.text}</Text>”</Text>
-            </Pressable>
-            <View style={styles.taskActions}>
-              <Button label="Reflect" compact disabled={busy} onPress={() => startLinked(chosen, 'reflection')} />
-              <Button label="Create" compact disabled={busy} onPress={() => startLinked(chosen, 'creation')} />
-              <Button label="Change" compact ghost disabled={busy} onPress={() => {draftKey.current=null;lastBack.current=0;setDialog('choose');}} />
-            </View>
+            <View style={styles.panelHeader}><Text style={[styles.eyebrow,{flex:1}]}>{entryLabel(chosen).toUpperCase()}</Text><View style={styles.cornerActions}>
+              <IconButton name="edit" label={`Edit ${entryLabel(chosen).toLowerCase()}: ${chosen.text}`} disabled={busy} onPress={()=>startEdit(chosen)} />
+              <IconButton name="remove" label={`Remove ${entryLabel(chosen).toLowerCase()}: ${chosen.text}`} disabled={busy} onPress={()=>void removeEntry(chosen)} />
+              <IconButton name="plus" label={`Linked actions: ${chosen.text}`} disabled={busy} onPress={()=>openLinkedActions(chosen)} />
+            </View></View>
+            {entryBody(chosen,false,true)}
+            <View style={styles.entryFooter}><Button label="Change" compact ghost disabled={busy} onPress={()=>{draftKey.current=null;lastBack.current=0;setDialog('choose');}} />{todayPin(chosen)}</View>
           </View> : <>
             <Text style={styles.muted}>{notes.length ? 'Choose a saved note when you want to reflect.' : 'Capture a note to make reflection available.'}</Text>
             <Button label="Choose a note" disabled={busy || !notes.length} onPress={() => {draftKey.current=null;lastBack.current=0;setDialog('choose');}} />
@@ -426,15 +589,19 @@ function Noeting() {
         <View accessibilityRole="radiogroup" accessibilityLabel="Library type" style={styles.types}>
           {(['all', 'note', 'task'] as const).map(value => <Pressable key={value} accessibilityRole="radio"
             accessibilityLabel={value === 'all' ? 'All' : value === 'note' ? 'Notes' : 'Tasks'} aria-checked={filter === value}
-            accessibilityState={{ checked: filter === value }} onPress={() => setFilter(value)}
+            accessibilityState={{ checked: filter === value }} onPress={() => {setFilter(value);if(value==='note')setNoteFilter('all');}}
             style={[styles.type, filter === value && styles.selectedType]}>
             <Text style={styles.buttonText}>{value === 'all' ? 'All' : value === 'note' ? 'Notes' : 'Tasks'}</Text>
           </Pressable>)}
         </View>
+        {filter==='note' && <View accessibilityRole="radiogroup" accessibilityLabel="Note type" style={styles.types}>
+          {(['all','reflection','creation'] as const).map(value=><Pressable key={value} accessibilityRole="radio" accessibilityLabel={value==='all'?'All notes':value==='reflection'?'Reflections':'Creations'} aria-checked={noteFilter===value}
+            accessibilityState={{checked:noteFilter===value}} onPress={()=>setNoteFilter(value)} style={[styles.type,noteFilter===value&&styles.selectedType]}><Text style={styles.buttonText}>{value==='all'?'All notes':value==='reflection'?'Reflections':'Creations'}</Text></Pressable>)}
+        </View>}
         <Text style={styles.localStatus}>{libraryEntries.length} of {visibleEntries.length} saved entries · Newest first</Text>
         {libraryEntries.length === 0 ? <Text style={styles.empty}>
           {visibleEntries.length === 0 ? 'No saved entries yet. Capture a thought when one appears.' : 'No entries match your search and filters.'}
-        </Text> : libraryEntries.map(entryCard)}
+        </Text> : libraryEntries.map(entry=>entryCard(entry))}
       </View>}
       {visitedScreens.current.has('review') && <View testID="screen-review" onLayout={() => {if(screen==='review')requestAnimationFrame(restorePendingScroll);}} style={[styles.screenContent,screen !== 'review' && styles.hiddenScreen]}>
         <Text style={styles.eyebrow}>REVIEW</Text>
@@ -444,13 +611,18 @@ function Noeting() {
           <Text accessibilityRole="header" style={styles.panelTitle}>Task review</Text>
           <Text style={styles.muted}>{completed.length} completed</Text>
           {completed.length ? completed.map(task => <View key={task.id} style={styles.reviewTask}><View style={styles.taskBody}>
-            <Text style={styles.taskTitle}>{task.title}</Text><Text style={styles.muted}>Completed {new Date(task.completedAt!).toLocaleString()}</Text></View>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Open entry: ${task.title}`} disabled={busy} onPress={()=>showEntry(entriesById.get(task.entryId)!)}><Text style={styles.taskTitle}>{task.title}</Text></Pressable><Text style={styles.muted}>Completed {new Date(task.completedAt!).toLocaleString()}</Text></View>
+            <IconButton name="reopen" label={`Reopen ${task.title}`} disabled={busy} onPress={()=>{setToast(null);void mutate(repo=>repo.reopenTask(task.id));}} />
             <IconButton name="remove" label={`Remove completed task: ${task.title}`} disabled={busy} onPress={() => void removeEntry(entriesById.get(task.entryId)!)} />
           </View>) : <Text style={styles.muted}>No completed tasks yet.</Text>}
         </View>
         <Text accessibilityRole="header" style={styles.panelTitle}>Linked thinking</Text>
         <Text style={styles.muted}>New interpretations never overwrite their sources.</Text>
-        {linked.length ? linked.map(entryCard) : <Text style={styles.empty}>No linked reflections or creations yet. Begin one from Library or Today.</Text>}
+        {linked.length ? linked.map(entry=>entryCard(entry)) : <Text style={styles.empty}>No linked reflections or creations yet. Begin one from Library or Today.</Text>}
+      </View>}
+      {visitedScreens.current.has('entry') && <View testID="screen-entry" onLayout={()=>{if(screen==='entry')requestAnimationFrame(restorePendingScroll);}} style={[styles.screenContent,screen!=='entry'&&styles.hiddenScreen]}>
+        <View style={styles.panelHeader}><IconButton name="back" label="Back to previous view" disabled={busy} onPress={goBack} /><Text accessibilityRole="header" style={styles.panelTitle}>Entry details</Text><View style={{width:44}} /></View>
+        {detailEntryId && entriesById.has(detailEntryId) ? <>{entryCard(entriesById.get(detailEntryId)!,true)}{linkedGroups(entriesById.get(detailEntryId)!)}</>:<Text style={styles.empty}>Entry unavailable.</Text>}
       </View>}
       {visitedScreens.current.has('settings') && <View testID="screen-settings" onLayout={() => {if(screen==='settings')requestAnimationFrame(restorePendingScroll);}} style={[styles.screenContent,screen!=='settings'&&styles.hiddenScreen]}>
         <Text style={styles.eyebrow}>SETTINGS</Text>
@@ -492,31 +664,44 @@ function Noeting() {
         }}><Text style={styles.buttonText}>Undo</Text></Pressable> : <Text accessibilityRole="alert" style={styles.muted}>{toast.message}</Text>}
     </View>}
     </View>
-    <Modal visible={dialog !== null} transparent animationType={dialog === 'toolbox' ? 'none' : 'fade'} onRequestClose={dismissDialog}>
-      <KeyboardAvoidingView testID="dialog-overlay" style={[styles.overlay,dialog === 'toolbox' && styles.sheetOverlay]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <Modal visible={dialog !== null} transparent animationType={dialog === 'toolbox' || dialog === 'actions' ? 'none' : 'fade'} onRequestClose={dismissDialog}>
+      <KeyboardAvoidingView testID="dialog-overlay" style={[styles.overlay,(dialog === 'toolbox' || dialog === 'actions') && styles.sheetOverlay]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <Pressable testID="dialog-backdrop" accessibilityRole="button" accessibilityLabel="Dismiss dialog" disabled={busy}
           onPress={dismissDialog} style={styles.backdrop} />
-        {dialog === 'toolbox' && target ? <Animated.View testID="toolbox-motion" style={[styles.sheetMotion,{transform:[{translateY:sheetMotion.interpolate({inputRange:[0,1],outputRange:[0,280]})}]}]}><SafeAreaView edges={['bottom']} accessibilityViewIsModal role="dialog" aria-modal style={styles.sheet}>
-          {(['copy','edit','remove'] as const).map(action => <Pressable key={action} accessibilityRole="button"
+        {((dialog === 'toolbox' && target) || (dialog==='actions' && source)) ? <Animated.View testID={dialog==='actions'?'linked-actions-motion':'toolbox-motion'} style={[styles.sheetMotion,{transform:[{translateY:sheetMotion.interpolate({inputRange:[0,1],outputRange:[0,280]})}]}]}><SafeAreaView edges={['bottom']} accessibilityViewIsModal role="dialog" aria-modal style={styles.sheet}>
+          {dialog==='actions'?(['reflection','creation','task'] as const).map(action=><Pressable key={action} accessibilityRole="button" accessibilityLabel={action==='reflection'?'Reflect':action==='creation'?'Create':'New task'} disabled={busy} accessibilityState={{disabled:busy}} style={({pressed})=>[styles.toolRow,pressed&&styles.pressed]}
+            onPress={()=>{if(action==='task')startDerived(source!);else startLinked(source!,action);}}><Text style={styles.toolText}>{action==='reflection'?'Reflect':action==='creation'?'Create':'New task'}</Text></Pressable>):(['copy','edit','remove'] as const).map(action => <Pressable key={action} accessibilityRole="button"
             accessibilityLabel={action === 'copy' ? 'Copy' : action === 'edit' ? 'Edit' : 'Remove'} disabled={busy}
             accessibilityState={{disabled:busy}} style={({pressed})=>[styles.toolRow,busy&&styles.disabled,pressed&&styles.pressed]}
-            onPress={()=>{if(action==='copy')void copyEntry(target);else if(action==='edit')startEdit(target);else void removeEntry(target);}}>
+            onPress={()=>{if(action==='copy')void copyEntry(target!);else if(action==='edit')startEdit(target!);else void removeEntry(target!);}}>
             <Icon name={action} /><Text style={[styles.toolText,action==='remove'&&styles.removeText]}>{action === 'copy' ? 'Copy' : action === 'edit' ? 'Edit' : 'Remove'}</Text>
           </Pressable>)}
           {(captureError || error) && <Text accessibilityRole="alert" style={styles.error}>{captureError || error}</Text>}
         </SafeAreaView></Animated.View> : <View accessibilityViewIsModal style={styles.dialog} role="dialog" aria-modal>
           <ScrollView contentContainerStyle={styles.dialogContent} keyboardShouldPersistTaps="handled">
             <View style={styles.panelHeader}><Text accessibilityRole="header" style={styles.panelTitle}>
-              {dialog === 'edit' ? 'Edit entry' : dialog === 'choose' ? 'One note for Today' : dialog === 'linked' ? thinkingKind === 'reflection' ? 'Add reflection' : 'Add creation' : 'Capture'}
+              {dialog === 'reminder' ? 'Schedule a pin' : dialog === 'derive' ? `New task from ${source?.kind ?? 'entry'}` : dialog === 'edit' ? 'Edit entry' : dialog === 'choose' ? 'One note for Today' : dialog === 'linked' ? thinkingKind === 'reflection' ? 'Add reflection' : 'Add creation' : 'Capture'}
             </Text><IconButton name="close" label={dialog === 'capture' ? 'Close capture' : 'Close dialog'} disabled={busy} onPress={dismissDialog} /></View>
-            {dialog === 'choose' ? <>
+            {dialog === 'reminder' && reminderTask ? <>
+              <Text style={styles.originalText}>{reminderTask.title}</Text>
+              <Text style={styles.muted}>Choose a local date and 24-hour time. The task pins while Noeting is open, or when you next open it. No notification is sent.</Text>
+              <Text style={styles.muted}>Timezone: {Intl.DateTimeFormat().resolvedOptions().timeZone}</Text>
+              <TextInput accessibilityLabel="Pin date" value={reminderDate} onChangeText={setReminderDate} editable={!busy} placeholder="YYYY-MM-DD" placeholderTextColor={colors.muted} style={styles.searchInput} />
+              <TextInput accessibilityLabel="Pin time" value={reminderTime} onChangeText={setReminderTime} editable={!busy} placeholder="HH:mm" placeholderTextColor={colors.muted} style={styles.searchInput} />
+              {captureError && <Text accessibilityRole="alert" style={styles.error}>{captureError}</Text>}
+              <Button label="Save scheduled pin" primary disabled={busy} onPress={()=>void saveReminder()} />
+              {pinSchedules.some(r=>r.taskId===reminderTask.id && r.status==='waiting') && <Button label="Remove scheduled pin" disabled={busy} onPress={()=>void saveReminder(true)} />}
+            </> : dialog === 'choose' ? <>
               <Text style={styles.muted}>New notes become your Today note. You can also choose a saved note.</Text>
               {[...notes].reverse().map((entry, index) => <View key={entry.id} style={styles.source}>
                 <Text selectable style={styles.originalText}>{entry.text}</Text>
                 <Button label="Select" accessibilityLabel={`Select note ${index + 1}`} disabled={busy} onPress={() => void selectNote(entry)} />
               </View>)}
             </> : <>
-              {dialog === 'linked' && source ? <>
+              {dialog === 'derive' && source ? <>
+                <View style={styles.source}><Text style={styles.eyebrow}>{source?.kind==='task'?'SOURCE TASK · READ ONLY':'SOURCE NOTE · READ ONLY'}</Text><Text selectable style={styles.originalText}>{source.text}</Text></View>
+                <Text style={styles.muted}>Write the action you intend to take. Its source stays unchanged.</Text>
+              </> : dialog === 'linked' && source ? <>
                 <View style={styles.source}><Text style={styles.eyebrow}>ORIGINAL · READ ONLY</Text><Text selectable style={styles.originalText}>{source.originalText}</Text></View>
                 <Text style={styles.muted}>{thinkingKind === 'reflection' ? 'What changed in your thinking?' : 'What can you make from this?'}</Text>
               </> : dialog === 'edit' ? <Text style={styles.muted}>Update the words shown in the app.</Text> : <>
@@ -531,11 +716,11 @@ function Noeting() {
                   </Pressable>)}
                 </View>
               </>}
-              <TextInput accessibilityLabel={dialog === 'edit' ? 'Edit entry text' : dialog === 'linked' ? 'Linked entry text' : 'Capture text'} multiline autoFocus editable={!busy} value={text}
+              <TextInput accessibilityLabel={dialog === 'derive' ? 'New task text' : dialog === 'edit' ? 'Edit entry text' : dialog === 'linked' ? 'Linked entry text' : 'Capture text'} multiline autoFocus editable={!busy} value={text}
                 onChangeText={value => { setText(value); setCaptureError(null); }}
                 placeholder={dialog === 'linked' ? 'Write a new linked entry…' : kind === 'note' ? 'What did you notice?' : 'What do you intend to do?'}
                 placeholderTextColor={colors.muted} style={styles.input} textAlignVertical="top" />
-              <Text style={styles.captureHint}>{dialog === 'edit' ? 'Your first capture stays intact.' : dialog === 'linked' ? 'Save a separate entry. Your original words stay unchanged.' : kind === 'note' ? 'Saving makes this your Today note. No task will be created.' : 'Saving creates one task linked to your original words.'}</Text>
+              <Text style={styles.captureHint}>{dialog === 'derive' ? 'Save creates a separate task linked to its source.' : dialog === 'edit' ? 'Your first capture stays intact.' : dialog === 'linked' ? 'Save a separate entry. Your original words stay unchanged.' : kind === 'note' ? 'Saving makes this your Today note. No task will be created.' : 'Saving creates one task linked to your original words.'}</Text>
               {captureError && <Text accessibilityRole="alert" style={styles.error}>{captureError}</Text>}
               <Button label="Save" primary disabled={busy || !text.trim()} onPress={() => void save()} />
             </>}
@@ -560,6 +745,20 @@ function createStyles(colors:Palette) {return StyleSheet.create({
   sheetMotion: {width:'100%',maxWidth:560},
   controlIcon: {width:22,height:22},
   iconTarget: {width:44,height:44,alignItems:'center',justifyContent:'center'},
+  arrowGlyph: {fontSize:28,lineHeight:32,fontWeight:'400'},
+  clockFace: {position:'absolute',left:1,top:1,width:20,height:20,borderRadius:10,borderWidth:1.5},
+  clockVertical: {position:'absolute',left:10.25,top:5,width:1.5,height:6,borderRadius:1},
+  clockHorizontal: {position:'absolute',left:10.25,top:10.25,width:5.5,height:1.5,borderRadius:1},
+  returnCurve: {position:'absolute',left:4,top:4,width:15,height:14,borderTopWidth:1.6,borderRightWidth:1.6,borderBottomWidth:1.6,borderTopRightRadius:7,borderBottomRightRadius:7},
+  returnHead: {position:'absolute',left:1,width:6,height:1.6,borderRadius:1},
+  checkShort: {position:'absolute',left:4,top:10,width:6,height:1.8,transform:[{rotate:'45deg'}]},
+  checkLong: {position:'absolute',left:7,top:8,width:11,height:1.8,transform:[{rotate:'-45deg'}]},
+  entryHeading: {flex:1,minWidth:0,flexDirection:'row',alignItems:'center',gap:4},
+  entryFooter: {flexDirection:'row',alignItems:'flex-end',justifyContent:'space-between',gap:8},
+  entryBody: {gap:10,minHeight:44,paddingVertical:4},
+  edgeControls: {flexDirection:'row',alignItems:'center'},
+  cornerActions: {flexDirection:'row',alignItems:'center'},
+  taskTopRow: {flexDirection:'row',alignItems:'flex-start'},
   closeGlyph: {width:22,height:22,alignItems:'center',justifyContent:'center'},
   plusLine: {backgroundColor:colors.green},
   closeLine: {position:'absolute',width:20,height:1.8,backgroundColor:colors.muted,borderRadius:1},
@@ -572,7 +771,7 @@ function createStyles(colors:Palette) {return StyleSheet.create({
   plusText: {fontSize:32,lineHeight:38,color:colors.onAccent,fontWeight:'400',includeFontPadding:false},
   toast: {position:'absolute',bottom:86,alignSelf:'center',zIndex:3,backgroundColor:colors.white,borderWidth:1,borderColor:colors.line,borderRadius:22,paddingHorizontal:18,paddingVertical:0},
   undoTarget: {minHeight:44,minWidth:44,alignItems:'center',justifyContent:'center'},
-  reviewTask: {flexDirection:'row',alignItems:'center',gap:8},
+  reviewTask: {flexDirection:'row',alignItems:'flex-start',gap:8},
   sheetOverlay: {justifyContent:'flex-end',padding:0},
   backdrop: {position:'absolute',top:0,bottom:0,left:0,right:0},
   sheet: {width:'100%',maxWidth:560,backgroundColor:colors.white,borderTopLeftRadius:24,borderTopRightRadius:24,paddingTop:8,paddingHorizontal:20},
@@ -604,19 +803,19 @@ function createStyles(colors:Palette) {return StyleSheet.create({
   pressed: { opacity: 0.7 },
   pinCount: { fontSize: 12, color: colors.muted },
   empty: { color: colors.muted, paddingVertical: 24, textAlign: 'center' },
-  task: { flexDirection: 'row', borderTopWidth: 1, borderColor: colors.line, paddingVertical: 13, borderRadius: 12 },
+  task: { flexDirection: 'column', borderTopWidth: 1, borderColor: colors.line, paddingVertical: 13, borderRadius: 12 },
   pinnedTask: { backgroundColor: colors.pinned, paddingRight: 10 },
   completeTarget: { width: 44, minHeight: 44, alignItems: 'center', paddingTop: 10.5 },
   checkbox: { height: 23, width: 23, borderRadius: 7, borderWidth: 1, borderColor: colors.checkbox, backgroundColor: colors.white },
-  taskBody: { flex: 1, justifyContent: 'center', minHeight: 44 },
+  taskBody: { flex: 1, minWidth:0, justifyContent: 'center', minHeight: 44 },
   pendingTaskBody: { justifyContent: 'flex-start', paddingVertical: 10.5 },
   taskTitle: { color: colors.ink, fontSize: 16, lineHeight: 23, fontWeight: '500', includeFontPadding: false },
   taskActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   overlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', alignItems: 'center', padding: 16 },
   dialog: { width: '100%', maxWidth: 560, maxHeight: '95%', backgroundColor: colors.white, borderRadius: 20 },
   dialogContent: { padding: 20, gap: 15 },
-  types: { flexDirection: 'row', gap: 10 },
-  type: { flex: 1, minHeight: 44, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: colors.line, borderRadius: 11 },
+  types: { flexDirection: 'row', flexWrap:'wrap', gap: 10 },
+  type: { flexGrow: 1, minWidth: 90, minHeight: 44, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: colors.line, borderRadius: 11 },
   selectedType: { borderColor: colors.green, backgroundColor: colors.selected },
   selectedTypeText: { color: colors.ink },
   input: { minHeight: 160, maxHeight: 250, borderWidth: 1, borderColor: colors.inputLine, borderRadius: 12, padding: 14, fontSize: 17, lineHeight: 25, color: colors.ink },

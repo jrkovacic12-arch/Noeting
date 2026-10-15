@@ -13,6 +13,15 @@ Neither loop requires the other. A Note is not automatically a Task, and a compl
 
 ## Project status
 
+**0.7.1 — October 15, 2026:** Simplifies Task cards: no per-task + on Today, no + on completed Tasks elsewhere, and no redundant From note/From task buttons. Open the Task entry and press its original preview for source navigation. Current verification and APK status live in `06_CURRENT_STATE.md`.
+
+**0.7.0 — October 15, 2026:** Tap Note bodies for entry details. A top-right + on all entry types opens Reflect/Create/New task, including independent Task-to-Task links. Library, entry and linked Tasks gain completion checkboxes. The clock sits immediately before the Task pin; Reopen uses a drawn left U-turn arrow, and the Today-note choice is a bottom-right pin. Verification and delivery status are maintained in `06_CURRENT_STATE.md`.
+
+**0.6.0 — October 15, 2026:** Scheduled pins replace notification reminders. Pins are unlimited and newest pin time appears first; due pins apply while open or at next launch/resume. Compact action icons, Notes subfilters and a separate entry-details screen keep Note cards focused on their text and linked counts. Existing source links/first captures remain. The update cancels old 0.5.0 notification schedules on first launch. Current verification and phone acceptance are maintained in `06_CURRENT_STATE.md`; earlier version descriptions below are historical.
+
+
+**0.5.0 source update — October 15, 2026:** Adds Reopen without Undo/confirmation, independent Tasks derived from Notes, Reflection/Creation filters and source navigation, and optional one-shot local reminders. Schema v4 adds links and reminder intent without rewriting historical captures. Android scheduling reports permission/errors and retries interrupted work; the browser explicitly reports that native notifications require Android. Backup/export/restore is deferred to the later account phase (D-018). Current build/test evidence and remaining phone checks are maintained in `06_CURRENT_STATE.md`; the 0.4.0 and earlier evidence below is historical.
+
 **As documented on October 15, 2026:** Version **0.4.0** implements Capture, Today, Library, basic Review and Settings with schema v3. Settings offers locally saved Light, Dark and Same as system appearance; system changes apply live. Android compilation and static APK verification **passed**. Native Android 9 in-place upgrade, Today/Reflect/Create/Review and offline reboot checks **passed for 0.2.0**. Version 0.2.1 styling passed browser workflows and layout checks at three phone widths; native visual acceptance is pending. Version 0.2.2 removed the starter icon guides and draft startup grid. Version 0.2.3 added supplied symbol branding. Version 0.3.0 adds the approved editing, recoverable removal and navigation changes; eighteen SQLite and twelve browser checks passed. Version 0.3.1 implements D-015 bottom tools, dismissal, Save labels, Back handling and compact Undo. Fourteen browser workflows passed; its Android verification is partial (Back/forms/sheet/clipboard verified, full edit/Undo/relaunch automation incomplete). Physical-device acceptance remains **pending**; these are development-signed test builds, not a released mobile app.
 
 | Area | Current state |
@@ -23,7 +32,8 @@ Neither loop requires the other. A Note is not automatically a Task, and a compl
 | Library search/filter | Read-only slice implemented; see current validation evidence |
 | Review, linked Reflect/Create | Implemented; preserve original source entries |
 | Today note and deterministic daily overview | Persistent chosen note with Reflect/Create/Change and visible summary card |
-| Device reminders and user-readable export/restore | Planned V1 work; not implemented |
+| Scheduled pins | Replaces notifications in 0.6.0; applies while open or on next launch/resume |
+| Backup/export/restore | Deferred to the later account phase (D-018) |
 | AI, accounts, sync, autonomous agent | Outside V1 |
 
 Today displays the saved-note count; the Library tab retrieves Notes, Tasks and linked thinking, searches original text, filters by type, and shows task status/source links. Version 0.2.0 adds compact right-edge pin icons, a persistent Today note, a summary card and Review. The historical HTML prototype contains more illustrative workflows than the native M1 application.
@@ -69,7 +79,7 @@ For the ARM64 Android test APK, the project has a preparation/build wrapper:
 npm run build:android:test
 ```
 
-This requires the supported Android/Java toolchain and dependency access described in the project documentation. The current verified ARM64 phone artifact is `artifacts/noeting-m1-android-arm64-test.apk`; it is version **0.4.0/code 10** with automatic Today-note selection, edit/remove/Undo, long-press Copy tools, X closers and scrolling icon navigation. The historical filename is retained by the wrapper; the current download link is maintained in `06_CURRENT_STATE.md`. The retained 0.3.1 emulator artifact is `artifacts/noeting-m1-android-x86_64-test.apk`, built with `npm run build:android:test -- --abi=x86_64`. Artifact identities and native emulator evidence are recorded in `06_CURRENT_STATE.md`. A successful static check still requires actual Android-device acceptance per [07_V1_WORKFLOW_DRAFT.md](07_V1_WORKFLOW_DRAFT.md). The test build uses development signing and placeholder identifiers, not production-release credentials.
+This requires the supported Android/Java toolchain and dependency access described in the project documentation. The current verified ARM64 phone artifact is `artifacts/noeting-m1-android-arm64-test.apk`; it is version **0.7.1/code 14** with automatic Today-note selection, edit/remove/Undo, long-press Copy tools, X closers and scrolling icon navigation. The historical filename is retained by the wrapper; the current download link is maintained in `06_CURRENT_STATE.md`. The retained 0.3.1 emulator artifact is `artifacts/noeting-m1-android-x86_64-test.apk`, built with `npm run build:android:test -- --abi=x86_64`. Artifact identities and native emulator evidence are recorded in `06_CURRENT_STATE.md`. A successful static check still requires actual Android-device acceptance per [07_V1_WORKFLOW_DRAFT.md](07_V1_WORKFLOW_DRAFT.md). The test build uses development signing and placeholder identifiers, not production-release credentials.
 
 ## Privacy and data ownership — current limits
 

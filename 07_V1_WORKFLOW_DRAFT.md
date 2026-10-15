@@ -168,3 +168,42 @@ Direct Note saves choose Today atomically. Editing updates current words without
 ### Approved interaction refinement — 2026-10-14 (D-015)
 
 The user reviewed the combined proposal, corrected exit to Today only and removal feedback to a small “Undo” control, then instructed “Proceed.” A Capture/linked/edit form can be dismissed by X, Back or an outside tap and reopened with its unsaved session draft; only Save commits the words. Today long press opens three bottom-sheet action rows. Library/Review Back restores the previous screen state; Today supports double-back exit. Undo can be tapped or dismissed downward. Implementation and partial native/browser evidence are maintained only in `06_CURRENT_STATE.md`; this does not claim physical-device acceptance.
+
+## Approved local workflow extension — 0.5.0 (2026-10-15)
+
+D-017/D-019 approve Reopen without Undo/confirmation, source-linked Tasks, retrieval refinements, local reminders and focused phone checks. Acceptance on the current ARM64 build remains separate from browser and repository verification; see `06_CURRENT_STATE.md` for actual evidence.
+
+- [ ] Install over the previous signed app without clearing data; check saved notes/edits/links, completion, pins, Today note and appearance remain.
+- [ ] Reopen a completed Task: it disappears from Review, reappears unpinned in Today, stays pending after restart, and shows no Undo or confirmation.
+- [ ] Start New task from a multiline Note; dismiss without committing, reopen/edit/Save, and check exactly one separate Task. Check From note and related-task navigation, independent edits, readable removed source, and offline restart preservation.
+- [ ] Use Reflection/Creation filters and Open source; check search and navigation with a realistic existing library.
+- [ ] Set an explicitly chosen future reminder, inspect permission and scheduling state, and test notification delivery in foreground/background. Deny permission and disable the notification channel, then restore permission and retry; no scheduled-success claim when blocked.
+- [ ] Edit/cancel a reminder and complete/remove its Task; verify old notifications do not fire. Reopen/Undo removal does not reschedule. Reboot with a future reminder and test actual delivery; distinguish Android force-stop restrictions from reboot restoration. Change timezone and confirm the same saved instant displays locally. Inexact alarms may arrive late; this is not a timing guarantee.
+- [ ] Check long notes, large system text, narrow layouts, keyboard/form scrolling and navigation on the actual phone; record device model, OS, build and outcomes.
+
+## 0.6.0 phone checks — D-020 (pending)
+
+- [ ] Install over 0.5.0 and launch once: verify prior content/links/appearance persist and old OS notification schedules are cancelled; no new notification prompt appears.
+- [ ] Pin more than three Tasks; confirm newest pin first and persisted order after restart. Set a clock time, wait with the app open, then test overdue catch-up after closing/reopening. Already-pinned Tasks retain position; completing/removing cancels a waiting schedule and Reopen never reschedules it.
+- [ ] Check the clock, +, U-turn Reopen and expand icons at normal/large system text sizes. Reopen retains no Undo/confirmation.
+- [ ] Notes reveals All notes/Reflections/Creations; All/Tasks hides them. Press an original preview to open its source; Back restores the prior filter/search/scroll state.
+- [ ] Plain Note cards show linked counts without child text. Expand opens an actual entry screen with actions, preserved source/first capture and grouped Tasks/Reflections/Creations; nested source/child navigation and Back work. Include long text and removed-source cases.
+
+Prior notification-delivery acceptance scenarios above are historical and superseded by D-020. App-closed background pin execution is not an acceptance claim; collect actual device/build results in current state.
+
+
+## 0.7.0 phone checks — D-021 (pending)
+
+- Install over the existing app without uninstalling; check previous captures, links, pins and chosen Today note survive schema-v6 upgrade.
+- Tap Note body to open details; long-press/select/copy words without navigation. Edit/remove/+ and bottom pin must not open the body. Verify at narrow width and larger system text.
+- Confirm top-right + on Note/Task/Reflection/Creation and linked cards opens only Reflect/Create/New task. Dismissal saves nothing; forms retain source and independent words. Test Task-to-Task source preview, source edits/removal and independent completion.
+- Check/uncheck Tasks in Library, full entry and linked groups. Verify live Today/Review updates and restart durability; completion unpins/cancels schedule, reopening stays unpinned/unscheduled with no Undo/confirmation.
+- Inspect clock immediately before Task pin, matching drawn left U-turn/remove controls, bottom-right Today-note pin/selected state, and 44-point targets. Selecting a Today note stays on the current screen; repeated press retains selection.
+- Automated evidence belongs in current state. Browser selection/layout checks do not prove Android selection gestures, system-font behavior or native runtime acceptance.
+
+
+## 0.7.1 focused phone checks — D-022 (pending)
+
+- Today Task rows have no +; the Tasks-panel Add task control still works. Library and entry pending Tasks retain +. Completing hides it in Library/full entry/linked groups; reopening restores it there. Review completed Tasks have no +.
+- Task cards show no From note/From task button. Open a Task, then press its original Note/Task preview; verify current and removed sources remain reachable and Back returns correctly.
+- Check the revised Task-card spacing, completion controls and clock/pin alignment on a physical phone. Automated verification belongs in current state.
