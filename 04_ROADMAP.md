@@ -58,7 +58,7 @@ A concise V1 specification exists with at least one complete flow from capture t
 - [x] Prototype-based Today note with Reflect/Create/Change, basic Review, and deterministic visible summary card; source text remains unchanged.
 - [x] Remove explicit stop functionality and Library combined reset control; move compact pin toggles to the right edge (D-012).
 - [x] Basic Library edit/removal, Review removal and linked edit/removal under D-014; automated migration/workflow checks passed, phone acceptance remains pending.
-- [ ] Advanced Review and Note-derived Tasks still require separate scope/O-008.
+- [x] Reopen and Note-derived Tasks implemented under D-017/D-019; O-008 resolved for this relationship. Broader Review enhancements remain separate.
 
 Physical-device acceptance remains open. On 2026-10-13 the user requested continued development, then simulated-phone testing; actual native emulator outcomes are maintained in `06_CURRENT_STATE.md`.
 
@@ -71,13 +71,50 @@ These are suggested ordering and test conditions, **not passed tests or finalize
 
 **M3 — V1 operational reliability:** user-set due/reminder scheduling with permission/error states and device notification tests; readable export/backup and restore validation, database migrations, and privacy/security checks. Final V1 acceptance remains open until tested.
 
+### Approved development course — 2026-10-15 (D-019; source implemented, validation in current state)
+
+1. **Reopen completed Tasks:** implement accepted D-017 behavior with focused repository/UI checks for persistence, duplicate activation, write failure and cross-tab consistency.
+2. **Note-derived Tasks:** review P-007/O-008 before additive migration and implementation. Verify linked-source preservation, independent edits/removal and atomic retry behavior.
+3. **Retrieval improvements (item 4):** retain All/Notes/Tasks and add distinct Reflection/Creation filters; improve two-way source navigation, without requiring new categories or broad organization features.
+4. **Optional local reminders (item 2):** one explicitly selected date/time per Task; no automatic scheduling. Design permission, scheduled/error status, edit/cancel, completion/removal cancellation, reboot and timezone behavior before implementation. Reopen must not silently recreate a past reminder. Verify actual Android delivery separately from browser logic.
+5. **Focused phone usability (item 5):** check the final build with long notes, larger system text, keyboard/forms/navigation, and a realistic library; record device/OS/build and observed results. Use focused checks at each preceding slice and bounded emulator troubleshooting.
+
+Items 2/4/5 from the user's requested list are included above. The user approved this course with “proceed.” Code exists for steps 1–4; step 5 requires focused automated checks and separately recorded phone acceptance. D-018 defers backup/export/restore to the later account phase; earlier M3/export references describe the prior scope. Accounts/cloud sync and AI are not part of this course.
+
+### Approved refinement — 0.6.0 (D-020)
+
+- [x] Replace notification scheduling with durable scheduled pins; unlimited pins ordered newest first, with already-pinned stability and overdue catch-up.
+- [x] Add icon-only scheduled pin/New task/Reopen actions, nested Notes filters and pressable original previews.
+- [x] Keep Note cards compact with linked counts and a separate entry screen for actions/source/grouped links; preserve Back/list state.
+- [x] Verify schema-v4 upgrade/failure rollback, scheduled-pin timing/order/cancellation and focused browser workflows. Actual evidence belongs in current state.
+- [ ] Confirm legacy-notification cleanup and revised visuals/navigation on a physical phone. Older notification-delivery tasks are superseded by D-020; no background pin execution while closed is promised.
+
+### Approved refinement — 0.7.0 (D-021)
+
+- [x] Replace expand with card-body entry navigation; top-right + opens Reflect/Create/New task on all entry types.
+- [x] Extend independent derived Tasks to Task sources with atomic migration and immutable source snapshots.
+- [x] Add completion checkboxes to Library, Task details and linked Task groups, using existing no-Undo Reopen rules.
+- [x] Align clock/pin at the Task right edge, draw a matching left U-turn arrow, and use bottom-right pins for Today-note selection.
+- [x] Verify schema-v5 rollback/recovery, Task-source independence and focused interaction/layout workflows; evidence is maintained in current state.
+- [x] Build and statically verify the updated ARM64 APK.
+- [x] Publish the verified APK after explicit user approval and confirm the fetched checksum.
+- [ ] Collect physical-phone acceptance.
+
+### Task card refinement — 0.7.1 (D-022)
+
+- [x] Remove Today per-task +, completed-Task + on all other screens and redundant Task source buttons.
+- [x] Verify three focused source navigation/completion workflows and type checking; evidence belongs in current state.
+- [x] Build and statically verify the 0.7.1/code 14 ARM64 APK.
+- [x] Publish after explicit approval and confirm the downloaded checksum.
+- [ ] Collect physical-phone visual acceptance.
+
 ### V1 target features (accepted scope, unordered outside M1)
 
 - [x] Implement fast capture with SQLite-backed local entries; physical-device acceptance remains pending.
 - [x] Add basic read-only Library search/filtering using Note/Task types; richer category semantics remain open.
 - [ ] Add explicit tasks with editable status, priority, and optional deadline.
 - [x] Add Today tasks, a chosen note with Reflect/Create, and a summary card; no explicit-stop UI.
-- [ ] Add user-set reminders using reliable platform scheduling.
+- [x] Add user-set scheduled pins with foreground/open catch-up under D-020; physical-phone acceptance remains pending.
 - [x] Offer a deterministic current-record summary card; AI remains outside V1.
 - [ ] Demonstrate data preservation across restarts and ordinary offline use.
 

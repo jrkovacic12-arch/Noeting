@@ -1,5 +1,37 @@
 # Noeting — Documentation Change Log (started 2026-10-11)
 
+## 2026-10-15 — 0.7.1 Task card simplification
+
+- Implement D-022: remove per-task + on Today and completed-Task + in Review/Library/entry screens; remove redundant Task source buttons while preserving original-preview navigation.
+- No database change. Focused verification and APK status are recorded in `06_CURRENT_STATE.md`.
+- At the user’s request, published the verified 0.7.1 APK and confirmed its downloaded checksum; prepared the source changes for PR review.
+
+## 2026-10-15 — 0.7.0 entry actions and completion
+
+- Implemented the approved D-021 card-body navigation, three-choice + menus, independent Task-source links, completion checkboxes and refined pin/clock/Reopen placement/icons.
+- Schema v6 preserves existing records while allowing Task sources. Verification and APK delivery evidence live in `06_CURRENT_STATE.md`; device acceptance remains separate.
+- Following explicit user upload approval, published the verified 0.7.0 APK on its separate GitHub download branch and confirmed the downloaded checksum.
+
+## 0.6.0 — 2026-10-15
+
+- Record D-020 and replace notifications with unlimited, newest-first scheduled pins; preserve existing pin positions when schedules arrive and cancel legacy notifications on first launch.
+- Add compact clock/+/U-turn actions, nested Notes filters, pressable source previews, linked-count metadata and a separate entry screen with grouped links and Back restoration.
+- Schema v5 upgrades preserve prior content/source links and migrate outstanding reminder intent. Current validation/build/publication evidence lives only in `06_CURRENT_STATE.md`.
+- TypeScript, 26 data tests, all 23 browser workflows, web export and ARM64 build/static verification passed. Following explicit user upload approval, published only the verified 0.6.0 APK on its separate public download branch and confirmed the fetched checksum. Source review/merge and physical-phone acceptance remain separate.
+
+## 0.5.0 — 2026-10-15
+
+- User approved the proposed local development course (D-019). Implement Reopen without Undo/confirmation, independent source-linked Tasks, distinct Reflection/Creation filters and readable source navigation.
+- Add schema v4 and optional local reminders with durable intent, revision-based scheduling, retryable permission/errors and cancellation on completion/removal. Source, scheduling and validation details live in the authoritative product/architecture/current-state records.
+- Accounts/sync and backup/export/restore remain deferred. Build/device evidence is recorded only in current state.
+- 0.5.0 TypeScript, 27 data/reminder tests, 21 browser workflows, final web export, ARM64 build and static verification passed. Public APK publication initially required explicit approval after automatic review blocked it; the user then instructed “upload the verified APK.” Published the verified APK on its separate public download branch and confirmed the fetched checksum. Main/source publication and phone acceptance remain separate; details live in current state.
+
+## Development decisions and proposed course — 2026-10-15
+
+- Record accepted Reopen behavior (D-017) and deferral of backup/export/restore to accounts (D-018).
+- Propose Note-to-Task relationship P-007 and add reminders, retrieval improvements and focused phone usability to the proposed course in `04_ROADMAP.md`.
+- Update the exact next action to await user approval. Documentation only; no implementation or test results claimed.
+
 ## Phone testing and merge approval — 2026-10-15
 
 - User reports testing the PR-version APK on their phone and explicitly requests merging PR #3. Record this as user-reported acceptance for merge; model/OS and per-feature outcomes were not supplied. Proposed next slices remain subject to user choice; see `06_CURRENT_STATE.md`.

@@ -10,6 +10,8 @@ export interface Entry {
   createdAt: string;
   thinkingKind: ThinkingKind | null;
   sourceEntryId: string | null;
+  taskSourceId?: string | null;
+  taskSourceText?: string | null;
 }
 
 export interface Task {
@@ -18,6 +20,8 @@ export interface Task {
   title: string;
   status: 'pending' | 'completed';
   pinned: boolean;
+  pinnedAt: string | null;
+  pinOrder: number;
   createdAt: string;
   completedAt: string | null;
 }
@@ -59,6 +63,11 @@ export interface Repository {
   saveCapture(input: CaptureInput): Promise<CaptureResult>;
   setPinned(id: string, pinned: boolean): Promise<void>;
   completeTask(id: string): Promise<void>;
+  reopenTask(id: string): Promise<void>;
+  saveDerivedTask(input: Omit<LinkedInput, 'kind'>): Promise<CaptureResult>;
+  setScheduledPin(taskId: string, dueAt: string | null): Promise<void>;
+  readScheduledPins(): Promise<PinSchedule[]>;
+  applyDuePins(now?: string): Promise<void>;
   saveLinked(input: LinkedInput): Promise<CaptureResult>;
   chooseTodayNote(id: string): Promise<void>;
   editEntry(id: string, text: string): Promise<void>;
@@ -75,7 +84,13 @@ export interface SQLiteDriver {
   all<T>(sql: string, parameters?: SQLiteValue[]): Promise<T[]>;
 }
 
-export const SCHEMA_VERSION = 3;
+export interface PinSchedule {
+  taskId: string;
+  dueAt: string | null;
+  status: 'waiting' | 'applied' | 'cancelled';
+}
+
+export const SCHEMA_VERSION = 6;
 
 type EntryRow = {
   id: string;
@@ -86,9 +101,13 @@ type EntryRow = {
   removal_version?: number;
   removed_pinned?: number;
   removed_selected?: number;
+  removed_pin_at?: string | null;
+  removed_pin_order?: number;
   created_at: string;
   thinking_kind?: ThinkingKind | null;
   source_entry_id?: string | null;
+  task_source_id?: string | null;
+  task_source_text?: string | null;
 };
 
 type TaskRow = {
@@ -97,6 +116,8 @@ type TaskRow = {
   title: string;
   status: 'pending' | 'completed';
   pinned: number;
+  pinned_at: string | null;
+  pin_order: number;
   created_at: string;
   completed_at: string | null;
 };
@@ -188,6 +209,55 @@ const migrationV3 = `
   ALTER TABLE entries ADD COLUMN removed_selected INTEGER NOT NULL DEFAULT 0;
 `;
 
+const migrationV4 = `
+  CREATE TABLE task_sources (
+    entry_id TEXT PRIMARY KEY NOT NULL REFERENCES entries(id) ON DELETE RESTRICT,
+    source_entry_id TEXT NOT NULL REFERENCES entries(id) ON DELETE RESTRICT,
+    source_text TEXT NOT NULL,
+    CHECK (entry_id <> source_entry_id)
+  );
+  CREATE INDEX task_sources_source ON task_sources(source_entry_id);
+  CREATE TRIGGER task_sources_require_kinds BEFORE INSERT ON task_sources
+  WHEN (SELECT kind FROM entries WHERE id = NEW.entry_id) <> 'task'
+    OR (SELECT kind FROM entries WHERE id = NEW.source_entry_id) <> 'note'
+  BEGIN SELECT RAISE(ABORT, 'A derived task needs a task entry and a note source.'); END;
+  CREATE TABLE reminders (
+    task_id TEXT PRIMARY KEY NOT NULL REFERENCES tasks(id) ON DELETE RESTRICT,
+    due_at TEXT,
+    revision INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL CHECK(status IN ('pending','scheduled','denied','error','elapsed','cancelled')),
+    error TEXT
+  );
+`;
+
+const migrationV5 = `
+  DROP TRIGGER tasks_pin_limit_insert;
+  DROP TRIGGER tasks_pin_limit_update;
+  ALTER TABLE tasks ADD COLUMN pinned_at TEXT;
+  ALTER TABLE tasks ADD COLUMN pin_order INTEGER NOT NULL DEFAULT 0;
+  UPDATE tasks SET pinned_at=created_at,pin_order=rowid WHERE pinned=1;
+  ALTER TABLE entries ADD COLUMN removed_pin_at TEXT;
+  ALTER TABLE entries ADD COLUMN removed_pin_order INTEGER NOT NULL DEFAULT 0;
+  CREATE TABLE scheduled_pins (
+    task_id TEXT PRIMARY KEY NOT NULL REFERENCES tasks(id) ON DELETE RESTRICT,
+    due_at TEXT,
+    status TEXT NOT NULL CHECK(status IN ('waiting','applied','cancelled'))
+  );
+  INSERT INTO scheduled_pins(task_id,due_at,status)
+    SELECT r.task_id,r.due_at,'waiting' FROM reminders r
+    JOIN tasks t ON t.id=r.task_id JOIN entries e ON e.id=t.entry_id
+    WHERE r.due_at IS NOT NULL AND r.status NOT IN ('cancelled','elapsed')
+      AND t.status='pending' AND e.removed_at IS NULL;
+  UPDATE reminders SET due_at=NULL,status='cancelled',revision=revision+1,error=NULL;
+`;
+
+const migrationV6 = `
+  DROP TRIGGER task_sources_require_kinds;
+  CREATE TRIGGER task_sources_require_kinds BEFORE INSERT ON task_sources
+  WHEN (SELECT kind FROM entries WHERE id=NEW.entry_id) <> 'task'
+  BEGIN SELECT RAISE(ABORT, 'A derived task needs a task entry.'); END;
+`;
+
 class SQLiteRepository implements Repository {
   private readonly mutex: Mutex;
   private initialized = false;
@@ -210,8 +280,9 @@ class SQLiteRepository implements Repository {
       await this.initializeLocked();
       return this.transaction(async () => {
         const entries = await this.db.all<EntryRow>(
-          `SELECT e.*, l.thinking_kind, l.source_entry_id
-           FROM entries e LEFT JOIN thinking_links l ON l.entry_id = e.id ORDER BY e.created_at, e.rowid`,
+          `SELECT e.*, l.thinking_kind, l.source_entry_id, s.source_entry_id AS task_source_id, s.source_text AS task_source_text
+           FROM entries e LEFT JOIN thinking_links l ON l.entry_id = e.id
+           LEFT JOIN task_sources s ON s.entry_id = e.id ORDER BY e.created_at, e.rowid`,
         );
         const tasks = await this.db.all<TaskRow>(
           'SELECT t.* FROM tasks t JOIN entries e ON e.id = t.entry_id WHERE e.removed_at IS NULL ORDER BY t.created_at, t.rowid',
@@ -228,6 +299,8 @@ class SQLiteRepository implements Repository {
             createdAt: row.created_at,
             thinkingKind: row.thinking_kind ?? null,
             sourceEntryId: row.source_entry_id ?? null,
+            taskSourceId: row.task_source_id ?? null,
+            taskSourceText: row.task_source_text ?? null,
           })),
           tasks: tasks.map((row) => ({
             id: row.id,
@@ -235,6 +308,8 @@ class SQLiteRepository implements Repository {
             title: row.title,
             status: row.status,
             pinned: row.pinned === 1,
+            pinnedAt: row.pinned_at,
+            pinOrder: row.pin_order,
             createdAt: row.created_at,
             completedAt: row.completed_at,
           })),
@@ -263,6 +338,8 @@ class SQLiteRepository implements Repository {
         if (existing) {
           const linked = await this.db.all('SELECT entry_id FROM thinking_links WHERE entry_id = ?', [existing.id]);
           if (linked.length) throw new Error('This request belongs to a linked entry.');
+          const derived = await this.db.all('SELECT entry_id FROM task_sources WHERE entry_id = ?', [existing.id]);
+          if (derived.length) throw new Error('This request belongs to a derived task.');
           if (existing.kind !== input.kind || existing.original_text !== input.text) {
             throw new Error('This capture request was already saved with different content.');
           }
@@ -307,13 +384,9 @@ class SQLiteRepository implements Repository {
         const [task] = await this.db.all<TaskRow>('SELECT t.* FROM tasks t JOIN entries e ON e.id = t.entry_id WHERE t.id = ? AND e.removed_at IS NULL', [id]);
         if (!task) throw new Error('Task was not found.');
         if (task.status !== 'pending') throw new Error('Only pending tasks can be pinned.');
-        if (pinned && task.pinned !== 1) {
-          const [count] = await this.db.all<{ total: number }>(
-            'SELECT COUNT(*) AS total FROM tasks WHERE pinned = 1',
-          );
-          if (count.total >= 3) throw new Error('Only three tasks can be pinned.');
-        }
-        await this.db.run('UPDATE tasks SET pinned = ? WHERE id = ?', [pinned ? 1 : 0, id]);
+        if (pinned === (task.pinned === 1)) return;
+        const [order] = await this.db.all<{next:number}>('SELECT COALESCE(MAX(pin_order),0)+1 AS next FROM tasks');
+        await this.db.run('UPDATE tasks SET pinned=?,pinned_at=?,pin_order=? WHERE id=?', [Number(pinned),pinned ? new Date().toISOString() : null,pinned ? order.next : task.pin_order,id]);
       });
     });
   }
@@ -326,9 +399,87 @@ class SQLiteRepository implements Repository {
         if (!task) throw new Error('Task was not found.');
         if (task.status === 'completed') return;
         await this.db.run(
-          "UPDATE tasks SET status = 'completed', pinned = 0, completed_at = ? WHERE id = ?",
+          "UPDATE tasks SET status = 'completed', pinned = 0, pinned_at = NULL, completed_at = ? WHERE id = ?",
           [new Date().toISOString(), id],
         );
+        await this.db.run("UPDATE scheduled_pins SET due_at = NULL, status = 'cancelled' WHERE task_id = ?", [id]);
+      });
+    });
+  }
+
+  reopenTask(id: string): Promise<void> {
+    return this.mutex.run(async () => {
+      await this.initializeLocked();
+      await this.transaction(async () => {
+        const [task] = await this.db.all<TaskRow>('SELECT t.* FROM tasks t JOIN entries e ON e.id = t.entry_id WHERE t.id = ? AND e.removed_at IS NULL', [id]);
+        if (!task) throw new Error('Task was not found.');
+        if (task.status === 'pending') return;
+        await this.db.run("UPDATE tasks SET status = 'pending', pinned = 0, pinned_at = NULL, completed_at = NULL WHERE id = ?", [id]);
+      });
+    });
+  }
+
+  saveDerivedTask(input: Omit<LinkedInput, 'kind'>): Promise<CaptureResult> {
+    return this.mutex.run(async () => {
+      if (typeof input.requestId !== 'string' || !input.requestId.trim()) throw new Error('A task needs a stable request ID.');
+      if (typeof input.text !== 'string' || !input.text.trim()) throw new Error('Write something before saving.');
+      await this.initializeLocked();
+      return this.transaction(async () => {
+        const request = `derived:${input.requestId}`;
+        const [existing] = await this.db.all<EntryRow>(
+          `SELECT e.*, s.source_entry_id FROM entries e LEFT JOIN task_sources s ON s.entry_id = e.id WHERE e.capture_request_id = ?`, [request]);
+        if (existing) {
+          if (existing.kind !== 'task' || existing.original_text !== input.text || existing.source_entry_id !== input.sourceEntryId) throw new Error('This task request was already saved with different content or source.');
+          const [task] = await this.db.all<{id: string}>('SELECT id FROM tasks WHERE entry_id = ?', [existing.id]);
+          if (!task) throw new Error('The saved task is missing.');
+          return {entryId: existing.id, taskId: task.id};
+        }
+        const [source] = await this.db.all<EntryRow>("SELECT * FROM entries WHERE id = ? AND removed_at IS NULL", [input.sourceEntryId]);
+        if (!source) throw new Error('Source entry was not found.');
+        const entryId = `entry_${request}`, taskId = `task_${request}`, createdAt = new Date().toISOString();
+        await this.db.run("INSERT INTO entries(id,capture_request_id,kind,original_text,created_at) VALUES (?,?,'task',?,?)", [entryId,request,input.text,createdAt]);
+        await this.db.run("INSERT INTO tasks(id,entry_id,title,status,pinned,created_at,completed_at) VALUES (?,?,?,'pending',0,?,NULL)", [taskId,entryId,input.text.trim(),createdAt]);
+        await this.db.run('INSERT INTO task_sources(entry_id,source_entry_id,source_text) VALUES (?,?,?)', [entryId,source.id,source.edited_text ?? source.original_text]);
+        return {entryId,taskId};
+      });
+    });
+  }
+
+  setScheduledPin(taskId: string, dueAt: string | null): Promise<void> {
+    return this.mutex.run(async () => {
+      if (dueAt !== null && (!Number.isFinite(Date.parse(dueAt)) || Date.parse(dueAt) <= Date.now())) throw new Error('Choose a future pin time.');
+      await this.initializeLocked();
+      await this.transaction(async () => {
+        const [task] = await this.db.all<TaskRow>('SELECT t.* FROM tasks t JOIN entries e ON e.id=t.entry_id WHERE t.id=? AND e.removed_at IS NULL', [taskId]);
+        if (!task || task.status !== 'pending') throw new Error('Choose a pending task.');
+        await this.db.run(`INSERT INTO scheduled_pins(task_id,due_at,status) VALUES (?,?,?)
+          ON CONFLICT(task_id) DO UPDATE SET due_at=excluded.due_at,status=excluded.status`, [taskId,dueAt === null ? null : new Date(dueAt).toISOString(),dueAt === null ? 'cancelled' : 'waiting']);
+      });
+    });
+  }
+
+  readScheduledPins(): Promise<PinSchedule[]> {
+    return this.mutex.run(async () => {
+      await this.initializeLocked();
+      const rows = await this.db.all<{task_id:string;due_at:string|null;status:PinSchedule['status']}>('SELECT * FROM scheduled_pins');
+      return rows.map(row=>({taskId:row.task_id,dueAt:row.due_at,status:row.status}));
+    });
+  }
+
+  applyDuePins(now = new Date().toISOString()): Promise<void> {
+    return this.mutex.run(async () => {
+      if (!Number.isFinite(Date.parse(now))) throw new Error('Invalid pin clock.');
+      await this.initializeLocked();
+      await this.transaction(async () => {
+        const due = await this.db.all<{task_id:string;due_at:string;pinned:number}>(
+          `SELECT s.task_id,s.due_at,t.pinned FROM scheduled_pins s JOIN tasks t ON t.id=s.task_id JOIN entries e ON e.id=t.entry_id
+           WHERE s.status='waiting' AND s.due_at<=? AND t.status='pending' AND e.removed_at IS NULL ORDER BY s.due_at,s.task_id`, [new Date(now).toISOString()]);
+        const [order] = await this.db.all<{next:number}>('SELECT COALESCE(MAX(pin_order),0)+1 AS next FROM tasks');
+        let next=order.next;
+        for (const item of due) {
+          if (!item.pinned) await this.db.run('UPDATE tasks SET pinned=1,pinned_at=?,pin_order=? WHERE id=?', [item.due_at,next++,item.task_id]);
+          await this.db.run("UPDATE scheduled_pins SET status='applied' WHERE task_id=?", [item.task_id]);
+        }
       });
     });
   }
@@ -397,9 +548,10 @@ class SQLiteRepository implements Repository {
         const [task] = await this.db.all<TaskRow>('SELECT * FROM tasks WHERE entry_id = ?', [id]);
         const [selection] = await this.db.all<{entry_id:string}>('SELECT entry_id FROM today_selection WHERE id = 1');
         const removal = {entryId:id, version:entry.removal_version! + 1, pinned:task?.pinned === 1, selected:selection?.entry_id === id};
-        await this.db.run('UPDATE entries SET removed_at = ?, removal_version = ?, removed_pinned = ?, removed_selected = ? WHERE id = ?',
-          [new Date().toISOString(), removal.version, Number(removal.pinned), Number(removal.selected), id]);
-        await this.db.run('UPDATE tasks SET pinned = 0 WHERE entry_id = ?', [id]);
+        await this.db.run('UPDATE entries SET removed_at = ?, removal_version = ?, removed_pinned = ?, removed_selected = ?, removed_pin_at = ?, removed_pin_order = ? WHERE id = ?',
+          [new Date().toISOString(), removal.version, Number(removal.pinned), Number(removal.selected), task?.pinned_at ?? null, task?.pin_order ?? 0, id]);
+        await this.db.run('UPDATE tasks SET pinned = 0, pinned_at = NULL WHERE entry_id = ?', [id]);
+        await this.db.run("UPDATE scheduled_pins SET due_at=NULL,status='cancelled' WHERE task_id IN (SELECT id FROM tasks WHERE entry_id=?)", [id]);
         await this.db.run('DELETE FROM today_selection WHERE entry_id = ?', [id]);
         return removal;
       });
@@ -414,8 +566,10 @@ class SQLiteRepository implements Repository {
         if (!entry || entry.removal_version !== removal.version) throw new Error('This removal can no longer be undone.');
         if (entry.removed_at == null) return;
         await this.db.run('UPDATE entries SET removed_at = NULL WHERE id = ?', [entry.id]);
-        const [count] = await this.db.all<{total:number}>('SELECT COUNT(*) AS total FROM tasks WHERE pinned = 1');
-        if (entry.removed_pinned === 1 && count.total < 3) await this.db.run("UPDATE tasks SET pinned = 1 WHERE entry_id = ? AND status = 'pending'", [entry.id]);
+        if (entry.removed_pinned === 1) {
+          const [order] = await this.db.all<{next:number}>('SELECT COALESCE(MAX(pin_order),0)+1 AS next FROM tasks');
+          await this.db.run("UPDATE tasks SET pinned=1,pinned_at=?,pin_order=? WHERE entry_id=? AND status='pending'", [entry.removed_pin_at ?? new Date().toISOString(),entry.removed_pin_order || order.next,entry.id]);
+        }
         if (entry.removed_selected === 1) await this.db.run('INSERT OR IGNORE INTO today_selection(id, entry_id) VALUES (1, ?)', [entry.id]);
       });
     });
@@ -442,6 +596,9 @@ class SQLiteRepository implements Repository {
 
       }
       if (version.user_version < 3) await this.db.exec(migrationV3);
+      if (version.user_version < 4) await this.db.exec(migrationV4);
+      if (version.user_version < 5) await this.db.exec(migrationV5);
+      if (version.user_version < 6) await this.db.exec(migrationV6);
       if (version.user_version < SCHEMA_VERSION) await this.db.exec(`PRAGMA user_version = ${SCHEMA_VERSION};`);
     });
     this.initialized = true;
