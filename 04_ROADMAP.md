@@ -106,7 +106,7 @@ Items 2/4/5 from the user's requested list are included above. The user approved
 - [x] Verify three focused source navigation/completion workflows and type checking; evidence belongs in current state.
 - [x] Build and statically verify the 0.7.1/code 14 ARM64 APK.
 - [x] Publish after explicit approval and confirm the downloaded checksum.
-- [ ] Collect physical-phone visual acceptance.
+- [x] User reported testing the 0.7.1 APK and approved PR #4 merge; specific device/OS/scenario evidence remains unspecified.
 
 ### V1 target features (accepted scope, unordered outside M1)
 
