@@ -4,6 +4,19 @@
 >
 > **Current phase:** Capture/Today/Library/Review plus basic edit/removal implemented; native Android 9 emulator checks passed; physical-device acceptance pending.
 
+## Strategic direction checkpoint — 2026-10-15 (D-023)
+
+**Accepted direction:** Continue Noeting as an independent, deliberately minimalist mobile experience using Xiaomi Notes' simplicity as a UX reference. Noeting's potential differentiation should be a replaceable, permissioned personal-agent layer, rather than duplicating Obsidian's extensive interface. The implemented 0.7.1 local workflows and accepted no-AI V1 scope remain intact.
+
+**Candidate future research sequence (not implementation authorization):**
+- [ ] Evaluate real use of the already implemented 0.7.1 capture, task, linked-entry and Review flows; avoid unneeded notes-app feature parity.
+- [ ] Specify minimal, user-scoped, read-only retrieval over existing Entry/Task relationships, provenance and agreed privacy boundaries.
+- [ ] Outside V1, prototype explainable daily-priority suggestions and selected-note comparisons for reflection; require explicit approval before mutation or external execution.
+- [ ] Validate usefulness, errors, trust and attention impact before adding more agent surfaces or autonomy.
+- [ ] Consider optional Xiaomi Notes share/import only if proven useful; do not assume whole-vault API access or automatic sync.
+
+**Existing boundary:** D-018 defers backup/export/restore to the later account phase; this checkpoint **does not advance it**. Scheduled pinning, unlimited pins, linked Tasks and compact entry navigation from D-017–D-022 are already implemented as documented. The sole next development action remains in `06_CURRENT_STATE.md`; no AI is approved for V1.
+
 ## 1. Already done (documented evidence)
 
 - [x] Wrote the original attention-first Noeting concept (see `archive/noeting-original.md`).

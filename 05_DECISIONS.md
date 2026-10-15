@@ -187,6 +187,16 @@
 - **Source navigation:** Remove redundant From note/From task buttons from Task cards. Tap the Task body, then its original preview on the entry screen to reach the source, including removed sources. Source links/snapshots, completion/Reopen and scheduled pin behavior are unchanged.
 - **Reason:** The user requested fewer repeated actions and identified the original preview as the source-navigation path. This changes UI only; schema v6 is unchanged.
 
+## D-023 — Minimal standalone Noeting with a decoupled personal-agent direction (2026-10-15)
+
+- **Status:** Accepted product direction, not approval to implement AI or modify V1.
+- **Decision:** Continue Noeting as an intentionally minimal independent mobile note/thinking/action interface. Use Xiaomi Notes as a simplicity/interaction reference, not a mandatory storage dependency. Avoid recreating Obsidian's broader knowledge-workspace features. Future differentiated functionality should center on separate, replaceable and permission-controlled agent services rather than editor feature parity.
+- **Why:** The user prefers Xiaomi Notes' focused interface and dislikes Obsidian's unnecessary complexity. Existing Noeting code covers the local capture, retrieval, task and linked-thinking foundation.
+- **Architectural clarification to D-003:** Owning agent data access, reasoning, permissions and tools does **not** inherently require building a proprietary note UI; keeping Noeting standalone is an explicit UX preference whose usefulness still requires validation.
+- **Consequences:** Explore scoped retrieval, sourced reflection and explainable priorities as **future** research; preserve exact user words and explicit approval before changing tasks or acting. Treat Xiaomi sharing/import as an optional unverified adapter, not an assumed full read/write API or sync mechanism. Keep UI scope small.
+- **Prior decisions preserved:** D-017 already refers to **Reopen**, D-018 explicitly **defers export/backup/restore to the account phase**, and D-019–D-022 cover implemented linked-Task/scheduled-pin/navigation behavior. D-010's no-AI V1 is unchanged. Do not begin agent or account work based solely on this decision.
+- **Planning:** `04_ROADMAP.md` owns proposed research order; `06_CURRENT_STATE.md` owns the single next action and actual validation evidence.
+
 ## Proposal register — accepted items reference decision records
 
 ### P-001 — Bounded background AI

@@ -24,6 +24,14 @@ Obsidian usage revealed a second need beyond reflection: the user captures plans
 
 The long-term ambition is a personal AI agent. This is a direction, **not** a claim that autonomy or integrations are required for the initial version.
 
+### Minimal interface, agent-centered differentiation (D-023; 2026-10-15)
+
+The user prefers Xiaomi Notes' straightforward interface and finds Obsidian's wide feature set excessive. Continue Noeting as an independent, intentionally minimal capture/Today/Library/Review experience. Xiaomi Notes is a **UX reference**, not a required data provider or a confirmed integration. Preserve Noeting's simple interactions without expanding them merely to reach general-purpose notes-app feature parity.
+
+The prospective differentiator is a separate, replaceable, permission-controlled personal AI-agent layer that may retrieve context, help clarify accepted commitments and support reflection. Owning agent execution and memory **does not technically require** owning a notes app; the standalone Noeting UI is an explicit user preference, whose value still requires real-life validation.
+
+The agreed **no-AI V1** boundary (D-010) remains unchanged. Any agent workflow, consent model, provider and external action remain later research requiring distinct approval. Continue protecting the original thinking/action loops and user-authored source records.
+
 ## 3. Two connected loops
 
 ### Thinking loop

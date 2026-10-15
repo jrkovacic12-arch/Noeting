@@ -140,6 +140,14 @@ The status below is for a working product, not the interactive research wirefram
 
 **V1 feature set is accepted at a high level (D-010); M1 and the first read-only M2 Library slice are implemented in source.** The user subsequently requested simulated-phone testing; keep emulator results separate from physical-device acceptance, with no AI in V1. Actual run/test evidence is maintained in [06_CURRENT_STATE.md](06_CURRENT_STATE.md).
 
+### Minimalist interface and agent-centered research (D-023)
+
+**User preference, 2026-10-15:** Xiaomi Notes' simplicity is preferred over Obsidian's extensive interface and features. The user chooses to keep developing Noeting as a deliberately minimal standalone mobile app, not build an Obsidian clone or make Xiaomi Notes a required data store. This preference is not comparative usability or market validation.
+
+Retain the practical Capture/Today/Library/Review and linked-entry flows already accepted through D-022 and implemented in 0.7.1. Avoid new formatting, taxonomy, navigation or organizational features solely for conventional notes-app parity. Evaluate complexity against actual capture, task-management and reflection needs, not feature count.
+
+Two candidate **later AI experiments** are an explainable, bounded daily priority proposal from existing accepted tasks, and source-grounded retrieval/comparison of old thoughts on deliberate request. Suggested priorities remain proposals; no silent task, schedule or source-note mutations. Neither experiment is part of V1; no Xiaomi API, sharing import, cloud connection or automatic synchronization is implemented or approved here.
+
 ## 8. UX and safety constraints
 
 - No infinite feeds, autoplay, trending content, streaks, scoring, pressure notifications, or AI chatter.

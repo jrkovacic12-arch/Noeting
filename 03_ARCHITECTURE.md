@@ -140,6 +140,14 @@ Future adapters (optional)
 
 **Boundary:** The AI model proposes interpretations and actions. The application validates data, enforces permissions, schedules reminders, and commits state changes.
 
+### Agent ownership and integration boundary (D-023)
+
+The mobile UI and current SQLite domain stay intentionally small. A prospective personal-agent layer should be **separate and replaceable**: provider-neutral retrieval and interpretation interfaces, explicit user-selected read scope, source/provenance references and permission-enforced tools. Models suggest interpretations/actions; deterministic domain code validates writes, timing, authorization, logging and recovery. These are design directions, **not implemented AI services**.
+
+**Proposed research order, outside V1:** define scoped read-only access to current v6 Entries, Tasks and links; test on-demand, source-grounded reflection and bounded daily-priority suggestions; evaluate usefulness and privacy; only then design authorized write/external actions and any extra UI. Do not silently turn interpretations into accepted commitments. Note portability remains a goal, but D-018 **defers readable backup/export/restore to the account phase**; this direction does not change that sequencing.
+
+An Android share/import adapter for Xiaomi Notes may be evaluated separately. **Do not assume** any supported Xiaomi Notes full-vault read/write API, bidirectional sync or available integration. No new permissions, backend or agent runtime are required for accepted no-AI V1.
+
 ## 3. Preliminary data model (candidate, not schema commitment)
 
 The original note proposed a small `Entry` and `Source` model. Task management and agent ambitions motivate *candidate* additions:

@@ -1,5 +1,11 @@
 # Noeting — Documentation Change Log (started 2026-10-11)
 
+## 2026-10-15 — Product-direction documentation update after PR #4
+
+- Record D-023: continue Noeting as an independent minimal notes/thinking/action interface informed by Xiaomi Notes' simple UX, rather than emulate Obsidian feature breadth. A replaceable permissioned agent layer remains a later product direction, not V1.
+- Reconcile this direction with merged 0.7.1 (PR #4): preserve D-017 Reopen, D-018's account-phase export/backup/restore deferral, and D-019–D-022 linked Tasks/scheduled pins and navigation. Proposed later read-only agent experiments are not implemented or authorized by these docs.
+- Update vision, product, architecture, roadmap, decisions and current-state context. Documentation-only; application source, schema, verification evidence and founding archive are unchanged.
+
 ## 2026-10-15 — 0.7.1 Task card simplification
 
 - Implement D-022: remove per-task + on Today and completed-Task + in Review/Library/entry screens; remove redundant Task source buttons while preserving original-preview navigation.
