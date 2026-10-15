@@ -127,18 +127,44 @@ These are candidate acceptance scenarios for the accepted V1 direction, **not** 
 - [ ] **Edit/delete/recovery boundaries (design pending):** Decide behavior for linked entries and tasks before implementing destructive operations; verify rejected edits, deletion attempts, or interrupted migrations do not silently corrupt surviving source material. Export/restore testing remains a planned M3 gate unless separately reprioritized.
 - [ ] **Deterministic Today:** Optional Today note and overview are finite, derive only from existing entries and accepted tasks, and invent no deadlines or new commitments.
 
+## Native Android emulator evidence — 2026-10-13
+
+The user requested a simulated phone for this run. `tests/android_smoke.py` exercised the native release app on Android 9 x86_64 AOSP. Capture, pin cap/completion, offline force-stop/relaunch, Library search/filter, deliberate stop, exact multiline whitespace in SQLite, and full emulator reboot preservation passed. The test used a guarded resume after verifying the same artifact/device and saved fixtures; it was not an uninterrupted initial run. Seven real-storage browser tests separately passed, including whitespace/Unicode retrieval and completed-task status. Actual artifact/device identity and detailed evidence remain in `06_CURRENT_STATE.md`.
+
+The physical-device checklist below remains **pending**. Android 15 failed during emulator system startup; no Android 15 app pass is claimed. Native rapid-save and injected-write-failure checks were not executed. Plain storage, physical keyboard/usability, ARM64 compatibility, notifications and security acceptance remain separate.
+
+## Approved stop-free Today/Review revision — 2026-10-13
+
+D-012 removes explicit stop cards/screens/buttons; users close the app themselves. D-013 implements the prototype's chosen-note thinking and Review with a visible summary card, compact right-edge pin icons and no Library combined reset button. Current native source and HTML reference both follow this direction; earlier stop-related examples/checks above are historical and superseded.
+
+- [x] Save a Note and deliberately select it for Today; retain the choice through restart; Change/dismiss creates no Task.
+- [x] Reflect/Create show the original read-only and save separately authored linked entries; preserve exact source text, reject changed retry identity, retain failed-save drafts and create no automatic Task.
+- [x] Review displays completed tasks and linked thinking with inspectable source text. The summary card derives open/completed/saved-entry totals from current records without fabricated dates.
+- [x] Native v1→v2 in-place upgrade preserves old data, completion and pins; native chosen-note/link records survive force-stop/relaunch and full emulator reboot offline.
+- [x] UI/browser checks confirm compact pin placement/state and absence of Finish session, Enough for today and combined Library reset controls. HTML simulated checks also pass.
+
+Actual assertions, artifact identity and venue are maintained only in `06_CURRENT_STATE.md`. Physical-phone acceptance and native injected-write-failure checks remain open.
+
 ## M1 native-device smoke checklist — pending, 2026-10-13
 
-Record device model, Android version, ABI, APK/build identity, connection state, and each result in `06_CURRENT_STATE.md`. The user confirmed Android as the initial target; no device run is claimed. The expected standalone test APK is ARM64 (`arm64-v8a`) for Android **7.0+ / API 24**, with its bundle embedded; its artifact, architecture/SDK support, and runtime are **not yet validated**. The current Android build status and build/verification commands are maintained only in `06_CURRENT_STATE.md`.
+Record device model, Android version, ABI, APK/build identity, connection state, and each result in `06_CURRENT_STATE.md`. The user confirmed Android as the initial target; no device run is claimed. The expected standalone test APK is ARM64 (`arm64-v8a`) for Android **7.0+ / API 24**, with its bundle embedded; the artifact and declared architecture/SDK support are statically verified, while installation and native runtime remain **unvalidated**. The current Android build status and build/verification commands are maintained only in `06_CURRENT_STATE.md`.
 
-- [ ] Confirm the build completed and the static APK verifier passed before transfer. The expected ignored artifact path is `artifacts/noeting-m1-android-arm64-test.apk`; no APK exists yet. Record its SHA-256 and signer-certificate digest from verification, then confirm the phone is ARM64 and Android 7.0 or newer.
-- [ ] Install the verified test APK on the chosen phone and record install/launch results. With a USB-connected authorized device, use `adb install -r artifacts/noeting-m1-android-arm64-test.apk`; otherwise transfer the verified file and use the phone's package installer. Do not uninstall existing app data to resolve a signing mismatch: preserve it and investigate. This expected APK uses a development key and placeholder identity/branding, not store-release signing.
+- [x] Build completed and static APK verifier passed. Artifact: `artifacts/noeting-m1-android-arm64-test.apk`; SHA-256 and signer-certificate digest are recorded in `06_CURRENT_STATE.md`. Phone compatibility remains part of the pending installation check below.
+- [ ] Confirm the chosen phone is ARM64 and Android 7.0 or newer; install the verified test APK and record install/launch results. With a USB-connected authorized device, use `adb install -r artifacts/noeting-m1-android-arm64-test.apk`; otherwise transfer the verified file and use the phone's package installer. Do not uninstall existing app data to resolve a signing mismatch: preserve it and investigate. This expected APK uses a development key and placeholder identity/branding, not store-release signing.
 - [ ] Launch the installed app without Metro or Expo Go. Confirm it reaches Today; record any crash or startup-storage error before testing. A preview that depends on a development server does not establish standalone cold-start behavior.
 
 - [ ] Capture a multiline Note with leading/trailing whitespace: no Task appears, Capture closes only after save, and the note count increases. Original-text equality is covered by repository tests; inspect the development database if verifying it on-device, since M1 has no Library reader yet.
 - [ ] Use **+ Add task**: Task is preselected; save creates one pending row. Rapid Save taps create no duplicate. Close/reopen Capture and verify normal Note/Task entry and keyboard behavior.
 - [ ] Create four tasks, pin three, confirm the fourth cannot be pinned; unpin one and pin another. Complete a pinned task: it disappears from pending tasks and frees its pin.
 - [ ] Enable airplane mode, force-stop the installed app, and relaunch it: note count, pending task identities/order, completion, and pins persist. Capture another item offline, repeat force-stop/relaunch, and record that it loads without Metro or another server. Also restart the phone and confirm the saved state remains available offline.
-- [ ] Use **Finish session**: it reaches the deliberate stop; **Return to Today** resumes without new tasks or prompts. Check errors/failed-save input retention with a controlled development failure harness if available; automated failure checks do not establish native-device error behavior.
+- [ ] Confirm there is no Finish session/Enough for today/stop flow. Users close the app themselves. Check errors/failed-save input retention with a controlled development failure harness if available; automated/browser failure checks do not establish physical-device error behavior.
 
 OS reminders, Library retrieval, Review/Reflect/Create, export/restore, and security acceptance are outside this M1 smoke checklist and remain later V1 work.
+
+## 2026-10-14 — Approved implementation update (D-014)
+
+Direct Note saves choose Today atomically. Editing updates current words without changing first captures; removal hides items across tabs with Undo while preserving dependent thinking/source text. Today Task/note toolboxes support Copy/Edit/Remove; Review/Library use icon actions. Forms close with X, branding is centered, and bottom icon navigation follows scroll direction. Automated schema v1/v2 upgrade, failure rollback, cross-tab, clipboard, long-press and scroll-bar checks passed; this does not mark the physical acceptance scenarios above as passed. Evidence and the exact next action remain in `06_CURRENT_STATE.md`.
+
+### Approved interaction refinement — 2026-10-14 (D-015)
+
+The user reviewed the combined proposal, corrected exit to Today only and removal feedback to a small “Undo” control, then instructed “Proceed.” A Capture/linked/edit form can be dismissed by X, Back or an outside tap and reopened with its unsaved session draft; only Save commits the words. Today long press opens three bottom-sheet action rows. Library/Review Back restores the previous screen state; Today supports double-back exit. Undo can be tapped or dismissed downward. Implementation and partial native/browser evidence are maintained only in `06_CURRENT_STATE.md`; this does not claim physical-device acceptance.

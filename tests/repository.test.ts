@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -94,7 +94,7 @@ test('failed linked-task insert rolls back the entry and the same request can sa
     database.exec("CREATE TRIGGER simulate_task_failure BEFORE INSERT ON tasks BEGIN SELECT RAISE(ABORT, 'Injected write failure'); END;");
     const input = { requestId: 'retry-after-failure', kind: 'task' as const, text: 'Keep my input' };
     await assert.rejects(repository.saveCapture(input), /Injected write failure/);
-    assert.deepEqual(await repository.readSnapshot(), { entries: [], tasks: [] });
+    assert.deepEqual(await repository.readSnapshot(), { entries: [], tasks: [], chosenEntryId: null });
     database.exec('DROP TRIGGER simulate_task_failure;');
     const saved = await repository.saveCapture(input);
     assert.equal(saved.entryId, 'entry_retry-after-failure');
@@ -156,7 +156,7 @@ test('a failed commit rejects the save, rolls back its records and leaves the qu
     failCommit = true;
     const input = { requestId: 'commit-retry', kind: 'task' as const, text: 'Persist both records' };
     await assert.rejects(repository.saveCapture(input), /Injected commit failure/);
-    assert.deepEqual(await repository.readSnapshot(), { entries: [], tasks: [] });
+    assert.deepEqual(await repository.readSnapshot(), { entries: [], tasks: [], chosenEntryId: null });
     await repository.saveCapture(input);
     const after = await repository.readSnapshot();
     assert.equal(after.entries.length, 1);
@@ -204,7 +204,7 @@ test('a migration failure rolls back all schema changes and can retry after its 
     assert.equal(database.prepare("SELECT COUNT(*) AS total FROM sqlite_master WHERE name = 'tasks'").get()!.total, 1);
     database.exec('DROP TABLE tasks;');
     await repository.initialize();
-    assert.deepEqual(await repository.readSnapshot(), { entries: [], tasks: [] });
+    assert.deepEqual(await repository.readSnapshot(), { entries: [], tasks: [], chosenEntryId: null });
   } finally {
     database.close();
   }
@@ -227,4 +227,211 @@ test('local workflow does not call fetch and rejects empty captures or missing t
     globalThis.fetch = originalFetch;
     database.close();
   }
+});
+
+
+async function seedV1(database: DatabaseSync) {
+  database.exec(await readFile(new URL('./fixtures/schema-v1.sql', import.meta.url), 'utf8'));
+  const insert = database.prepare('INSERT INTO entries(id,capture_request_id,kind,original_text,created_at) VALUES (?,?,?,?,?)');
+  insert.run('old-note', 'old-note-request', 'note', '  Original\nthought 🌿  ', '2026-10-12T12:00:00Z');
+  insert.run('old-task', 'old-task-request', 'task', '  Prior task  ', '2026-10-12T12:01:00Z');
+  insert.run('old-completed', 'old-completed-request', 'task', 'Completed task', '2026-10-12T12:02:00Z');
+  database.exec("INSERT INTO tasks VALUES ('task-old','old-task','Prior task','pending',1,'2026-10-12T12:01:00Z',NULL);");
+  database.exec("INSERT INTO tasks VALUES ('task-done','old-completed','Completed task','completed',0,'2026-10-12T12:02:00Z','2026-10-12T13:00:00Z');");
+}
+
+test('v1 phone data upgrades intact and Today selection / linked thinking survive reopen', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'noeting-upgrade-'));
+  const filename = join(directory, 'noeting.db');
+  let database = new DatabaseSync(filename);
+  try {
+    await seedV1(database);
+    const oldEntries = database.prepare('SELECT * FROM entries ORDER BY rowid').all();
+    const oldTasks = database.prepare('SELECT * FROM tasks ORDER BY rowid').all();
+    const repository = createRepository(sqliteDriver(database));
+    await repository.initialize();
+    assert.deepEqual(database.prepare('SELECT id,capture_request_id,kind,original_text,created_at FROM entries ORDER BY rowid').all(), oldEntries);
+    assert.deepEqual(database.prepare('SELECT * FROM tasks ORDER BY rowid').all(), oldTasks);
+    await repository.chooseTodayNote('old-note');
+    await repository.saveLinked({requestId:'reflect',sourceEntryId:'old-note',kind:'reflection',text:'  A new interpretation\nunchanged source.  '});
+    await repository.saveLinked({requestId:'create',sourceEntryId:'old-note',kind:'creation',text:'An independently authored creation'});
+    const before = await repository.readSnapshot();
+    assert.equal(before.chosenEntryId, 'old-note');
+    assert.equal(before.tasks.length, 2);
+    assert.equal(before.entries[0].originalText, '  Original\nthought 🌿  ');
+    assert.equal(before.entries[3].thinkingKind, 'reflection');
+    assert.equal(before.entries[4].thinkingKind, 'creation');
+    assert.equal(before.entries[3].sourceEntryId, 'old-note');
+    database.close(); database = new DatabaseSync(filename);
+    assert.deepEqual(await createRepository(sqliteDriver(database)).readSnapshot(), before);
+    assert.deepEqual(database.prepare('PRAGMA foreign_key_check').all(), []);
+    assert.equal(database.prepare('PRAGMA integrity_check').get()!.integrity_check, 'ok');
+  } finally { database.close(); await rm(directory, {recursive:true,force:true}); }
+});
+
+test('v1 to v2 failure rolls back additive changes and preserves every legacy record', async () => {
+  const database = new DatabaseSync(':memory:');
+  try {
+    await seedV1(database);
+    const before = database.prepare('SELECT * FROM entries ORDER BY rowid').all();
+    database.exec('CREATE TABLE today_selection(existing_user_value TEXT);');
+    const repository = createRepository(sqliteDriver(database));
+    await assert.rejects(repository.initialize(), /today_selection already exists/);
+    assert.equal(database.prepare('PRAGMA user_version').get()!.user_version, 1);
+    assert.equal(database.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name='thinking_links'").get()!.n, 0);
+    assert.deepEqual(database.prepare('SELECT * FROM entries ORDER BY rowid').all(), before);
+    assert.equal(database.prepare('SELECT COUNT(*) AS n FROM tasks').get()!.n, 2);
+    database.exec('DROP TABLE today_selection;');
+    await repository.initialize();
+    assert.equal(database.prepare('PRAGMA user_version').get()!.user_version, SCHEMA_VERSION);
+  } finally { database.close(); }
+});
+
+test('linked saves are atomic and retry idempotent; changed source/text/type is rejected', async () => {
+  const database = new DatabaseSync(':memory:');
+  try {
+    const repo = createRepository(sqliteDriver(database));
+    const source = await repo.saveCapture({requestId:'source',kind:'note',text:'Source words'});
+    const other = await repo.saveCapture({requestId:'other',kind:'note',text:'Other source'});
+    const input = {requestId:'linked-retry',sourceEntryId:source.entryId,kind:'reflection' as const,text:'  Linked text\n  '};
+    database.exec("CREATE TRIGGER fail_link BEFORE INSERT ON thinking_links BEGIN SELECT RAISE(ABORT,'Injected linked failure'); END;");
+    await assert.rejects(repo.saveLinked(input), /Injected linked failure/);
+    assert.equal((await repo.readSnapshot()).entries.length, 2);
+    database.exec('DROP TRIGGER fail_link;');
+    const results = await Promise.all(Array.from({length:8},()=>repo.saveLinked(input)));
+    assert.ok(results.every(r=>r.entryId===results[0].entryId));
+    assert.equal((await repo.readSnapshot()).entries.length, 3);
+    await assert.rejects(repo.saveLinked({...input,text:'Changed'}), /different content or source/);
+    await assert.rejects(repo.saveLinked({...input,sourceEntryId:other.entryId}), /different content or source/);
+    await assert.rejects(repo.saveLinked({...input,kind:'creation'}), /different content or source/);
+    await assert.rejects(repo.saveLinked({...input,requestId:'missing',sourceEntryId:'absent'}), /not found/);
+    assert.equal((await repo.readSnapshot()).tasks.length, 0);
+    assert.equal((await repo.readSnapshot()).entries[0].originalText, 'Source words');
+    await assert.rejects(repo.chooseTodayNote('absent'), /saved note/);
+    const task = await repo.saveCapture({requestId:'task',kind:'task',text:'A task'});
+    await assert.rejects(repo.chooseTodayNote(task.entryId), /saved note/);
+    assert.equal((await repo.readSnapshot()).chosenEntryId, other.entryId);
+  } finally { database.close(); }
+});
+
+test('new Note and Today selection commit atomically; linked saves and retries do not steal selection', async () => {
+  const db=new DatabaseSync(':memory:');
+  try {
+    const repo=createRepository(sqliteDriver(db));
+    const first=await repo.saveCapture({requestId:'auto-first',kind:'note',text:'First'});
+    assert.equal((await repo.readSnapshot()).chosenEntryId,first.entryId);
+    db.exec("CREATE TRIGGER fail_selection BEFORE INSERT ON today_selection BEGIN SELECT RAISE(ABORT,'Selection failed'); END;");
+    const input={requestId:'auto-second',kind:'note' as const,text:'  Second 🌿\n  '};
+    await assert.rejects(repo.saveCapture(input),/Selection failed/);
+    assert.equal((await repo.readSnapshot()).entries.length,1);
+    assert.equal((await repo.readSnapshot()).chosenEntryId,first.entryId);
+    db.exec('DROP TRIGGER fail_selection;');
+    const second=await repo.saveCapture(input);
+    await repo.saveLinked({requestId:'auto-reflect',sourceEntryId:first.entryId,kind:'reflection',text:'Reflection'});
+    await repo.saveCapture({requestId:'auto-first',kind:'note',text:'First'});
+    await repo.saveCapture({requestId:'auto-task',kind:'task',text:'Task'});
+    assert.equal((await repo.readSnapshot()).chosenEntryId,second.entryId);
+  } finally {db.close();}
+});
+
+test('schema v2 upgrades preserve captured text, task states, links and Today selection', async () => {
+  const db=new DatabaseSync(':memory:');
+  try {
+    db.exec(await readFile(new URL('./fixtures/schema-v2.sql',import.meta.url),'utf8'));
+    db.exec("INSERT INTO entries VALUES ('n','req-n','note','  Source 🌿  ','2026-10-12'); INSERT INTO entries VALUES ('t','req-t','task','Task original','2026-10-12'); INSERT INTO entries VALUES ('r','req-r','note','Reflection original','2026-10-13'); INSERT INTO tasks VALUES ('task-t','t','Task original','pending',1,'2026-10-12',NULL); INSERT INTO thinking_links VALUES ('r','n','reflection'); INSERT INTO today_selection VALUES (1,'n');");
+    const old=db.prepare('SELECT * FROM entries ORDER BY rowid').all();
+    const tasks=db.prepare('SELECT * FROM tasks').all();
+    const repo=createRepository(sqliteDriver(db)); const snapshot=await repo.readSnapshot();
+    assert.deepEqual(db.prepare('SELECT id,capture_request_id,kind,original_text,created_at FROM entries ORDER BY rowid').all(),old);
+    assert.deepEqual(db.prepare('SELECT * FROM tasks').all(),tasks);
+    assert.equal(snapshot.chosenEntryId,'n'); assert.equal(snapshot.entries[2].sourceEntryId,'n');
+    assert.equal(snapshot.entries[0].text,'  Source 🌿  '); assert.equal(snapshot.entries[0].removed,false);
+    assert.equal(db.prepare('PRAGMA user_version').get()!.user_version,3);
+    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
+  } finally {db.close();}
+});
+
+test('schema v3 migration failure rolls back new columns and retries without changing v2 records', async () => {
+  const db=new DatabaseSync(':memory:');
+  try {
+    db.exec(await readFile(new URL('./fixtures/schema-v2.sql',import.meta.url),'utf8'));
+    db.exec("INSERT INTO entries VALUES ('n','req','note','Preserve me','2026-10-12'); ALTER TABLE entries ADD COLUMN removed_at TEXT;");
+    const before=db.prepare('SELECT * FROM entries').all(); const repo=createRepository(sqliteDriver(db));
+    await assert.rejects(repo.initialize(),/duplicate column/);
+    assert.equal(db.prepare('PRAGMA user_version').get()!.user_version,2);
+    assert.deepEqual(db.prepare('SELECT * FROM entries').all(),before);
+    assert.equal(db.prepare('PRAGMA table_info(entries)').all().some(row=>row.name==='edited_text'),false);
+    db.exec('ALTER TABLE entries DROP COLUMN removed_at;');await repo.initialize();
+    assert.equal((await repo.readSnapshot()).entries[0].originalText,'Preserve me');
+  } finally {db.close();}
+});
+
+test('editing a task updates both surfaces atomically while preserving first capture, timestamps and source', async () => {
+  const db=new DatabaseSync(':memory:');
+  try {
+    const repo=createRepository(sqliteDriver(db)); const task=await repo.saveCapture({requestId:'edit-task',kind:'task',text:'  Original task  '});
+    await repo.saveLinked({requestId:'edit-linked',sourceEntryId:task.entryId,kind:'reflection',text:'A reflection'});
+    const before=(await repo.readSnapshot()).entries[0];
+    db.exec("CREATE TRIGGER fail_edit BEFORE UPDATE OF title ON tasks BEGIN SELECT RAISE(ABORT,'Task edit failed'); END;");
+    await assert.rejects(repo.editEntry(task.entryId,'New task'),/Task edit failed/);
+    assert.equal((await repo.readSnapshot()).entries[0].text,before.text);
+    db.exec('DROP TRIGGER fail_edit;'); await repo.editEntry(task.entryId,'  New task\n🌿  ');
+    const snapshot=await repo.readSnapshot();
+    assert.equal(snapshot.entries[0].text,'  New task\n🌿  ');assert.equal(snapshot.tasks[0].title,'New task\n🌿');
+    assert.equal(snapshot.entries[0].originalText,before.originalText);assert.equal(snapshot.entries[0].createdAt,before.createdAt);
+    assert.equal(snapshot.entries[1].sourceEntryId,task.entryId);
+    await assert.rejects(repo.editEntry(task.entryId,' \n '),/Write something/);
+  } finally {db.close();}
+});
+
+test('removal keeps provenance, clears selection and pin, and durable Undo does not override newer choices', async () => {
+  const dir=await mkdtemp(join(tmpdir(),'noeting-undo-'));const file=join(dir,'db.sqlite');let db=new DatabaseSync(file);
+  try {
+    let repo=createRepository(sqliteDriver(db));
+    const source=await repo.saveCapture({requestId:'remove-source',kind:'note',text:'Source'});
+    const linked=await repo.saveLinked({requestId:'remove-reflection',sourceEntryId:source.entryId,kind:'reflection',text:'Keep reflection'});
+    const receipt=await repo.removeEntry(source.entryId);
+    assert.deepEqual(await repo.removeEntry(source.entryId),receipt);
+    const removed=await repo.readSnapshot();assert.equal(removed.chosenEntryId,null);
+    assert.equal(removed.entries.find(e=>e.id===source.entryId)!.removed,true);
+    assert.equal(removed.entries.find(e=>e.id===linked.entryId)!.removed,false);
+    await assert.rejects(repo.editEntry(source.entryId,'Oops'),/not found/);
+    await assert.rejects(repo.chooseTodayNote(source.entryId),/saved note/);
+    db.close();db=new DatabaseSync(file);repo=createRepository(sqliteDriver(db));
+    const newer=await repo.saveCapture({requestId:'remove-newer',kind:'note',text:'Newer'});
+    await repo.restoreEntry(receipt);await repo.restoreEntry(receipt);
+    assert.equal((await repo.readSnapshot()).chosenEntryId,newer.entryId);
+    await repo.removeEntry(source.entryId);await assert.rejects(repo.restoreEntry(receipt),/no longer/);
+    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
+    assert.equal(db.prepare('PRAGMA integrity_check').get()!.integrity_check,'ok');
+  } finally {db.close();await rm(dir,{recursive:true,force:true});}
+});
+
+test('removing pinned task releases its slot; Undo retains status without exceeding three pins', async () => {
+  const db=new DatabaseSync(':memory:');
+  try {
+    const repo=createRepository(sqliteDriver(db));const captures=[];
+    for(let i=0;i<4;i++) captures.push(await repo.saveCapture({requestId:'slot-'+i,kind:'task',text:'Task '+i}));
+    for(let i=0;i<3;i++)await repo.setPinned(captures[i].taskId!,true);
+    const receipt=await repo.removeEntry(captures[0].entryId);
+    assert.equal((await repo.readSnapshot()).tasks.length,3);
+    await assert.rejects(repo.completeTask(captures[0].taskId!),/not found/);
+    await repo.setPinned(captures[3].taskId!,true);await repo.restoreEntry(receipt);
+    const snapshot=await repo.readSnapshot();assert.equal(snapshot.tasks.length,4);assert.equal(snapshot.tasks.filter(t=>t.pinned).length,3);
+    assert.equal(snapshot.tasks[0].status,'pending');assert.equal(snapshot.tasks[0].pinned,false);
+  } finally {db.close();}
+});
+
+test('failed removal rolls back hidden state, pin and Today selection and Undo can retry', async () => {
+  const db=new DatabaseSync(':memory:');
+  try {
+    const repo=createRepository(sqliteDriver(db));const note=await repo.saveCapture({requestId:'remove-fail',kind:'note',text:'Keep selected'});
+    const before=await repo.readSnapshot();
+    db.exec("CREATE TRIGGER fail_remove BEFORE DELETE ON today_selection BEGIN SELECT RAISE(ABORT,'Remove failed'); END;");
+    await assert.rejects(repo.removeEntry(note.entryId),/Remove failed/);assert.deepEqual(await repo.readSnapshot(),before);
+    db.exec('DROP TRIGGER fail_remove;');const receipt=await repo.removeEntry(note.entryId);
+    db.exec("CREATE TRIGGER fail_restore BEFORE UPDATE OF removed_at ON entries WHEN NEW.removed_at IS NULL BEGIN SELECT RAISE(ABORT,'Restore failed'); END;");
+    await assert.rejects(repo.restoreEntry(receipt),/Restore failed/);assert.equal((await repo.readSnapshot()).entries[0].removed,true);
+    db.exec('DROP TRIGGER fail_restore;');await repo.restoreEntry(receipt);assert.equal((await repo.readSnapshot()).chosenEntryId,note.entryId);
+  } finally {db.close();}
 });

@@ -99,9 +99,8 @@ with sync_playwright() as p:
     check('No task appears more than once after unpin',page.locator('.task-row').count()==len(page.evaluate('window.noetingPrototype.getSnapshot().tasks.filter(x=>x.status==="Pending")')))
     page.locator('[data-action=priority][aria-pressed=false]').first.click()
     check('Pin reclaims third slot',sum(x['priority'] for x in page.evaluate('window.noetingPrototype.getSnapshot().tasks'))==3)
-    page.get_by_role('button',name='Finish session').click()
-    check('Finite exit is still functional',page.get_by_role('heading',name='Enough for today.').is_visible())
-    page.get_by_role('button',name='Return to Today').click()
+    check('Deliberate stop controls are removed',page.get_by_role('button',name='Finish session').count()==0 and page.get_by_role('heading',name='Enough for today.').count()==0)
+    check('Compact pin icon has active/inactive states',page.locator('.pin svg').count()==len(page.evaluate('window.noetingPrototype.getSnapshot().tasks.filter(x=>x.status==="Pending")')))
     page.evaluate("""state=initial();load();render()""")
     check('Simulated storage restore retains direct Task',page.evaluate('window.noetingPrototype.getSnapshot().tasks[0].title')=='Pay electricity bill')
     # Legacy data is still displayable, without destructive migration
@@ -120,9 +119,9 @@ with sync_playwright() as p:
     check('Pinned task moves to top after loading example data',page.locator('.task-row').first.locator('.task-title').inner_text()=='Review meeting notes')
     page.locator('details.demo-tools summary').click()
     check('Demo controls hidden after collapsing',page.locator('details.demo-tools').get_attribute('open') is None)
-    page.screenshot(path=str(ROOT/'noeting_v12_desktop.png'),full_page=True)
+    page.screenshot(path=str(ROOT/'artifacts/noeting_v02_prototype_desktop.png'),full_page=True)
     page.set_viewport_size({'width':390,'height':844})
-    page.screenshot(path=str(ROOT/'noeting_v12_mobile.png'),full_page=True)
+    page.screenshot(path=str(ROOT/'artifacts/noeting_v02_prototype_mobile.png'),full_page=True)
     browser.close()
 
 print('PASS:',len(checks),'simulated Chromium checks')

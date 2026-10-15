@@ -1,10 +1,15 @@
 export type EntryKind = 'note' | 'task';
+export type ThinkingKind = 'reflection' | 'creation';
 
 export interface Entry {
   id: string;
   kind: EntryKind;
   originalText: string;
+  text: string;
+  removed: boolean;
   createdAt: string;
+  thinkingKind: ThinkingKind | null;
+  sourceEntryId: string | null;
 }
 
 export interface Task {
@@ -20,6 +25,14 @@ export interface Task {
 export interface Snapshot {
   entries: Entry[];
   tasks: Task[];
+  chosenEntryId: string | null;
+}
+
+export interface LinkedInput {
+  requestId: string;
+  sourceEntryId: string;
+  kind: ThinkingKind;
+  text: string;
 }
 
 export interface CaptureInput {
@@ -33,12 +46,24 @@ export interface CaptureResult {
   taskId: string | null;
 }
 
+export interface Removal {
+  entryId: string;
+  version: number;
+  pinned: boolean;
+  selected: boolean;
+}
+
 export interface Repository {
   initialize(): Promise<void>;
   readSnapshot(): Promise<Snapshot>;
   saveCapture(input: CaptureInput): Promise<CaptureResult>;
   setPinned(id: string, pinned: boolean): Promise<void>;
   completeTask(id: string): Promise<void>;
+  saveLinked(input: LinkedInput): Promise<CaptureResult>;
+  chooseTodayNote(id: string): Promise<void>;
+  editEntry(id: string, text: string): Promise<void>;
+  removeEntry(id: string): Promise<Removal>;
+  restoreEntry(removal: Removal): Promise<void>;
 }
 
 export type SQLiteValue = string | number | null;
@@ -50,13 +75,20 @@ export interface SQLiteDriver {
   all<T>(sql: string, parameters?: SQLiteValue[]): Promise<T[]>;
 }
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 3;
 
 type EntryRow = {
   id: string;
   kind: EntryKind;
   original_text: string;
+  edited_text?: string | null;
+  removed_at?: string | null;
+  removal_version?: number;
+  removed_pinned?: number;
+  removed_selected?: number;
   created_at: string;
+  thinking_kind?: ThinkingKind | null;
+  source_entry_id?: string | null;
 };
 
 type TaskRow = {
@@ -131,6 +163,31 @@ const migrationV1 = `
   END;
 `;
 
+const migrationV2 = `
+  CREATE TABLE thinking_links (
+    entry_id TEXT PRIMARY KEY NOT NULL REFERENCES entries(id) ON DELETE RESTRICT,
+    source_entry_id TEXT NOT NULL REFERENCES entries(id) ON DELETE RESTRICT,
+    thinking_kind TEXT NOT NULL CHECK (thinking_kind IN ('reflection', 'creation')),
+    CHECK (entry_id <> source_entry_id)
+  );
+  CREATE INDEX thinking_links_source ON thinking_links(source_entry_id);
+  CREATE TRIGGER thinking_links_require_note BEFORE INSERT ON thinking_links
+  WHEN (SELECT kind FROM entries WHERE id = NEW.entry_id) <> 'note'
+  BEGIN SELECT RAISE(ABORT, 'Linked thinking must be a note entry.'); END;
+  CREATE TABLE today_selection (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    entry_id TEXT NOT NULL REFERENCES entries(id) ON DELETE RESTRICT
+  );
+`;
+
+const migrationV3 = `
+  ALTER TABLE entries ADD COLUMN edited_text TEXT CHECK (edited_text IS NULL OR length(trim(edited_text)) > 0);
+  ALTER TABLE entries ADD COLUMN removed_at TEXT;
+  ALTER TABLE entries ADD COLUMN removal_version INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE entries ADD COLUMN removed_pinned INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE entries ADD COLUMN removed_selected INTEGER NOT NULL DEFAULT 0;
+`;
+
 class SQLiteRepository implements Repository {
   private readonly mutex: Mutex;
   private initialized = false;
@@ -153,17 +210,24 @@ class SQLiteRepository implements Repository {
       await this.initializeLocked();
       return this.transaction(async () => {
         const entries = await this.db.all<EntryRow>(
-          'SELECT id, kind, original_text, created_at FROM entries ORDER BY created_at, rowid',
+          `SELECT e.*, l.thinking_kind, l.source_entry_id
+           FROM entries e LEFT JOIN thinking_links l ON l.entry_id = e.id ORDER BY e.created_at, e.rowid`,
         );
         const tasks = await this.db.all<TaskRow>(
-          'SELECT id, entry_id, title, status, pinned, created_at, completed_at FROM tasks ORDER BY created_at, rowid',
+          'SELECT t.* FROM tasks t JOIN entries e ON e.id = t.entry_id WHERE e.removed_at IS NULL ORDER BY t.created_at, t.rowid',
         );
+        const [selection] = await this.db.all<{ entry_id: string }>('SELECT entry_id FROM today_selection WHERE id = 1');
         return {
+          chosenEntryId: selection?.entry_id ?? null,
           entries: entries.map((row) => ({
             id: row.id,
             kind: row.kind,
             originalText: row.original_text,
+            text: row.edited_text ?? row.original_text,
+            removed: row.removed_at != null,
             createdAt: row.created_at,
+            thinkingKind: row.thinking_kind ?? null,
+            sourceEntryId: row.source_entry_id ?? null,
           })),
           tasks: tasks.map((row) => ({
             id: row.id,
@@ -197,6 +261,8 @@ class SQLiteRepository implements Repository {
           [input.requestId],
         );
         if (existing) {
+          const linked = await this.db.all('SELECT entry_id FROM thinking_links WHERE entry_id = ?', [existing.id]);
+          if (linked.length) throw new Error('This request belongs to a linked entry.');
           if (existing.kind !== input.kind || existing.original_text !== input.text) {
             throw new Error('This capture request was already saved with different content.');
           }
@@ -223,6 +289,9 @@ class SQLiteRepository implements Repository {
             [taskId, entryId, input.text.trim(), createdAt],
           );
         }
+        if (input.kind === 'note') {
+          await this.db.run('INSERT INTO today_selection(id, entry_id) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET entry_id = excluded.entry_id', [entryId]);
+        }
         return { entryId, taskId };
       });
     });
@@ -235,7 +304,7 @@ class SQLiteRepository implements Repository {
       }
       await this.initializeLocked();
       await this.transaction(async () => {
-        const [task] = await this.db.all<TaskRow>('SELECT * FROM tasks WHERE id = ?', [id]);
+        const [task] = await this.db.all<TaskRow>('SELECT t.* FROM tasks t JOIN entries e ON e.id = t.entry_id WHERE t.id = ? AND e.removed_at IS NULL', [id]);
         if (!task) throw new Error('Task was not found.');
         if (task.status !== 'pending') throw new Error('Only pending tasks can be pinned.');
         if (pinned && task.pinned !== 1) {
@@ -253,13 +322,101 @@ class SQLiteRepository implements Repository {
     return this.mutex.run(async () => {
       await this.initializeLocked();
       await this.transaction(async () => {
-        const [task] = await this.db.all<TaskRow>('SELECT * FROM tasks WHERE id = ?', [id]);
+        const [task] = await this.db.all<TaskRow>('SELECT t.* FROM tasks t JOIN entries e ON e.id = t.entry_id WHERE t.id = ? AND e.removed_at IS NULL', [id]);
         if (!task) throw new Error('Task was not found.');
         if (task.status === 'completed') return;
         await this.db.run(
           "UPDATE tasks SET status = 'completed', pinned = 0, completed_at = ? WHERE id = ?",
           [new Date().toISOString(), id],
         );
+      });
+    });
+  }
+
+  saveLinked(input: LinkedInput): Promise<CaptureResult> {
+    return this.mutex.run(async () => {
+      if (typeof input.requestId !== 'string' || !input.requestId.trim()) throw new Error('A linked entry needs a stable request ID.');
+      if (!['reflection', 'creation'].includes(input.kind)) throw new Error('Choose Reflection or Creation.');
+      if (typeof input.text !== 'string' || !input.text.trim()) throw new Error('Write something before saving.');
+      await this.initializeLocked();
+      return this.transaction(async () => {
+        const request = `linked:${input.requestId}`;
+        const [existing] = await this.db.all<EntryRow>(
+          `SELECT e.*, l.thinking_kind, l.source_entry_id FROM entries e
+           LEFT JOIN thinking_links l ON l.entry_id = e.id WHERE e.capture_request_id = ?`, [request],
+        );
+        if (existing) {
+          if (existing.kind !== 'note' || existing.original_text !== input.text || existing.thinking_kind !== input.kind || existing.source_entry_id !== input.sourceEntryId) {
+            throw new Error('This linked request was already saved with different content or source.');
+          }
+          return { entryId: existing.id, taskId: null };
+        }
+        const [source] = await this.db.all('SELECT id FROM entries WHERE id = ? AND removed_at IS NULL', [input.sourceEntryId]);
+        if (!source) throw new Error('Source entry was not found.');
+        const entryId = `entry_${request}`;
+        await this.db.run("INSERT INTO entries(id, capture_request_id, kind, original_text, created_at) VALUES (?, ?, 'note', ?, ?)",
+          [entryId, request, input.text, new Date().toISOString()]);
+        await this.db.run('INSERT INTO thinking_links(entry_id, source_entry_id, thinking_kind) VALUES (?, ?, ?)',
+          [entryId, input.sourceEntryId, input.kind]);
+        return { entryId, taskId: null };
+      });
+    });
+  }
+
+  chooseTodayNote(id: string): Promise<void> {
+    return this.mutex.run(async () => {
+      await this.initializeLocked();
+      await this.transaction(async () => {
+        const [entry] = await this.db.all<{ kind: EntryKind }>('SELECT kind FROM entries WHERE id = ? AND removed_at IS NULL', [id]);
+        if (!entry || entry.kind !== 'note') throw new Error('Choose a saved note.');
+        await this.db.run('INSERT INTO today_selection(id, entry_id) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET entry_id = excluded.entry_id', [id]);
+      });
+    });
+  }
+
+  editEntry(id: string, text: string): Promise<void> {
+    return this.mutex.run(async () => {
+      if (typeof text !== 'string' || !text.trim()) throw new Error('Write something before saving.');
+      await this.initializeLocked();
+      await this.transaction(async () => {
+        const [entry] = await this.db.all('SELECT id FROM entries WHERE id = ? AND removed_at IS NULL', [id]);
+        if (!entry) throw new Error('Entry was not found.');
+        await this.db.run('UPDATE entries SET edited_text = ? WHERE id = ?', [text, id]);
+        await this.db.run('UPDATE tasks SET title = ? WHERE entry_id = ?', [text.trim(), id]);
+      });
+    });
+  }
+
+  removeEntry(id: string): Promise<Removal> {
+    return this.mutex.run(async () => {
+      await this.initializeLocked();
+      return this.transaction(async () => {
+        const [entry] = await this.db.all<EntryRow>('SELECT * FROM entries WHERE id = ?', [id]);
+        if (!entry) throw new Error('Entry was not found.');
+        if (entry.removed_at != null) return {entryId:id, version:entry.removal_version!, pinned:entry.removed_pinned === 1, selected:entry.removed_selected === 1};
+        const [task] = await this.db.all<TaskRow>('SELECT * FROM tasks WHERE entry_id = ?', [id]);
+        const [selection] = await this.db.all<{entry_id:string}>('SELECT entry_id FROM today_selection WHERE id = 1');
+        const removal = {entryId:id, version:entry.removal_version! + 1, pinned:task?.pinned === 1, selected:selection?.entry_id === id};
+        await this.db.run('UPDATE entries SET removed_at = ?, removal_version = ?, removed_pinned = ?, removed_selected = ? WHERE id = ?',
+          [new Date().toISOString(), removal.version, Number(removal.pinned), Number(removal.selected), id]);
+        await this.db.run('UPDATE tasks SET pinned = 0 WHERE entry_id = ?', [id]);
+        await this.db.run('DELETE FROM today_selection WHERE entry_id = ?', [id]);
+        return removal;
+      });
+    });
+  }
+
+  restoreEntry(removal: Removal): Promise<void> {
+    return this.mutex.run(async () => {
+      await this.initializeLocked();
+      await this.transaction(async () => {
+        const [entry] = await this.db.all<EntryRow>('SELECT * FROM entries WHERE id = ?', [removal.entryId]);
+        if (!entry || entry.removal_version !== removal.version) throw new Error('This removal can no longer be undone.');
+        if (entry.removed_at == null) return;
+        await this.db.run('UPDATE entries SET removed_at = NULL WHERE id = ?', [entry.id]);
+        const [count] = await this.db.all<{total:number}>('SELECT COUNT(*) AS total FROM tasks WHERE pinned = 1');
+        if (entry.removed_pinned === 1 && count.total < 3) await this.db.run("UPDATE tasks SET pinned = 1 WHERE entry_id = ? AND status = 'pending'", [entry.id]);
+        if (entry.removed_selected === 1) await this.db.run('INSERT OR IGNORE INTO today_selection(id, entry_id) VALUES (1, ?)', [entry.id]);
       });
     });
   }
@@ -279,8 +436,13 @@ class SQLiteRepository implements Repository {
       }
       if (version.user_version === 0) {
         await this.db.exec(migrationV1);
-        await this.db.exec(`PRAGMA user_version = ${SCHEMA_VERSION};`);
       }
+      if (version.user_version < 2) {
+        await this.db.exec(migrationV2);
+
+      }
+      if (version.user_version < 3) await this.db.exec(migrationV3);
+      if (version.user_version < SCHEMA_VERSION) await this.db.exec(`PRAGMA user_version = ${SCHEMA_VERSION};`);
     });
     this.initialized = true;
   }

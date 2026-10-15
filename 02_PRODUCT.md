@@ -71,22 +71,22 @@ The original concept proposed **Capture / Today / Library / Review / Create**. T
 **Accepted V1 direction (D-010); only the M1 slice is implemented in source, not the whole feature set:**
 
 - **Capture:** Note / Task; preserve exact original text, save locally, then close without unsolicited follow-up. Direct Task capture creates a user-accepted task; a linked task from a Note requires deliberate acceptance.
-- **Today:** one pending Tasks list, task editing/completion, known due dates, up to three pinned tasks (each shown once), optional **Today note**, and a deliberate **Enough for today** stop.
+- **Today:** one pending Tasks list, task editing/completion, known due dates, up to three pinned tasks (each shown once), optional **Today note** with Reflect/Create/Change, and a visible summary card. Explicit stop controls were removed by D-012.
 - **Library:** search and filter saved entries; edit/delete through deliberate actions; retain original text when creating linked derived entries.
 - **Review:** revisit existing thoughts; **Reflect** and **Create** produce separately authored linked entries; no requirement to create after every capture or task.
 - **Reminder:** explicitly user-selected date/time; actual device notifications with visible permission/scheduling outcomes.
 - **Daily overview:** compact deterministic summary drawn from existing records; no fabricated tasks or deadlines.
 - **Data reliability and ownership:** on-device SQLite, working offline without an account, durable restart behavior, readable export/backup.
 
-**Current M1 limitation:** Saved Notes persist in SQLite but the native UI shows only a note count; Library retrieval, search, and Note-derived task creation are not implemented.
+**Current implementation (0.3.2):** Today has a compact accessible + control for adding a Task, one task list, borderless right-edge pins, aligned checkboxes and a serif Today-note card. Direct Note capture atomically replaces the Today note; Tasks and linked Reflect/Create saves do not. Long-press a Task or Today note for Copy/Edit/Remove; keyboard activation and accessibility actions also expose the tools. Library supports search/filter of current words, edit/remove icons and linked-source retrieval. Review offers removal for completed Tasks and edit/removal for linked thinking. Edits retain first captures; removal hides records across tabs with Undo and preserves dependent reflections. Centered branding and bottom icon navigation (+ in the middle) show at the top/upward scroll, hide on sustained downward scroll and reset on tab changes. Toolboxes slide from the bottom with just Copy/Edit/Remove rows after a 300 ms long press. Outside taps close sheets/forms; session-only drafts restore when reopened. Forms keep X icons and use “Save.” Android Back closes the modal first, then restores the previous Library/Review screen and its scroll/search state; Today alone supports double-back exit within two seconds. Removal offers a small centered “Undo” control that swipes down to dismiss without restoring the item. The supplied symbol and plain Android startup remain. Note-derived Tasks, due dates/reminders and export are not implemented.
 
 **M2 behavior clarification (proposed detail within accepted V1 direction, not a newly approved schema):** A previously saved Note remains an unchanged, non-committal source. If the user deliberately chooses **New task** from that Note, the accepted Task must be distinguishable from the Note, retain provenance to the original, and be editable without rewriting the captured words. Dismissal or navigation away creates no commitment. A new reflection or creation is separately authored and linked rather than replacing the source. The exact Note-to-Task relationship is an open design decision (O-008 in `05_DECISIONS.md`), not supported by the M1 schema as written.
 
-**Stage boundary:** M1 only implements persistent Capture → Today plus a minimal task list; later stages implement remaining V1 features. AI, cloud sync, integrations, autonomous agent actions, and advanced organization are outside V1. Detailed delete semantics, task lifecycle/deferment, date/time zone handling, encryption approach, and cross-loop handoffs are not yet signed off.
+**Stage boundary:** M1 only implements persistent Capture → Today plus a minimal task list; later stages implement remaining V1 features. AI, cloud sync, integrations, autonomous agent actions, and advanced organization are outside V1. Edit/removal semantics are approved under D-014; richer task lifecycle/deferment, date/time zones, encryption and cross-loop handoffs remain unresolved.
 
 ### Implemented M1 behavior contract — 2026-10-13; device evaluation pending
 
-These implementation choices apply to the first slice. Automated repository checks exercise the data contract; physical-device acceptance remains pending. A saved Note currently appears only in the saved-note count; Library retrieval is deferred to M2.
+These implementation choices apply to the first slice. Automated repository checks exercise the data contract; physical-device acceptance remains pending. The original M1 UI displayed only a saved-note count; the subsequent read-only Library slice now retrieves those same schema v1 records.
 
 - Capture accepts **Note / Task**. The saved `original_text` is immutable and preserves the exact input, including whitespace and line breaks. Empty or whitespace-only input is rejected without altering the draft. Later editable content or linked entries must preserve that source text.
 - A Note creates one Entry and no Task. A direct Task creates one Entry and one linked **Pending** Task in a single successful save. M1 includes **Pending** and **Completed** only; deferment, reopening, due dates, and reminders are deferred.
@@ -117,19 +117,19 @@ The status below is for a working product, not the interactive research wirefram
 | Capability | Priority | Current status |
 | --- | --- | --- |
 | Fast manual capture | Essential foundation | M1 source implemented; physical-device validation pending |
-| Basic categories and search | Essential foundation | Note/Task capture implemented; Library search/filter remains M2 |
+| Basic categories and search | Essential foundation | Note/Task capture and read-only Library search/filter implemented; native validation evidence is in `06_CURRENT_STATE.md` |
 | Explicit tasks and status | Essential foundation | M1 direct tasks and Pending/Completed implemented; broader lifecycle open |
 | Manual priorities and due dates | Essential foundation | M1 pending-task pins implemented; due dates remain later V1 |
 | Reliable user-set reminders | High | User need; unimplemented |
-| Daily summary | High | User need; unimplemented |
+| Daily summary | High | Visible deterministic current-record summary card implemented; no AI or modal |
 | AI classification/task suggestions | High-interest experiment | Proposed; needs privacy/accuracy test |
 | AI priority proposals | High-interest experiment | Proposed; must remain user-confirmed |
-| Spaced reflection/review | Core vision | Original requirement; unimplemented |
-| Creation/synthesis | Core vision | Original requirement; unimplemented |
+| Spaced reflection/review | Core vision | Basic completed-task and linked-thinking Review implemented; spaced scheduling remains future |
+| Creation/synthesis | Core vision | Deliberate linked Reflect/Create implemented; advanced synthesis remains future |
 | Local model integration | Architectural research | Unchosen |
 | Desktop, sync, external integrations, agent actions | Later | Not MVP commitments |
 
-**V1 feature set is accepted at a high level (D-010); the M1 source slice is implemented.** Pass the native-device M1 gate before adding the rest in later stages, with no AI in V1. Actual run/test evidence is maintained in [06_CURRENT_STATE.md](06_CURRENT_STATE.md).
+**V1 feature set is accepted at a high level (D-010); M1 and the first read-only M2 Library slice are implemented in source.** The user subsequently requested simulated-phone testing; keep emulator results separate from physical-device acceptance, with no AI in V1. Actual run/test evidence is maintained in [06_CURRENT_STATE.md](06_CURRENT_STATE.md).
 
 ## 8. UX and safety constraints
 
@@ -158,3 +158,7 @@ For prototype checks and the pending native-device checklist, see [07_V1_WORKFLO
 - Are voluntary thinking-to-action and action-to-reflection handoffs understandable and useful in real life, or do they add cognitive overhead?
 
 The **canonical register of open product and technical decisions** is [05_DECISIONS.md](05_DECISIONS.md) (O-001–O-008). See [03_ARCHITECTURE.md](03_ARCHITECTURE.md) for unresolved technical investigations and [06_CURRENT_STATE.md](06_CURRENT_STATE.md) for the exact next action.
+
+### Appearance settings — D-016
+
+Settings offers Light, Dark and Same as system through accessible radio rows. System is the default; explicit choices override device appearance and persist locally across restarts. Apply the palette consistently to every screen, form, toolbox, card, icon and status bar. Show a retryable error and restore the previous choice if a preference write fails.

@@ -58,6 +58,13 @@ The authentic [original Noeting note](archive/noeting-original.md) is packaged v
 - Do not initiate or prepare session handoffs, including ZIP packages, unless the user explicitly requests one.
 - For meaningful project or policy changes, append a brief dated entry to `CHANGELOG.md` without duplicating the authoritative records; this does not require a handoff.
 
+### Testing and delivery pace — user preference recorded 2026-10-14
+
+- Match verification to the change. For small, reversible UI edits, run type checking and a focused workflow/layout check; reuse relevant previous results instead of repeating unchanged database or full emulator suites.
+- Keep simulator troubleshooting bounded: make one focused retry when a failure appears to be tooling or timing. If it still fails without evidence of an app defect, use available focused checks, record the unverified coverage clearly, and deliver the verified test APK for phone testing.
+- Do not spend a session building custom test infrastructure or repeatedly restarting the simulator to obtain an exhaustive green run. Continue investigating when evidence points to a material app/data defect; distinguish it from automation failures.
+- Prioritize a usable, reviewable result and timely delivery. Never claim unrun or blocked checks passed.
+
 ## 5. Handoff protocol (on explicit request only)
 
 When a handoff is requested, update only where facts genuinely change:
