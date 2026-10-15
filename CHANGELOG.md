@@ -1,5 +1,9 @@
 # Noeting — Documentation Change Log (started 2026-10-11)
 
+## Phone testing and merge approval — 2026-10-15
+
+- User reports testing the PR-version APK on their phone and explicitly requests merging PR #3. Record this as user-reported acceptance for merge; model/OS and per-feature outcomes were not supplied. Proposed next slices remain subject to user choice; see `06_CURRENT_STATE.md`.
+
 ## 0.4.0 — 2026-10-15
 
 - Add Settings with local Light/Dark/Same as system selection and a semantic dark palette across the app. D-016 records the accepted scope.

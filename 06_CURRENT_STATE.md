@@ -1,10 +1,10 @@
 # Noeting — Current State and Session Handoff
 
-> **Updated:** 2026-10-15 (0.4.0 Settings and PR finalization)
+> **Updated:** 2026-10-15 (0.4.0 phone test and merge approval)
 >
-> **Phase:** Capture/Today/Library/Review/Settings implemented, including local appearance preference and a complete dark palette. Accumulated changes are finalized in [PR #3](https://github.com/jrkovacic12-arch/Noeting/pull/3) from `codex/settings-themes-finalize` to main; the PR is open and unmerged. Main is unchanged. Physical acceptance remains pending.
+> **Phase:** Capture/Today/Library/Review/Settings implemented, including local appearance preference and a complete dark palette. The user reports testing the 0.4.0 APK on their phone and explicitly approves merging [PR #3](https://github.com/jrkovacic12-arch/Noeting/pull/3). That PR carries the finalized implementation; GitHub records the merge outcome. Phone model/OS and per-feature results were not supplied, so no structured device or performance pass is inferred.
 >
-> **Current verification:** Clean npm install, TypeScript, 18 real-SQLite checks, 16 browser workflows, Android/iOS/web exports and five APK-verifier regression tests passed. Two appearance workflows passed again on final colors/logo. ARM64 compilation and static APK verification passed (0.4.0/code 10, unchanged signer); new native runtime/phone performance and physical appearance acceptance are not claimed. Earlier native results below remain historical.
+> **Current verification:** Clean npm install, TypeScript, 18 real-SQLite checks, 16 browser workflows, Android/iOS/web exports and five APK-verifier regression tests passed. Two appearance workflows passed again on final colors/logo. ARM64 compilation and static APK verification passed (0.4.0/code 10, unchanged signer); the user now reports a phone test and approves merge. No additional automated native runtime, measured phone performance or per-feature physical result is claimed. Earlier native results below remain historical.
 
 ## 1. Verified progress
 
@@ -199,7 +199,7 @@ Compilation and static verification passed. Follow the installation/device check
 
 ## 2. Exact next action — only maintained here
 
-**Review the finalized PR, then test 0.4.0 appearance on the phone:** first-run system default, manual Light/Dark overrides, OS theme changes in system mode, process restart/offline retention, and Capture/toolbox/Library/Review readability. Recheck Review → Android Back → Library search/offset and responsiveness. Record phone/OS and results. Use the 0.4.0 PR test APK linked above, installing over the existing app without uninstalling; native acceptance remains pending. Export/reminders remain separate.
+**Choose the next development slice after the phone-tested 0.4.0 merge.** Recommend a reviewed Settings backup/export-and-restore design first: versioned local files preserving Notes/Tasks, originals/current edits, links, completion/pins, Today selection and appearance; import validation/preview, duplicate handling and atomic restore with failure safety. These are proposals, not implemented or newly authorized work. Next candidates are reopening completed Tasks with clearer Review, then optional local reminders. User choice is pending; do not start those features merely because they appear here.
 
 **Handoff context:** The user agreed to the first-app feature set (D-010), to React Native + Expo + TypeScript + SQLite (D-011), and to implement using Codex. The user said the updated prototype was tested and **“worked as intended”**; the test device and per-scenario results were not specified. Do not claim full S1–S4 validation or verified native runtime from that prototype report or the static APK checks.
 
