@@ -234,7 +234,7 @@ Compilation and static verification passed. Follow the installation/device check
 
 ## 2. Exact next action — only maintained here
 
-**Complete the user-authorized merge of PR #4, then await the next user-selected development item.** User-reported APK testing/merge approval is recorded above. Detailed device/OS/scenario evidence remains unspecified; do not infer checklist passes. Accounts/sync and backup/export/restore remain deferred.
+**Await the next user-selected development item after the approved PR #4 merge.** User-reported APK testing/merge approval is recorded above. Detailed device/OS/scenario evidence remains unspecified; do not infer checklist passes. Accounts/sync and backup/export/restore remain deferred.
 
 **Handoff context:** The user agreed to the first-app feature set (D-010), to React Native + Expo + TypeScript + SQLite (D-011), and to implement using Codex. The user said the updated prototype was tested and **“worked as intended”**; the test device and per-scenario results were not specified. Do not claim full S1–S4 validation or verified native runtime from that prototype report or the static APK checks.
 
