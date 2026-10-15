@@ -4,7 +4,7 @@
 
 - Implement D-022: remove per-task + on Today and completed-Task + in Review/Library/entry screens; remove redundant Task source buttons while preserving original-preview navigation.
 - No database change. Focused verification and APK status are recorded in `06_CURRENT_STATE.md`.
-- At the user’s request, published the verified 0.7.1 APK and confirmed its downloaded checksum; prepared the source changes for PR review.
+- At the user’s request, published the verified 0.7.1 APK and confirmed its downloaded checksum; opened [PR #4](https://github.com/jrkovacic12-arch/Noeting/pull/4) for the accumulated approved source changes. No merge performed.
 
 ## 2026-10-15 — 0.7.0 entry actions and completion
 
