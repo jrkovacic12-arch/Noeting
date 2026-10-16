@@ -209,6 +209,15 @@
 - **Reason:** Noeting should support capturing, searching, connecting and acting, not force the user to say whether a note counts as Reflection or Creation.
 - **Document owners:** [02_PRODUCT.md](02_PRODUCT.md) defines UI behavior; [03_ARCHITECTURE.md](03_ARCHITECTURE.md) defines migration constraints; [04_ROADMAP.md](04_ROADMAP.md) defines the Codex sequence; [07_V1_WORKFLOW_DRAFT.md](07_V1_WORKFLOW_DRAFT.md) defines tests; [06_CURRENT_STATE.md](06_CURRENT_STATE.md) keeps implementation status and the sole next action.
 
+## D-025 — Focused Notes, Note-only links and one-level Task/Subtask sheets (2026-10-16)
+
+- **Status:** Accepted by the user's instruction to read and proceed with `CODEX_PR6_XIAOMI_NOTES_TASKS_REDESIGN.md`. Implement on the existing draft PR #6 branch, not main or a replacement PR. Current implementation/verification is maintained in `06_CURRENT_STATE.md`.
+- **Decision:** Notes use full-screen writing-first detail/editing; Tasks and their composers use compact expandable bottom sheets. Only Note detail may initiate Note→Note or Note→Task creation. Task UI offers read-only source provenance and one-level Subtasks, never generic linking or relinking.
+- **Hierarchy:** Task→Subtask is ownership through `parent_task_id`, separate from source Note links. Parent/child completion, edits and soft-removal are independent. Surviving children remain discoverable if the parent is removed and regroup on Undo. No sub-subtasks or implicit conversion of legacy links.
+- **Preservation:** Additive v8; preserve v6/v7 words, edits, timestamps, completion, source pointers/snapshots and legacy Task-origin links. Keep old tasks as roots. Enforce new-write restrictions in repository logic, retain safe retry semantics, and keep schedule retirement/notification cleanup intact.
+- **Draft safety and scope:** Explicit Save/Cancel, locally retained drafts through safe dismissal/restart; accessible Back/keyboard behavior. Exactly Notes/Tasks, system theme, no AI/account/sync/Xiaomi integration or expanded organization. D-018 export/restore deferral remains.
+- **Supersession:** Supersedes D-024's all-four-combination linking and shared full-screen Task detail, not its historical evidence, minimal scope or data-preservation guarantees. Product behavior: `02_PRODUCT.md`; architecture: `03_ARCHITECTURE.md`; acceptance: `07_V1_WORKFLOW_DRAFT.md`.
+
 ## Proposal register — accepted items reference decision records
 
 ### P-001 — Bounded background AI

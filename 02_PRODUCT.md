@@ -4,9 +4,21 @@
 >
 > **Source of truth for:** user needs, product objects, features, UX behavior, and MVP boundaries.
 
-## Current M1 product contract — D-024 (0.8.0 source)
+## Current contract — D-025, focused Notes and Task/Subtask sheets (0.9.0 source)
 
-**Priority:** This current-facing contract supersedes conflicting historical 0.7.1 UX descriptions below. The local 0.8.0 implementation follows this contract; native and phone acceptance are tracked in `06_CURRENT_STATE.md`. Here “M1” means the *new minimalist refactor baseline*, not the original 2026-10-13 M1 milestone.
+This supersedes the all-four-links and full-screen Task UI of 0.8.0/D-024. Verification and device acceptance are maintained only in `06_CURRENT_STATE.md`.
+
+- **Notes:** searchable list and standalone +; full-screen writing-first detail/editor. Compact Back/Edit/Link/More controls, explicit Save/Cancel, Copy/Remove/Undo, and original capture access in More. Only Note detail offers New linked note / New linked task. Linked notes/tasks and source previews remain subdued and navigable.
+- **Link direction:** only Note→Note and Note→Task may be newly created. Each child is independent, with a frozen Note source snapshot. Note-linked Tasks remain top-level Tasks, not Subtasks. Task-originated generic links are rejected by the repository, including deprecated new-write paths; historical Task-origin links remain stored and readable without reinterpretation.
+- **Tasks:** searchable top-level list with independent checkboxes and subtask progress. Text opens an expandable bottom sheet; + opens a Task sheet composer. A source Note appears as read-only provenance/navigation, never an editable source or link-creation action. Source navigation from a Task opens a read-only Note page.
+- **Subtasks:** one level under a Task, with independent text, immutable original, completion and soft-removal/Undo. No cascade in either direction. Subtasks cannot create Subtasks. Search includes child text and identifies/opens the parent with the matching row visible. Surviving children of a removed parent appear as `Parent removed` fallback rows; the stored parent remains intact and Undo regroups them.
+- **Draft safety:** Save/Cancel are explicit. Outside tap, handle swipe and Back may dismiss the composer after the keyboard, but retain the draft and request ID for Resume draft. Drafts persist locally across restart; errors retain text. Explicit Cancel discards the draft. A retained draft is resumed before starting another to prevent accidental overwrite.
+- **Scope:** exactly Notes/Tasks primary tabs; system theme, no Today/Review/Settings, pins/schedules, writing classifications, AI/accounts/sync or Xiaomi integration. Existing notification cleanup remains. Local SQLite and drafts are unencrypted; export/restore stays deferred under D-018.
+
+## Historical 0.8.0 product contract — D-024 (superseded by D-025)
+
+
+**Historical priority:** This was the 0.8.0 contract; D-025 above now supersedes it. The local 0.8.0 implementation follows this contract; native and phone acceptance are tracked in `06_CURRENT_STATE.md`. Here “M1” means the *new minimalist refactor baseline*, not the original 2026-10-13 M1 milestone.
 
 | Screen | Behavior |
 | --- | --- |

@@ -4,7 +4,24 @@
 >
 > **Principle:** Local-first and user-controlled; verify privacy properties rather than assuming them.
 
-## Minimal M1 architecture — D-024 (0.8.0/schema v7)
+## Current architecture — D-025, 0.9.0/schema v8
+
+The v8 additive migration adds nullable indexed `tasks.parent_task_id REFERENCES tasks(id) ON DELETE RESTRICT`. Every pre-existing Task remains NULL/root; v6/v7 generic source links are never converted into ownership. All legacy entry/source/link tables, originals, edits, timestamps and completion states remain unchanged by this migration.
+
+`saveSubtask({requestId,parentTaskId,text})` atomically inserts a Task entry and Task row, with no source-link row. Parent validation requires an active Task with no parent. SQLite insert/update triggers additionally reject self-parenting, nesting, reparenting a Task that has children, and a non-Task entry. Retries validate immutable text and parent and resolve existing commits even after parent removal. `saveCapture` cannot claim a Subtask request. No active reparenting operation is exposed.
+
+New `saveLinkedEntry` writes require a non-removed Note source; the same restriction applies to new legacy `saveLinked`/`saveDerivedTask` writes. Existing committed historical request retries still resolve without modifying relationships. New Note-linked Tasks have no parent and preserve source-at-creation text independently of hierarchy. The v7 source-read compatibility path is retained.
+
+Snapshot Task models include parent ID, parent entry/current text and removal state via one joined read. `src/data/selectors.ts` builds child groups and searches current text from one snapshot; unfiltered lists contain roots plus surviving children of removed parents. No N+1 reads; full-snapshot memory use and large-backlog performance remain unbenchmarked.
+
+`NoteDetail` is a full-screen writing page; `TaskSheet` uses the lightweight shared `Sheet` with an expandable, scrollable body and keyboard-aware bounds. The same sheet hosts Task/Subtask composers. Task-source Notes open read-only; modal backgrounds are hidden from accessibility. Native Back dismisses the keyboard first, then retains editor drafts or returns from a child popup before closing the sheet.
+
+Drafts use the existing local SQLite KV store under a separate key; appearance preferences are untouched. Main DB initialization precedes opening the KV store to avoid Expo web VFS startup races. Serialized draft writes prevent stale keystrokes overwriting newer text or cancellation. Dismissal waits for the draft write, preserves request IDs and offers Resume; failed persistence stays visible. No automatic entry save or network storage is added.
+
+v7 schedule retirement and legacy notification cancellation remain unchanged. Native keyboard/Back, physical upgrade/offline restart and notification cleanup require separate device acceptance; current evidence belongs to `06_CURRENT_STATE.md`.
+
+## Historical 0.8.0 architecture — D-024 (schema v7)
+
 
 **Implemented:** Additive v7 introduces indexed `entry_sources(entry_id, source_entry_id, source_text)` and `saveLinkedEntry` for all four Note/Task combinations. New children snapshot the source's current words inside the save transaction; retries validate kind, exact original text and source. Links always originate from a new entry, preventing cycles. Snapshot reads unify generic, legacy thinking and task links. Legacy thinking links never stored source-at-creation words; their preview uses immutable source originals, without inventing a historical snapshot.
 

@@ -1,5 +1,12 @@
 # Noeting — Documentation Change Log (started 2026-10-11)
 
+## 2026-10-16 — 0.9.0 PR #6 Notes/Task-sheet redesign
+
+- Record D-025 from the user's supplied redesign: full-screen writing-first Notes, compact Task/Subtask sheets, Note→Note/Note→Task creation only from Note detail, and read-only Task-source provenance.
+- Add schema v8 one-level task ownership, independent state/removal/Undo and subtask-aware search. Preserve all legacy v6/v7 source data and keep pre-existing Tasks as roots.
+- Retain drafts across safe dismissal/restart with serialized local persistence; isolate modal accessibility and sequence database initialization.
+- Update existing draft PR #6 and its current product/architecture/acceptance records. TypeScript, SQLite, browser, exports and fresh 0.9.0/code 16 ARM64 build/static checks pass; new APK download bytes match the verified checksum. Delivery identity and device gaps live in `06_CURRENT_STATE.md`; earlier APKs remain historical.
+
 ## 2026-10-16 — 0.8.0 minimal Notes/Tasks implementation
 
 - Implement D-024 with two searchable tabs, shared entry details/editor, intentional links, edit/remove/Undo and Complete/Reopen. Remove Today/Review/pin/classification/Settings surfaces; use system theme.

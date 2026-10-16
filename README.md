@@ -4,19 +4,17 @@
 
 Noeting is a minimal, local-first Notes and Tasks app built with React Native, Expo, TypeScript and SQLite. Xiaomi Notes is an interface reference: quiet lists, quick capture and focused writing.
 
-## Current source — 0.8.0
+## Current source — 0.9.0 (draft PR #6 refinement)
 
-- **Notes and Tasks:** two searchable tabs, each with + for standalone capture.
-- **Entry details:** read, edit, remove with Undo, and navigate sources/linked entries.
-- **Intentional links:** Link note or Link task from an existing entry's details. All four Note/Task combinations create independent entries.
-- **Tasks:** Complete/Reopen without confirmation or cascading changes to children.
-- **Appearance:** follows the system. Existing appearance preferences remain stored.
+- **Notes:** searchable list and full-screen writing-first detail/editor, compact Edit/Link/More actions, explicit Save/Cancel, Copy and original-capture access.
+- **Intentional links:** only Note detail creates a linked Note or root Task. Task-source Note previews/navigation are read-only; Tasks never create generic links.
+- **Tasks:** searchable root list with direct Complete/Reopen and progress; text and + open compact expandable bottom sheets.
+- **Subtasks:** one level, independent text/completion, edit/remove/Undo; child search reveals its parent. Surviving children of a removed parent stay accessible with `Parent removed`, without changing stored ownership.
+- **Drafts and appearance:** local draft recovery after dismissal/restart; explicit Cancel discards. Follows system theme and preserves old appearance preferences.
 
-Writing needs no Reflection/Creation classification. Historical linked writing appears as ordinary Notes. Today, Review, daily summaries, pin/schedule controls and Settings navigation are retired.
+Schema v8 adds `parent_task_id` without converting existing generic links into hierarchy. Historical v6/v7 captures, edits, source relationships and task states remain preserved. Schedule retirement and legacy notification cleanup remain intact. No AI, accounts, sync, backend or actual Xiaomi integration is added.
 
-Schema v7 preserves existing v6 records, immutable captures, edits, source links and task history, adds generic source snapshots and parks pending pin schedules. Saving a Note no longer selects it for Today. Legacy notification cancellation remains as upgrade cleanup. There is no AI, account, sync or backend requirement.
-
-TypeScript, real SQLite and browser checks are recorded in [06_CURRENT_STATE.md](06_CURRENT_STATE.md), along with Android build status and remaining device acceptance. Earlier 0.7.1 phone approval does not validate this refactor.
+Current checks, fresh APK identity and native/device acceptance limits live in [06_CURRENT_STATE.md](06_CURRENT_STATE.md). The older 0.8.0 test APK does not validate this redesign. PR #6 remains draft pending review and native/device acceptance.
 
 ## Run and verify
 

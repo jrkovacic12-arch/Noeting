@@ -3,7 +3,21 @@
 > Created: 2026-10-11. Updated: 2026-10-12 (V1.2 wireframe revision). Status: proposed workflow with a small interactive wireframe and limited automated checks; not an approved implementation specification.
 > Milestone: design and validate Capture → Today. The examples below are illustrative, not observations from real usage.
 
-## D-024 acceptance scenarios — 0.8.0 automated coverage; native acceptance pending
+## Current D-025 acceptance — 0.9.0 redesign
+
+1. Full-screen Note capture/read/edit, explicit Cancel/Save, Copy, original capture, Remove/Undo and exact words/line breaks.
+2. Note→Note and Note→Task only from Note detail; source snapshots remain frozen after source edit/removal. Note-linked Tasks remain roots, appear in Linked tasks, and open in sheets with read-only Note navigation. Cancel creates nothing.
+3. Task-origin generic writes are rejected at every new-write repository boundary; old Task-origin links remain readable and do not become hierarchy.
+4. Standalone Task sheet, direct list checkboxes, independent one-level Subtask capture/edit/completion, progress and restart persistence.
+5. Search child text, identify the parent and reveal the matching child in the parent sheet. No ordinary-list duplication of active-parent children.
+6. Parent/child removal and Undo are independent; removed-parent fallback preserves ownership and access. Undo regroups surviving children.
+7. Populated v6/v7-to-v8 upgrades and repeat opens preserve every original column, source and completion state. Injected migration/write failures roll back; retries retain identity and do not duplicate.
+8. Outside tap, swipe and Back retain unsaved drafts with stable requests; Resume after restart; explicit Cancel discards. Visible failure recovery retains words. No background link controls exposed while a modal is open.
+9. System theme, 320px/large text, sheet expansion, scrolling, 44px controls and labels. Verify Android keyboard/Back/offline reboot/in-place upgrade and notification cleanup on a real device separately.
+10. Exactly two primary tabs, with no scheduling/classifications/AI/sync/Xiaomi integration. Earlier 0.8.0 APK evidence does not validate this redesign. Actual runs/results belong to `06_CURRENT_STATE.md`.
+
+## Historical D-024 acceptance — 0.8.0 automated coverage
+
 
 - **A1:** Open Notes: only Notes/Tasks primary navigation, searchable Note list and + creating a standalone Note. It appears once, is editable in its entry details, and survives offline restart. Saving does not classify it as Reflection/Creation, select a Today Note or open another flow.
 - **A2:** Open Tasks: searchable Task list and + creating a pending Task; Complete/Reopen updates the same Task without duplication, source edits or confirmation. Preserve state through restart.
@@ -15,7 +29,7 @@
 
 **Evidence:** TypeScript and 29 real-SQLite tests pass, including populated v6 preservation, migration rollback, generic-link failure/retry, all four link combinations and file reopen. Five Playwright workflows against the real Expo SQLite web build pass: searchable/offline capture and completion/restart; all four detail-only links and removed sources; populated v6 UI upgrade; failed-save text retention/retry and edit/remove/Undo; system theme and 320px/large-text layout. These cover browser portions of A1–A7, not native Android Back, keyboard, OS notification cleanup, phone in-place upgrade or native offline reboot. See `06_CURRENT_STATE.md` for delivery evidence.
 
-**Scope status:** This section supersedes earlier wireframe tests as current acceptance criteria. The remaining sections below preserve the pre-D-024 historical prototype and 0.7.1 testing record.
+**Scope status:** D-025 above supersedes these 0.8.0 criteria; the following is historical evidence. The remaining sections below preserve the pre-D-024 historical prototype and 0.7.1 testing record.
 
 ## Goal and boundary
 

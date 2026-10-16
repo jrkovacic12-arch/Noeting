@@ -2,9 +2,18 @@
 
 > **Status:** Working plan, not a committed schedule. Checked work items identify source implementation; device acceptance remains a separate gate.
 >
-> **Current phase:** D-024 is implemented locally in 0.8.0/schema v7 with Notes and Tasks. Native Android 9 emulator checks are historical, and physical-device acceptance remains pending.
+> **Current phase:** D-025 refines draft PR #6 with focused Notes and Task/Subtask sheets in 0.9.0/schema v8. Native Android 9 emulator checks are historical, and physical-device acceptance remains pending.
 
-## D-024 minimal M1 refactor — implementation stages
+## Current PR #6 refinement — D-025
+
+1. Add and verify preservation-first v8 hierarchy, Note-only new source links and independent Subtask operations; preserve v6/v7 legacy links as roots.
+2. Replace full-screen Task details with a compact expandable sheet; refine full-screen Note writing, menus, Note-linked entries and read-only task-source navigation.
+3. Verify durable draft dismissal, parent/child search, independent completion/removal/Undo, accessible modal isolation, responsive/system-theme behavior and failure recovery.
+4. Run TypeScript, real-SQLite and browser checks, exports and available Android build/static validation. Record unavailable native/runtime coverage rather than inferring it from web checks.
+5. Update the existing draft PR #6 head, description and a newly versioned verified test APK; keep draft pending independent native/device acceptance. Current status and sole next action live in `06_CURRENT_STATE.md`.
+
+## Historical D-024 minimal M1 refactor — implementation stages
+
 
 1. **Implemented and SQLite-tested — Preserve data first:** baseline existing 0.7.1/schema v6 with snapshots, repeatable tests, and migrations for existing Note/Task/Reflection/Creation relationships. Avoid destructive database reset; test upgrade from populated v6.
 2. **Implemented and SQLite/browser-tested — Domain linking:** support independently authored linked Notes or Tasks from either Note or Task, keeping immutable originals, source snapshots and idempotent saves. Preserve all legacy link reads; add schema only if necessary.
