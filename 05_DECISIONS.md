@@ -228,6 +228,8 @@
 - Synchronize completion transactionally over active children: parent toggles propagate; child toggles/add/remove/restore reconcile parent, with zero-child manual state and removed-parent reconciliation only on restore. Preserve unrelated historical completion timestamps and legacy cleanup.
 - Additive schema v9 preserves old data/links; Note-linked Tasks stay roots. No cascade deletion, source relinking, Task-origin generic writes, scheduling, extra tabs, AI/accounts/sync or Xiaomi integration. Keep same draft PR #6; use a fresh versioned test APK and document native acceptance as blocking if unavailable.
 
+**Finalization addendum (2026-10-16):** The user subsequently instructed “Check and finalize the draft PR #6.” Finalize the existing PR as ready for review after checking the latest fixes and publishing a matching test APK. This supersedes the earlier draft-status instruction for review readiness only; native/device acceptance remains a gate before merge/release. No merge instruction, phone test approval or native pass is inferred.
+
 Product, design and acceptance details: `02_PRODUCT.md`, `03_ARCHITECTURE.md`, `07_V1_WORKFLOW_DRAFT.md`. Verification and sole next action: `06_CURRENT_STATE.md`. Historical decisions remain unchanged.
 
 ## Proposal register — accepted items reference decision records

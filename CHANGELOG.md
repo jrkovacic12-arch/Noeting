@@ -1,5 +1,11 @@
 # Noeting — Documentation Change Log (started 2026-10-11)
 
+## 2026-10-16 — PR #6 finalization and 0.10.1 test build
+
+- Review the ten newer PR fixes, retain atomic folder capture and durable draft cancellation/recovery, and correct reverted-edit status plus next-child focus after saving.
+- Correct cancellation/keyboard test assumptions and complete the current automated checks; publish a matching versioned test APK with signer/download identity verified.
+- Finalize the same PR #6 as ready for review under the user's latest instruction. No merge or native-device pass is claimed; exact commands, evidence and remaining acceptance live in `06_CURRENT_STATE.md`.
+
 ## 2026-10-16 — 0.10.0 PR #6 inline UX and Note organization
 
 - Record D-026 from the supplied refinement; supersede D-025 UI/independent completion while preserving its provenance/history boundaries.

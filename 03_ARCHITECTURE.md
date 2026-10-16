@@ -4,13 +4,15 @@
 >
 > **Principle:** Local-first and user-controlled; verify privacy properties rather than assuming them.
 
-## Current architecture — D-026, 0.10.0/schema v9
+## Current architecture — D-026, 0.10.1/schema v9
 
 Migration v9 only adds `note_folders` and `note_organization` plus indexes/Note-kind triggers. Folder names retain display casing with a normalized case-folded unique key enforced at repository boundaries. Organization references Notes and nullable folders (`ON DELETE SET NULL`), with Note-only pin/edit timestamps. Missing rows mean Unfiled/unpinned. Removed Notes retain organization; deleting folders also unfiles removed Notes. Legacy tables, columns, task pin metadata, timestamps, originals, edits, soft-removal receipts and source pointers are never reset or reinterpreted.
 
 `organizeNotes`, `removeNotes` and `restoreNotes` validate all requested Notes inside one mutex/BEGIN IMMEDIATE transaction. A failure rolls back every selected row/receipt. Restore validates removal versions. Existing single-entry Task removal/restore retains legacy pin/selection behavior. Note pins are unrestricted and never call legacy `setPinned`.
 
 A shared `transition`/`reconcile` path implements synchronized completion. Root toggles transition all active children in the same transaction; child toggles reconcile the active parent. New child insertion, child removal/restore and parent restore also reconcile transactionally. Unchanged statuses preserve completion timestamps. Completion clears legacy Task pins and scheduled intents; removed parents/children are not silently toggled. Zero active children preserve manual parent status. Migration preserves even historically inconsistent v8 completion exactly; the next relevant action reconciles that group.
+
+Note capture can include `folderId`; folder assignment and the new Note/source rows commit in the same transaction. Invalid folder references roll back capture; committed retries retain their existing organization. Task capture rejects folder assignment. Draft `discard(context)` waits for serialized storage success before deleting the in-memory context or dismissing creation; failed persistence retains visible words. Existing edits and pending child commits stop on draft-storage failure. Pending child close shares the in-flight commit and closes only on success; reverted/matching recovered edits return to Saved without a redundant DB write. Enter focus intent is shared with a blur-started commit and applied once after the input is enabled; the web adapter’s legacy deferred submit blur is disabled. When a retained creation draft outlives its folder, the UI supplies Unfiled while preserving text/request identity; strict repository FK validation and transaction rollback remain unchanged.
 
 A snapshot includes joined organization/source/parent data and folders, without rendering-time row reads. Linear Map indexing builds children; selectors scope Note search/folders and deterministic pin/edit sorting and group Task search. A synthetic large fixture exercises 3,000 Notes and 1,000 parent-child pairs in selectors; browser large-list evidence is in current state. Full-snapshot memory still grows with backlog; no unmeasured native performance claim.
 

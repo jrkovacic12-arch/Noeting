@@ -3,15 +3,16 @@
 > Created: 2026-10-11. Updated: 2026-10-12 (V1.2 wireframe revision). Status: proposed workflow with a small interactive wireframe and limited automated checks; not an approved implementation specification.
 > Milestone: design and validate Capture → Today. The examples below are illustrative, not observations from real usage.
 
-## Current D-026 acceptance — 0.10.0 refinement
+## Current D-026 acceptance — 0.10.1 refinement
 
 - Preserve populated v6/v7/v8 originals, edits, links, legacy pins, soft removals and timestamps; interrupt v9 migration, prove rollback, retry. Keep new generic links Note-origin only.
 - Create/rename/delete folders with case-insensitive collision handling, scoped search, persisted list context, deterministic pins across restart/offline, mixed bulk pin/unpin/move and atomic failure. Bulk soft removal/Undo and Recently deleted recover organization.
+- Capture/link Notes in a selected/source folder atomically; test rollback and committed retry behavior. Delete a retained draft’s folder, restart, and recover/save its exact words into Unfiled. Draft-storage failure blocks capture, Cancel retains words until durable deletion, failed child close stays open, and reverted/matching recovered edits clear Unsaved.
 - Hold selects without opening, scroll cancels, Back/tab/folder/search exits selection, selected state and 44 dp actions remain accessible.
 - Existing text edits directly with no Edit/Resume; exact-context recovery survives repository/storage failure and restart; originals/frozen provenance remain readable. Overlay menus preserve content bounds, dim immediately and isolate accessibility. Connections is contextual only.
 - New Task autofocus/Enter moves to Next step; blank Enter creates nothing, composition does not submit prematurely, repeated Enter deduplicates, pending child blur/failure/restart preserves text and request. Existing Tasks do not autofocus.
 - Inline grouped/indented child lists, count/collapse, Completed grouping, parent/child search and orphan access remain coherent from committed snapshots. For one/two/three children verify every D-026 completion transition plus halfway rollback and retry.
-- Compact/expanded sheets, circular FAB, system themes, narrow/large text, source read-only navigation, offline content and large fixture tab switching. Native keyboard/Back/IME, touch-scroll cancellation and in-place upgrade require separate device evidence; retain draft PR until resolved.
+- Compact/expanded sheets, circular FAB, system themes, narrow/large text, source read-only navigation, offline content and large fixture tab switching. Native keyboard/Back/IME, touch-scroll cancellation and in-place upgrade require separate device evidence before merge/release; review readiness follows the user’s subsequent finalization instruction.
 
 Actual commands, counts, evidence and unresolved limits live only in `06_CURRENT_STATE.md`. Older acceptance sections below are historical.
 

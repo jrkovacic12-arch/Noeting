@@ -4,7 +4,7 @@
 
 Noeting is a minimal, local-first Notes and Tasks app built with React Native, Expo, TypeScript and SQLite. Xiaomi Notes is an interface reference: quiet lists, quick capture and focused writing.
 
-## Current source — 0.10.0 (draft PR #6 refinement)
+## Current source — 0.10.1 (PR #6 ready for review)
 
 - **Notes:** compact responsive cards, scoped folder search, folders, long-press selection and atomic Pin/Unpin/Move/Remove with Undo and Recently deleted recovery.
 - **Direct writing:** existing Note/Task/child text edits inline with autosave, Unsaved/Retry and automatically restored contextual drafts. Original captures remain intact; no Edit or Resume buttons.
@@ -14,7 +14,7 @@ Noeting is a minimal, local-first Notes and Tasks app built with React Native, E
 
 Additive schema v9 separates Note organization from historical Task pins and preserves v6/v7/v8 captures, edits, links, hierarchy and removal history. SQLite/drafts remain unencrypted; export/restore is deferred. No AI, accounts, sync, scheduling or Xiaomi dependency.
 
-Current checks, fresh APK identity and **blocking unverified native/device acceptance** live in [06_CURRENT_STATE.md](06_CURRENT_STATE.md). Older 0.9.0 APKs do not validate this revision. PR #6 remains draft; no production readiness is claimed.
+Current checks, fresh APK identity and **blocking unverified native/device acceptance** live in [06_CURRENT_STATE.md](06_CURRENT_STATE.md). Older 0.10.0 and 0.9.0 APKs do not validate the final fixes. The user requested finalization for review; native acceptance remains required before merge/release, and no production readiness is claimed.
 
 ## Run and verify
 

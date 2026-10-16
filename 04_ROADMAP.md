@@ -2,15 +2,15 @@
 
 > **Status:** Working plan, not a committed schedule. Checked work items identify source implementation; device acceptance remains a separate gate.
 >
-> **Current phase:** D-026 refines draft PR #6 with inline editing, Note organization and synchronized hierarchy in 0.10.0/schema v9. Native Android 9 emulator checks are historical, and physical-device acceptance remains pending.
+> **Current phase:** D-026 finalizes PR #6 for review with inline editing, Note organization and synchronized hierarchy in 0.10.1/schema v9. Native Android 9 emulator checks are historical, and physical-device acceptance remains pending.
 
 ## Current PR #6 refinement — D-026
 
 1. Implement additive v9 Note folders/organization and atomic pin/move/remove/recovery, preserving populated v6/v7/v8 records and source boundaries.
 2. Implement contextual draft migration, inline autosave/retry, Enter-driven child creation, immediate overlay scrims and content-sized sheets.
 3. Implement grouped/collapsible task lists, child search and transactionally synchronized parent/child completion; retain one-level and orphan safeguards.
-4. Verify migrations/rollback, real storage failure recovery, selection/folder/pin workflows, responsive themes and large lists; build fresh 0.10.0/code 17 ARM64 APK and verify signer/download identity.
-5. Update the same draft PR #6. Native keyboard/IME/Back/scroll gestures, offline reboot and in-place upgrade are **blocking unverified acceptance**, not implied by browser/static checks. Sole current status/next action: `06_CURRENT_STATE.md`.
+4. Verify migrations/rollback, real storage failure recovery, selection/folder/pin workflows, responsive themes and large lists; build fresh 0.10.1/code 18 ARM64 APK and verify signer/download identity.
+5. Finalize the same PR #6 as ready for review under the user’s latest instruction. Native keyboard/IME/Back/scroll gestures, offline reboot and in-place upgrade are **blocking unverified acceptance**, not implied by browser/static checks. Sole current status/next action: `06_CURRENT_STATE.md`.
 
 ## Historical PR #6 refinement — D-025
 
