@@ -2071,6 +2071,53 @@ test("folders, scoped ordering, Note pins, bulk move/remove/recovery and failure
   }
 });
 
+test("capture and linked Notes stay in their chosen folder, atomically across retries", async () => {
+  const db = new DatabaseSync(":memory:");
+  try {
+    const r = createRepository(sqliteDriver(db));
+    await r.createFolder("work", "Work");
+    const note = await r.saveCapture({
+      kind: "note", text: "Folder capture", requestId: "folder-capture", folderId: "work",
+    });
+    const linked = await r.saveLinkedEntry({
+      kind: "note", text: "Folder child", requestId: "folder-child",
+      sourceEntryId: note.entryId, folderId: "work",
+    });
+    let snapshot = await r.readSnapshot();
+    assert.equal(snapshot.entries.find((e) => e.id === note.entryId)?.folderId, "work");
+    assert.equal(snapshot.entries.find((e) => e.id === linked.entryId)?.folderId, "work");
+    assert.deepEqual(
+      await r.saveCapture({
+        kind: "note", text: "Folder capture", requestId: "folder-capture", folderId: "work",
+      }),
+      note,
+    );
+    await assert.rejects(
+      r.saveCapture({
+        kind: "note", text: "Invalid destination", requestId: "invalid-folder", folderId: "missing",
+      }),
+    );
+    await assert.rejects(
+      r.saveLinkedEntry({
+        kind: "note", text: "Invalid linked destination", requestId: "invalid-link",
+        sourceEntryId: note.entryId, folderId: "missing",
+      }),
+    );
+    await assert.rejects(
+      r.saveCapture({
+        kind: "task", text: "No task folders", requestId: "invalid-task", folderId: "work",
+      }),
+    );
+    snapshot = await r.readSnapshot();
+    assert.equal(snapshot.entries.length, 2);
+    assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
+    await r.removeFolder("work");
+    assert.equal((await r.readSnapshot()).entries.filter((e) => e.folderId).length, 0);
+  } finally {
+    db.close();
+  }
+});
+
 for (const count of [1, 2, 3])
   test(`${count} children: synchronized completion, timestamp stability, removal/restore, retries and halfway rollback`, async () => {
     const db = new DatabaseSync(":memory:");
