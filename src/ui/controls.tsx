@@ -11,8 +11,11 @@ export function IconButton({name,label,onPress,disabled=false}:{name:'back'|'edi
   const {styles,colors}=useStyles();
   return <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} accessibilityState={{disabled}} onPress={onPress}
     style={({pressed})=>[styles.iconButton,disabled&&styles.disabled,pressed&&styles.pressed]}>
-    {name==='edit'?<Image accessible={false} source={require('../../assets/icons/edit.png')} style={{width:21,height:21,tintColor:colors.ink}}/>:
-      <Text accessible={false} style={styles.iconGlyph}>{name==='back'?'‹':name==='link'?'↗':name==='close'?'×':'⋯'}</Text>}
+    {name==='link'?<View accessible={false} style={{width:24,height:24}}>
+      <View style={{position:'absolute',left:2,top:11,width:14,height:8,borderWidth:1.6,borderColor:colors.ink,borderRadius:5,transform:[{rotate:'-45deg'}]}}/>
+      <View style={{position:'absolute',left:9,top:4,width:14,height:8,borderWidth:1.6,borderColor:colors.ink,borderRadius:5,transform:[{rotate:'-45deg'}]}}/>
+    </View>:name==='edit'?<Image accessible={false} source={require('../../assets/icons/edit.png')} style={{width:21,height:21,tintColor:colors.ink}}/>:
+      <Text accessible={false} style={styles.iconGlyph}>{name==='back'?'‹':name==='close'?'×':'⋯'}</Text>}
   </Pressable>;
 }
 export function Check({checked,label,onPress,disabled=false}:{checked:boolean;label:string;onPress:()=>void;disabled?:boolean}) {
