@@ -362,7 +362,8 @@ test('editing a task updates both surfaces atomically while preserving first cap
   const db=new DatabaseSync(':memory:');
   try {
     const repo=createRepository(sqliteDriver(db)); const task=await repo.saveCapture({requestId:'edit-task',kind:'task',text:'  Original task  '});
-    await repo.saveLinked({requestId:'edit-linked',sourceEntryId:task.entryId,kind:'reflection',text:'A reflection'});
+    const legacy=await repo.saveCapture({requestId:'edit-linked',kind:'note',text:'A reflection'});
+    db.prepare("INSERT INTO thinking_links VALUES(?,?,'reflection')").run(legacy.entryId,task.entryId); // Historical relationship, not a permitted new write.
     const before=(await repo.readSnapshot()).entries[0];
     db.exec("CREATE TRIGGER fail_edit BEFORE UPDATE OF title ON tasks BEGIN SELECT RAISE(ABORT,'Task edit failed'); END;");
     await assert.rejects(repo.editEntry(task.entryId,'New task'),/Task edit failed/);
@@ -478,8 +479,7 @@ test('derived tasks preserve source-at-creation, retry safely and remain indepen
     await assert.rejects(repo.saveDerivedTask({...input,requestId:'removed-source'}),/not found/);
     await repo.removeEntry(results[0].entryId);
     assert.equal((await repo.readSnapshot()).entries[0].text,'Later source');
-    const child=await repo.saveDerivedTask({requestId:'task-source',sourceEntryId:second.entryId,text:'Child task'});
-    assert.equal((await repo.readSnapshot()).entries.find(e=>e.id===child.entryId)!.taskSourceId,second.entryId);
+    await assert.rejects(repo.saveDerivedTask({requestId:'task-source',sourceEntryId:second.entryId,text:'Child task'}),/Only Notes/);
     // A retry after source removal still resolves the original committed task.
     assert.deepEqual(await repo.saveDerivedTask(input),results[0]);
   } finally {db.close();}
@@ -562,31 +562,22 @@ test('retired due-pin calls never mutate tasks, including across restart', async
   } finally {db.close();}
 });
 
-test('task-to-task links keep independent completion, pins and immutable source across removal/retry',async()=>{
+test('historical task-to-task source links survive and are not converted to subtasks',async()=>{
   const db=new DatabaseSync(':memory:');
   try {
+    db.exec(await readFile(new URL('./fixtures/schema-v6-populated.sql',import.meta.url),'utf8'));
     const repo=createRepository(sqliteDriver(db));
-    const parent=await repo.saveCapture({requestId:'parent',kind:'task',text:'  Parent original  '});
-    await repo.editEntry(parent.entryId,'Parent edited');
-    const input={requestId:'child',sourceEntryId:parent.entryId,text:'Child action'};
-    const children=await Promise.all(Array.from({length:5},()=>repo.saveDerivedTask(input)));
-    assert.ok(children.every(c=>c.taskId===children[0].taskId));
-    const child=children[0];
-    await repo.setPinned(child.taskId!,true);
-    await repo.completeTask(parent.taskId!);
-    let snap=await repo.readSnapshot();
-    assert.equal(snap.tasks.find(t=>t.id===child.taskId)!.status,'pending');
-    assert.equal(snap.tasks.find(t=>t.id===child.taskId)!.pinned,true);
-    await repo.editEntry(parent.entryId,'Later parent');
-    await repo.removeEntry(parent.entryId);
-    await repo.completeTask(child.taskId!);await repo.reopenTask(child.taskId!);
-    snap=await createRepository(sqliteDriver(db)).readSnapshot();
-    const entry=snap.entries.find(e=>e.id===child.entryId)!;
-    assert.equal(entry.taskSourceText,'Parent edited');assert.equal(entry.taskSourceId,parent.entryId);
-    assert.equal(snap.tasks.find(t=>t.id===child.taskId)!.pinned,false);
-    assert.deepEqual(await repo.saveDerivedTask(input),child);
-    await assert.rejects(repo.saveDerivedTask({...input,requestId:'removed'}),/not found/);
-    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
+    const before=await repo.readSnapshot();
+    const child=before.entries.find(e=>e.id==='entry_derived:legacy-task-child')!;
+    assert.equal(child.sourceEntryId,'entry_legacy-task');
+    assert.equal(before.tasks.find(t=>t.entryId===child.id)!.parentTaskId,null);
+    await repo.completeTask('task_legacy-task');
+    await repo.removeEntry('entry_legacy-task');
+    await repo.completeTask('task_derived:legacy-task-child');await repo.reopenTask('task_derived:legacy-task-child');
+    const after=await createRepository(sqliteDriver(db)).readSnapshot();
+    assert.equal(after.entries.find(e=>e.id===child.id)!.sourceText,'Original task');
+    assert.equal(after.tasks.find(t=>t.entryId===child.id)!.status,'pending');
+    assert.equal(after.tasks.find(t=>t.entryId===child.id)!.parentTaskId,null);
   }finally{db.close();}
 });
 
@@ -604,8 +595,8 @@ test('v5 migration changes source validation atomically while preserving existin
     assert.equal(db.prepare('PRAGMA user_version').get()!.user_version,5);
     assert.equal(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name='task_sources_require_kinds'").get()!.n,1);
     fail=false;await repo.initialize();
-    await repo.saveDerivedTask({requestId:'c',sourceEntryId:'p',text:'Child'});
-    assert.equal((await repo.readSnapshot()).tasks.length,2);
+    await assert.rejects(repo.saveDerivedTask({requestId:'c',sourceEntryId:'p',text:'Child'}),/Only Notes/);
+    assert.equal((await repo.readSnapshot()).tasks.length,1);
     assert.equal(db.prepare('PRAGMA user_version').get()!.user_version,SCHEMA_VERSION);
     assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
   }finally{db.close();}
@@ -625,7 +616,7 @@ test('populated v6 upgrade preserves all historical tables and parks schedules a
     assert.equal(db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE name='entry_sources'").get()!.n,0);
     assert.deepEqual(db.prepare('SELECT * FROM scheduled_pins').all(),schedules);
     fail=false;const snapshot=await repo.readSnapshot();
-    tables.forEach((table,i)=>assert.deepEqual(db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all(),original[i],table));
+    tables.forEach((table,i)=>assert.deepEqual(db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all().map(row=>{const {parent_task_id,...old}=row;return Object.assign(Object.create(null),old);}),original[i],table));
     assert.equal(snapshot.entries.length,6);
     assert.equal(snapshot.entries.filter(e=>e.thinkingKind!==null).length,2);
     assert.equal(snapshot.entries.find(e=>e.id==='entry_legacy-note')!.text,'Edited legacy note');
@@ -640,11 +631,11 @@ test('populated v6 upgrade preserves all historical tables and parks schedules a
   }finally{db.close();}
 });
 
-test('all four generic link combinations preserve independent words, status and source snapshots through reopen',async()=>{
+test('Note-to-Note and Note-to-Task links preserve independent words and source snapshots through reopen',async()=>{
   const dir=await mkdtemp(join(tmpdir(),'noeting-links-')),file=join(dir,'db.sqlite');let db=new DatabaseSync(file);
   try {
     let repo=createRepository(sqliteDriver(db));
-    for(const sourceKind of ['note','task'] as const){
+    for(const sourceKind of ['note'] as const){
       const source=await repo.saveCapture({requestId:`parent-${sourceKind}`,kind:sourceKind,text:`Original ${sourceKind}`});
       await repo.editEntry(source.entryId,`Edited ${sourceKind}`);
       for(const kind of ['note','task'] as const){
@@ -671,7 +662,7 @@ test('all four generic link combinations preserve independent words, status and 
       assert.equal(retry.entryId,children.find(e=>e.kind==='note')!.id);
     }
     const before=await repo.readSnapshot();db.close();db=new DatabaseSync(file);repo=createRepository(sqliteDriver(db));
-    assert.deepEqual(await repo.readSnapshot(),before);assert.equal(before.entries.length,6);assert.equal(before.chosenEntryId,null);
+    assert.deepEqual(await repo.readSnapshot(),before);assert.equal(before.entries.length,3);assert.equal(before.chosenEntryId,null);
   }finally{db.close();await rm(dir,{recursive:true,force:true});}
 });
 
@@ -694,4 +685,112 @@ test('generic linked saves roll back source, entry and task together and retry w
     assert.equal((await repo.readSnapshot()).tasks.length,1);
     assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
   }finally{db.close();}
+});
+
+test('new Task-originating links are rejected by every repository write path without changing data',async()=>{
+  const db=new DatabaseSync(':memory:');
+  try {
+    const repo=createRepository(sqliteDriver(db));
+    const source=await repo.saveCapture({requestId:'task-source',kind:'task',text:'No generic children'});
+    const before=await repo.readSnapshot();
+    for(const kind of ['note','task'] as const)await assert.rejects(repo.saveLinkedEntry({requestId:kind,sourceEntryId:source.entryId,kind,text:'Forbidden'}),/Only Notes/);
+    await assert.rejects(repo.saveDerivedTask({requestId:'old-derived',sourceEntryId:source.entryId,text:'Forbidden'}),/Only Notes/);
+    await assert.rejects(repo.saveLinked({requestId:'old-thinking',sourceEntryId:source.entryId,kind:'reflection',text:'Forbidden'}),/Only Notes/);
+    assert.deepEqual(await repo.readSnapshot(),before);
+  } finally {db.close();}
+});
+
+test('populated v7-to-v8 upgrade preserves every old column and legacy pointer; interrupted migration rolls back',async()=>{
+  const db=new DatabaseSync(':memory:');
+  try {
+    db.exec(await readFile(new URL('./fixtures/schema-v7-populated.sql',import.meta.url),'utf8'));
+    const tables=['entries','tasks','thinking_links','task_sources','entry_sources','today_selection','reminders','scheduled_pins'];
+    const before=tables.map(table=>db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all());
+    const driver=sqliteDriver(db);let fail=true;
+    const repo=createRepository({...driver,async exec(sql){await driver.exec(sql);if(fail&&sql.includes('ALTER TABLE tasks ADD COLUMN parent_task_id'))throw Error('v8 interrupted');}});
+    await assert.rejects(repo.initialize(),/v8 interrupted/);
+    assert.equal(db.prepare('PRAGMA user_version').get()!.user_version,7);
+    assert.equal(db.prepare('PRAGMA table_info(tasks)').all().some(row=>row.name==='parent_task_id'),false);
+    fail=false;const snapshot=await repo.readSnapshot();
+    tables.forEach((table,i)=>{
+      const actual=db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all().map(row=>{const {parent_task_id,...old}=row;return Object.assign(Object.create(null),old);});
+      assert.deepEqual(actual,before[i],table);
+    });
+    assert.ok(snapshot.tasks.every(task=>task.parentTaskId===null));
+    assert.equal(snapshot.entries.find(entry=>entry.id==='entry_entry-link:v7-task-note')!.sourceEntryId,'entry_entry-link:v7-note-task');
+    assert.equal(snapshot.entries.find(entry=>entry.id==='entry_entry-link:v7-note-task')!.sourceText,'V7 note edited');
+    assert.deepEqual(await createRepository(sqliteDriver(db)).readSnapshot(),snapshot);
+    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
+  }finally{db.close();}
+});
+
+test('subtask save is atomic, retry-safe and isolated from every source-link table',async()=>{
+  const db=new DatabaseSync(':memory:');
+  try {
+    const repo=createRepository(sqliteDriver(db));
+    const parent=await repo.saveCapture({requestId:'parent',kind:'task',text:'Parent'});
+    const other=await repo.saveCapture({requestId:'other',kind:'task',text:'Other'});
+    const input={requestId:'child',parentTaskId:parent.taskId!,text:'  Child original\n🌿  '};
+    const before=await repo.readSnapshot();
+    db.exec("CREATE TRIGGER fail_subtask BEFORE INSERT ON tasks WHEN NEW.parent_task_id IS NOT NULL BEGIN SELECT RAISE(ABORT,'subtask interrupted'); END;");
+    await assert.rejects(repo.saveSubtask(input),/subtask interrupted/);assert.deepEqual(await repo.readSnapshot(),before);
+    db.exec('DROP TRIGGER fail_subtask');
+    const results=await Promise.all(Array.from({length:8},()=>repo.saveSubtask(input)));
+    assert.ok(results.every(result=>result.taskId===results[0].taskId));
+    await assert.rejects(repo.saveSubtask({...input,text:'Changed'}),/different content or parent/);
+    await assert.rejects(repo.saveSubtask({...input,parentTaskId:other.taskId!}),/different content or parent/);
+    await assert.rejects(repo.saveCapture({requestId:'subtask:child',kind:'task',text:input.text}),/Subtask/);
+    await assert.rejects(repo.saveCapture({requestId:'subtask:child',kind:'note',text:input.text}),/different content/);
+    const snapshot=await repo.readSnapshot();assert.equal(snapshot.tasks.length,3);
+    const child=snapshot.tasks.find(task=>task.id===results[0].taskId)!;
+    assert.equal(child.parentTaskId,parent.taskId);assert.equal(child.parentText,'Parent');
+    for(const table of ['entry_sources','task_sources','thinking_links'])assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()!.n,0);
+    await repo.removeEntry(parent.entryId);assert.deepEqual(await repo.saveSubtask(input),results[0]);
+  }finally{db.close();}
+});
+
+test('one-level Task ownership rejects missing, removed, cross-kind, self and recursive parents',async()=>{
+  const db=new DatabaseSync(':memory:');
+  try {
+    const repo=createRepository(sqliteDriver(db));
+    const note=await repo.saveCapture({requestId:'note',kind:'note',text:'Note'});
+    const parent=await repo.saveCapture({requestId:'root',kind:'task',text:'Root'});
+    const other=await repo.saveCapture({requestId:'other',kind:'task',text:'Other root'});
+    const child=await repo.saveSubtask({requestId:'child',parentTaskId:parent.taskId!,text:'Child'});
+    for(const invalid of ['absent',note.entryId,child.taskId!])await assert.rejects(repo.saveSubtask({requestId:invalid,parentTaskId:invalid,text:'No'}),/top-level Task parent/);
+    assert.throws(()=>db.prepare('UPDATE tasks SET parent_task_id=? WHERE id=?').run(parent.taskId,parent.taskId),/top-level Task parent/);
+    assert.throws(()=>db.prepare('UPDATE tasks SET parent_task_id=? WHERE id=?').run(child.taskId,other.taskId),/top-level Task parent/);
+    assert.throws(()=>db.prepare('UPDATE tasks SET parent_task_id=? WHERE id=?').run(other.taskId,parent.taskId),/top-level Task parent/);
+    assert.throws(()=>db.prepare('UPDATE tasks SET entry_id=? WHERE id=?').run(note.entryId,child.taskId),/Task entry/);
+    await repo.removeEntry(parent.entryId);
+    await assert.rejects(repo.saveSubtask({requestId:'removed',parentTaskId:parent.taskId!,text:'No'}),/top-level Task parent/);
+    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
+  }finally{db.close();}
+});
+
+test('Note-linked Task and its Subtasks survive restart, independent state, parent removal and Undo',async()=>{
+  const dir=await mkdtemp(join(tmpdir(),'noeting-subtasks-')),file=join(dir,'db.sqlite');let db=new DatabaseSync(file);
+  try {
+    let repo=createRepository(sqliteDriver(db));
+    const note=await repo.saveCapture({requestId:'note',kind:'note',text:'Note original'});
+    const parent=await repo.saveLinkedEntry({requestId:'root',kind:'task',sourceEntryId:note.entryId,text:'Build prototype'});
+    const a=await repo.saveSubtask({requestId:'a',parentTaskId:parent.taskId!,text:'Paper sketch'});
+    const b=await repo.saveSubtask({requestId:'b',parentTaskId:parent.taskId!,text:'Write code'});
+    await repo.completeTask(a.taskId!);await repo.editEntry(b.entryId,'Implement offline');await repo.completeTask(parent.taskId!);
+    await repo.editEntry(note.entryId,'Later note');await repo.removeEntry(note.entryId);
+    const before=await repo.readSnapshot();assert.equal(before.tasks.find(t=>t.id===b.taskId)!.status,'pending');
+    const removedParent=await repo.removeEntry(parent.entryId);
+    let snapshot=await repo.readSnapshot();assert.equal(snapshot.tasks.length,2);assert.ok(snapshot.tasks.every(t=>t.parentRemoved));
+    const {visibleEntries}=await import('../src/data/selectors');
+    assert.equal(visibleEntries(snapshot,'task','').length,2);assert.equal(visibleEntries(snapshot,'task','offline')[0].id,b.entryId);
+    await repo.editEntry(b.entryId,'Still editable');await repo.reopenTask(a.taskId!);
+    await repo.restoreEntry(removedParent);
+    const removedChild=await repo.removeEntry(a.entryId);await repo.restoreEntry(removedChild);
+    snapshot=await repo.readSnapshot();assert.equal(visibleEntries(snapshot,'task','').length,1);
+    assert.equal(snapshot.tasks.find(t=>t.id===parent.taskId)!.status,'completed');
+    assert.equal(snapshot.tasks.find(t=>t.id===a.taskId)!.status,'pending');
+    assert.equal(snapshot.entries.find(e=>e.id===parent.entryId)!.sourceText,'Note original');
+    assert.equal(snapshot.tasks.find(t=>t.id===parent.taskId)!.parentTaskId,null);
+    db.close();db=new DatabaseSync(file);repo=createRepository(sqliteDriver(db));assert.deepEqual(await repo.readSnapshot(),snapshot);
+  }finally{db.close();await rm(dir,{recursive:true,force:true});}
 });

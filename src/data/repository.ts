@@ -25,6 +25,10 @@ export interface Task {
   pinOrder: number;
   createdAt: string;
   completedAt: string | null;
+  parentTaskId: string | null;
+  parentEntryId: string | null;
+  parentText: string | null;
+  parentRemoved: boolean;
 }
 
 export interface Snapshot {
@@ -63,6 +67,7 @@ export interface Repository {
   readSnapshot(): Promise<Snapshot>;
   saveCapture(input: CaptureInput): Promise<CaptureResult>;
   saveLinkedEntry(input: CaptureInput & { sourceEntryId: string }): Promise<CaptureResult>;
+  saveSubtask(input: { requestId: string; parentTaskId: string; text: string }): Promise<CaptureResult>;
   setPinned(id: string, pinned: boolean): Promise<void>;
   completeTask(id: string): Promise<void>;
   reopenTask(id: string): Promise<void>;
@@ -92,7 +97,7 @@ export interface PinSchedule {
   status: 'waiting' | 'applied' | 'cancelled';
 }
 
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 type EntryRow = {
   id: string;
@@ -123,6 +128,10 @@ type TaskRow = {
   pin_order: number;
   created_at: string;
   completed_at: string | null;
+  parent_task_id: string | null;
+  parent_entry_id: string | null;
+  parent_text: string | null;
+  parent_removed_at: string | null;
 };
 
 class Mutex {
@@ -273,6 +282,33 @@ const migrationV7 = `
   UPDATE scheduled_pins SET status='cancelled' WHERE status='waiting';
 `;
 
+// Existing tasks stay roots. Legacy contextual links never imply ownership.
+const migrationV8 = `
+  ALTER TABLE tasks ADD COLUMN parent_task_id TEXT REFERENCES tasks(id) ON DELETE RESTRICT;
+  CREATE INDEX tasks_parent ON tasks(parent_task_id);
+  CREATE TRIGGER subtasks_validate_insert BEFORE INSERT ON tasks
+  WHEN NEW.parent_task_id IS NOT NULL
+  BEGIN
+    SELECT CASE WHEN NEW.parent_task_id=NEW.id OR NOT EXISTS (
+      SELECT 1 FROM tasks p JOIN entries e ON e.id=p.entry_id
+      WHERE p.id=NEW.parent_task_id AND p.parent_task_id IS NULL
+        AND e.kind='task' AND e.removed_at IS NULL
+    ) THEN RAISE(ABORT,'Choose an existing top-level Task parent.') END;
+  END;
+  CREATE TRIGGER subtasks_validate_update BEFORE UPDATE OF parent_task_id,entry_id ON tasks
+  BEGIN
+    SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM entries WHERE id=NEW.entry_id AND kind='task')
+      THEN RAISE(ABORT,'A Task needs a Task entry.') END;
+    SELECT CASE WHEN NEW.parent_task_id IS NOT NULL AND (
+      NEW.parent_task_id=NEW.id OR EXISTS(SELECT 1 FROM tasks WHERE parent_task_id=NEW.id) OR NOT EXISTS (
+        SELECT 1 FROM tasks p JOIN entries e ON e.id=p.entry_id
+        WHERE p.id=NEW.parent_task_id AND p.parent_task_id IS NULL
+          AND e.kind='task' AND e.removed_at IS NULL
+      )
+    ) THEN RAISE(ABORT,'Choose an existing top-level Task parent.') END;
+  END;
+`;
+
 class SQLiteRepository implements Repository {
   private readonly mutex: Mutex;
   private initialized = false;
@@ -305,7 +341,10 @@ class SQLiteRepository implements Repository {
            LEFT JOIN entries original ON original.id = l.source_entry_id ORDER BY e.created_at, e.rowid`,
         );
         const tasks = await this.db.all<TaskRow>(
-          'SELECT t.* FROM tasks t JOIN entries e ON e.id = t.entry_id WHERE e.removed_at IS NULL ORDER BY t.created_at, t.rowid',
+          `SELECT t.*,p.entry_id AS parent_entry_id,COALESCE(pe.edited_text,pe.original_text) AS parent_text,
+            pe.removed_at AS parent_removed_at FROM tasks t JOIN entries e ON e.id=t.entry_id
+           LEFT JOIN tasks p ON p.id=t.parent_task_id LEFT JOIN entries pe ON pe.id=p.entry_id
+           WHERE e.removed_at IS NULL ORDER BY t.created_at,t.rowid`,
         );
         const [selection] = await this.db.all<{ entry_id: string }>('SELECT entry_id FROM today_selection WHERE id = 1');
         return {
@@ -333,6 +372,10 @@ class SQLiteRepository implements Repository {
             pinOrder: row.pin_order,
             createdAt: row.created_at,
             completedAt: row.completed_at,
+            parentTaskId: row.parent_task_id ?? null,
+            parentEntryId: row.parent_entry_id ?? null,
+            parentText: row.parent_text ?? null,
+            parentRemoved: row.parent_removed_at != null,
           })),
         };
       });
@@ -364,13 +407,14 @@ class SQLiteRepository implements Repository {
           if (existing.kind !== input.kind || existing.original_text !== input.text) {
             throw new Error('This capture request was already saved with different content.');
           }
-          const [task] = await this.db.all<{ id: string }>(
-            'SELECT id FROM tasks WHERE entry_id = ?',
+          const [task] = await this.db.all<{ id: string; parent_task_id: string|null }>(
+            'SELECT id,parent_task_id FROM tasks WHERE entry_id = ?',
             [existing.id],
           );
           if (existing.kind === 'task' && !task) {
             throw new Error('The saved capture is missing its linked task.');
           }
+          if (task?.parent_task_id) throw new Error('This request belongs to a Subtask.');
           return { entryId: existing.id, taskId: task?.id ?? null };
         }
 
@@ -454,10 +498,36 @@ class SQLiteRepository implements Repository {
         }
         const [source] = await this.db.all<EntryRow>("SELECT * FROM entries WHERE id = ? AND removed_at IS NULL", [input.sourceEntryId]);
         if (!source) throw new Error('Source entry was not found.');
+        if (source.kind !== 'note') throw new Error('Only Notes can create linked entries.');
         const entryId = `entry_${request}`, taskId = `task_${request}`, createdAt = new Date().toISOString();
         await this.db.run("INSERT INTO entries(id,capture_request_id,kind,original_text,created_at) VALUES (?,?,'task',?,?)", [entryId,request,input.text,createdAt]);
         await this.db.run("INSERT INTO tasks(id,entry_id,title,status,pinned,created_at,completed_at) VALUES (?,?,?,'pending',0,?,NULL)", [taskId,entryId,input.text.trim(),createdAt]);
         await this.db.run('INSERT INTO task_sources(entry_id,source_entry_id,source_text) VALUES (?,?,?)', [entryId,source.id,source.edited_text ?? source.original_text]);
+        return {entryId,taskId};
+      });
+    });
+  }
+
+  saveSubtask(input: { requestId: string; parentTaskId: string; text: string }): Promise<CaptureResult> {
+    return this.mutex.run(async () => {
+      if (typeof input.requestId !== 'string' || !input.requestId.trim()) throw new Error('A Subtask needs a stable request ID.');
+      if (typeof input.text !== 'string' || !input.text.trim()) throw new Error('Write something before saving.');
+      await this.initializeLocked();
+      return this.transaction(async () => {
+        const request=`subtask:${input.requestId}`;
+        const [existing]=await this.db.all<EntryRow & {task_id:string;parent_task_id:string}>(
+          `SELECT e.*,t.id AS task_id,t.parent_task_id FROM entries e LEFT JOIN tasks t ON t.entry_id=e.id WHERE e.capture_request_id=?`,[request]);
+        if (existing) {
+          if (existing.kind!=='task' || !existing.task_id || existing.original_text!==input.text || existing.parent_task_id!==input.parentTaskId) throw new Error('This Subtask request was already saved with different content or parent.');
+          return {entryId:existing.id,taskId:existing.task_id};
+        }
+        const [parent]=await this.db.all<{id:string}>(
+          `SELECT t.id FROM tasks t JOIN entries e ON e.id=t.entry_id
+           WHERE t.id=? AND t.parent_task_id IS NULL AND e.kind='task' AND e.removed_at IS NULL`,[input.parentTaskId]);
+        if(!parent)throw new Error('Choose an existing top-level Task parent.');
+        const entryId=`entry_${request}`,taskId=`task_${request}`,createdAt=new Date().toISOString();
+        await this.db.run("INSERT INTO entries(id,capture_request_id,kind,original_text,created_at) VALUES (?,?,'task',?,?)",[entryId,request,input.text,createdAt]);
+        await this.db.run("INSERT INTO tasks(id,entry_id,title,status,pinned,created_at,completed_at,parent_task_id) VALUES (?,?,?,'pending',0,?,NULL,?)",[taskId,entryId,input.text.trim(),createdAt,parent.id]);
         return {entryId,taskId};
       });
     });
@@ -507,6 +577,7 @@ class SQLiteRepository implements Repository {
         }
         const [source] = await this.db.all<EntryRow>('SELECT * FROM entries WHERE id=? AND removed_at IS NULL',[input.sourceEntryId]);
         if (!source) throw new Error('Source entry was not found.');
+        if (source.kind !== 'note') throw new Error('Only Notes can create linked entries.');
         // Every link points from a new entry to an existing source, so cycles cannot form.
         const entryId=`entry_${request}`, taskId=input.kind === 'task' ? `task_${request}` : null;
         const createdAt=new Date().toISOString();
@@ -536,8 +607,9 @@ class SQLiteRepository implements Repository {
           }
           return { entryId: existing.id, taskId: null };
         }
-        const [source] = await this.db.all('SELECT id FROM entries WHERE id = ? AND removed_at IS NULL', [input.sourceEntryId]);
+        const [source] = await this.db.all<{id:string;kind:EntryKind}>('SELECT id,kind FROM entries WHERE id = ? AND removed_at IS NULL', [input.sourceEntryId]);
         if (!source) throw new Error('Source entry was not found.');
+        if (source.kind !== 'note') throw new Error('Only Notes can create linked entries.');
         const entryId = `entry_${request}`;
         await this.db.run("INSERT INTO entries(id, capture_request_id, kind, original_text, created_at) VALUES (?, ?, 'note', ?, ?)",
           [entryId, request, input.text, new Date().toISOString()]);
@@ -634,6 +706,7 @@ class SQLiteRepository implements Repository {
       if (version.user_version < 5) await this.db.exec(migrationV5);
       if (version.user_version < 6) await this.db.exec(migrationV6);
       if (version.user_version < 7) await this.db.exec(migrationV7);
+      if (version.user_version < 8) await this.db.exec(migrationV8);
       if (version.user_version < SCHEMA_VERSION) await this.db.exec(`PRAGMA user_version = ${SCHEMA_VERSION};`);
     });
     this.initialized = true;
