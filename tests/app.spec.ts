@@ -186,6 +186,7 @@ async function addSubtask(page: Page, text: string) {
   await input.fill(text);
   await input.press("Enter");
   await expect(input).toHaveValue("");
+  await expect(input).toBeFocused();
   await expect(
     page.getByRole("textbox", { name: `Task text: ${text}`, exact: true }),
   ).toBeVisible();

@@ -73,6 +73,7 @@ export function TaskSheet({
   const current = useRef(text);
   const request = useRef(restored?.requestId ?? randomUUID());
   const pendingCommit = useRef<Promise<boolean> | null>(null);
+  const focusAfterSave = useRef(false);
   const [adding, setAdding] = useState(false);
   const [focusPending, setFocusPending] = useState(false);
   useEffect(() => {
@@ -96,8 +97,11 @@ export function TaskSheet({
     });
   }
   function commit(focus = false): Promise<boolean> {
-    if (pendingCommit.current) return pendingCommit.current;
     if (composing.current) return Promise.resolve(false);
+    // Web/native input adapters may deliver blur before submit. Keep Enter's
+    // focus intent even when blur has already started the same commit.
+    if (focus && current.current.trim()) focusAfterSave.current = true;
+    if (pendingCommit.current) return pendingCommit.current;
     if (!task || !current.current.trim()) return Promise.resolve(true);
     setAdding(true);
     const value = current.current;
@@ -120,12 +124,13 @@ export function TaskSheet({
           });
         }
         setLocalError(false);
-        if (focus) setFocusPending(true);
+        if (focusAfterSave.current) setFocusPending(true);
         return true;
       } catch {
         setLocalError(true);
         return false;
       } finally {
+        focusAfterSave.current = false;
         setAdding(false);
       }
     })();
@@ -299,6 +304,9 @@ export function TaskSheet({
                 style={[styles.linkText, styles.grow, { minHeight: 44 }]}
                 returnKeyType="next"
                 submitBehavior="submit"
+                // RN web 0.21 still uses this prop and otherwise schedules a
+                // deferred blur after our successful commit restores focus.
+                blurOnSubmit={false}
                 onSubmitEditing={(event) => {
                   if (!(event.nativeEvent as any).isComposing)
                     void commit(true);
