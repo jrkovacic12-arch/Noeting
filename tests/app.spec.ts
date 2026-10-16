@@ -574,7 +574,9 @@ test.describe("preservation and failure recovery against real SQLite", () => {
     await expect(page.getByRole("textbox", { name: "Next step" })).toHaveValue(
       "Retry child",
     );
-    await expect(page.getByRole("button", { name: "Retry next step" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Retry next step" }),
+    ).toBeVisible();
     page = await session.restart();
     await tab(page, "task");
     await open(page, "task", "Keep these words");
@@ -749,40 +751,62 @@ test("Notes captured or linked within a folder remain there after restart", asyn
   await link(page, "note", "Folder link");
   await close(page, "note");
   await close(page, "note");
-  await expect(page.getByRole("button", { name: "Open note: Folder link" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Open note: Folder link" }),
+  ).toBeVisible();
   page = await session.restart();
   await expect(
     page.getByRole("button", { name: "Open note: Folder capture" }),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Open note: Folder link" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Open note: Folder link" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Folder: Unfiled" }).click();
-  await expect(page.getByRole("button", { name: /^Open note:/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Open note:/ })).toHaveCount(
+    0,
+  );
 });
 
-test("Cancel only closes after its draft is durably discarded", async ({
-  session,
-}) => {
-  let { page } = session;
-  await page.getByRole("button", { name: "Add note" }).click();
-  await page.getByRole("textbox", { name: "Note text" }).fill("Must discard");
-  await page.keyboard.press("Escape");
-  await expect(page.getByRole("textbox", { name: "Note text" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Add note" }).click();
-  await expect(page.getByRole("textbox", { name: "Note text" })).toHaveValue("Must discard");
-  await databaseSQL(
-    page,
-    "CREATE TRIGGER fail_cancel BEFORE UPDATE ON storage BEGIN SELECT RAISE(ABORT,'storage failed'); END;",
-    true,
-  );
-  await page.getByRole("button", { name: "Cancel" }).click();
-  await expect(page.getByRole("textbox", { name: "Note text" })).toHaveValue("Must discard");
-  await expect(page.getByRole("alert")).toContainText("Could not discard draft");
-  await databaseSQL(page, "DROP TRIGGER fail_cancel", true);
-  await page.getByRole("button", { name: "Cancel" }).click();
-  await expect(page.getByRole("textbox", { name: "Note text" })).toHaveCount(0);
-  page = await session.restart();
-  await page.getByRole("button", { name: "Add note" }).click();
-  await expect(page.getByRole("textbox", { name: "Note text" })).toHaveValue("");
+test.describe("durable cancellation", () => {
+  test.use({ observeSQLite: true });
+  test("Cancel only closes after its draft is durably discarded", async ({
+    session,
+  }) => {
+    let { page } = session;
+    await page.getByRole("button", { name: "Add note" }).click();
+    await page.getByRole("textbox", { name: "Note text" }).fill("Must discard");
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("textbox", { name: "Note text" })).toHaveCount(
+      0,
+    );
+    await page.getByRole("button", { name: "Add note" }).click();
+    await expect(page.getByRole("textbox", { name: "Note text" })).toHaveValue(
+      "Must discard",
+    );
+    await databaseSQL(
+      page,
+      "CREATE TRIGGER fail_cancel BEFORE UPDATE ON storage BEGIN SELECT RAISE(ABORT,'storage failed'); END;",
+      true,
+    );
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByRole("textbox", { name: "Note text" })).toHaveValue(
+      "Must discard",
+    );
+    await expect(page.getByRole("alert")).toContainText(
+      "Could not discard draft",
+    );
+    await databaseSQL(page, "DROP TRIGGER fail_cancel", true);
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByRole("textbox", { name: "Note text" })).toHaveCount(
+      0,
+    );
+    page = await session.restart();
+    await page.getByRole("button", { name: "Add note" }).click();
+    await expect(page.getByRole("textbox", { name: "Note text" })).toHaveValue(
+      "",
+    );
+  });
 });
 
 test("reverting an inline edit to the committed text clears Unsaved", async ({
@@ -796,7 +820,9 @@ test("reverting an inline edit to the committed text clears Unsaved", async ({
   await body.fill("Original text");
   await expect(page.getByText("Unsaved", { exact: true })).toHaveCount(0);
   await close(page, "note");
-  await expect(page.getByRole("button", { name: "Open note: Original text" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Open note: Original text" }),
+  ).toBeVisible();
 });
 
 test("immediate scrim, compact sheet, circle FAB, IME/Enter, 320px large text and system themes", async ({
@@ -834,7 +860,7 @@ test("immediate scrim, compact sheet, circle FAB, IME/Enter, 320px large text an
   const next = page.getByRole("textbox", { name: "Next step" });
   await expect(next).toBeFocused();
   await next.press("Enter");
-  await expect(next).toBeFocused();
+  // Empty Enter may dismiss the keyboard; it must never create an empty child.
   await expect(page.getByRole("textbox", { name: /^Task text:/ })).toHaveCount(
     1,
   );
@@ -845,6 +871,7 @@ test("immediate scrim, compact sheet, circle FAB, IME/Enter, 320px large text an
   await next.dispatchEvent("compositionend");
   await next.press("Enter");
   await expect(next).toHaveValue("");
+  await expect(next).toBeFocused();
   await next.press("Enter");
   await expect(
     page.getByRole("textbox", { name: "Task text: Composed child" }),

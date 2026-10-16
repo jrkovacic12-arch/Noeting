@@ -95,7 +95,10 @@ export function InlineEditor({
     };
   }, []);
   useEffect(() => {
-    if (text === saved.current) return;
+    if (text === saved.current) {
+      void flushRef.current();
+      return;
+    }
     const timer = setTimeout(() => {
       if (!composing.current) void flushRef.current();
     }, 500);
