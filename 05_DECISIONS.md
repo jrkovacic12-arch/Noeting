@@ -187,6 +187,28 @@
 - **Source navigation:** Remove redundant From note/From task buttons from Task cards. Tap the Task body, then its original preview on the entry screen to reach the source, including removed sources. Source links/snapshots, completion/Reopen and scheduled pin behavior are unchanged.
 - **Reason:** The user requested fewer repeated actions and identified the original preview as the source-navigation path. This changes UI only; schema v6 is unchanged.
 
+## D-023 — Minimal standalone Noeting with a decoupled personal-agent direction (2026-10-15)
+
+- **Status:** Accepted on 2026-10-15; D-024 subsequently narrows the future M1 interface. No AI or agent work is authorized.
+- **Decision:** Continue Noeting as an intentionally minimal independent mobile note/thinking/action interface. Use Xiaomi Notes as a simplicity/interaction reference, not a mandatory storage dependency. Avoid recreating Obsidian's broader knowledge-workspace features. Future differentiated functionality should center on separate, replaceable and permission-controlled agent services rather than editor feature parity.
+- **Why:** The user prefers Xiaomi Notes' focused interface and dislikes Obsidian's unnecessary complexity. Existing Noeting code covers the local capture, retrieval, task and linked-thinking foundation.
+- **Architectural clarification to D-003:** Owning agent data access, reasoning, permissions and tools does **not** inherently require building a proprietary note UI; keeping Noeting standalone is an explicit UX preference whose usefulness still requires validation.
+- **Consequences:** Explore scoped retrieval, sourced reflection and explainable priorities as **future** research; preserve exact user words and explicit approval before changing tasks or acting. Treat Xiaomi sharing/import as an optional unverified adapter, not an assumed full read/write API or sync mechanism. Keep UI scope small.
+- **Prior decisions preserved:** D-017 already refers to **Reopen**, D-018 explicitly **defers export/backup/restore to the account phase**, and D-019–D-022 cover implemented linked-Task/scheduled-pin/navigation behavior. D-010's no-AI V1 is unchanged. Do not begin agent or account work based solely on this decision.
+- **Planning:** `04_ROADMAP.md` owns proposed research order; `06_CURRENT_STATE.md` owns the single next action and actual validation evidence.
+
+## D-024 — Minimal Notes/Tasks-only M1 refactor; writing meaning belongs to the user (2026-10-16)
+
+- **Status:** Accepted direction for a later Codex refactor; documentation only in PR #5. Not implemented in current version 0.7.1/schema v6. This is a new minimal product baseline, not the original 2026-10-13 M1 build.
+- **Product:** Two primary destinations: **Notes** and **Tasks**. Each has its own searchable list and type-specific **+** to add a standalone Note or Task. Both types open their own entry-detail screens.
+- **Linking:** Only the entry-detail screen of an existing Note or Task may initiate the creation of a linked Note or Task. Permit Note→Note, Note→Task, Task→Note and Task→Task. Each new entry retains independent content, identity and task completion. Keep source links and original words; do not silently convert Notes into Tasks or cascade parent completion/deletion to children.
+- **Meaning:** **Reflection and Creation are philosophical outcomes, not app classifications.** Notes can represent reflections, creations, ideas, observations or anything the user decides. Remove Reflection/Creation buttons, filters, labels, prompts and separately modeled product workflows. Preserve historical type metadata and source relationships without presenting legacy entries as special categories.
+- **Scope to remove from future M1 UI:** Today, Review, Today-note selection, daily summary/count dashboard, manual and scheduled task pin controls, Reflection/Create actions, extra Capture destinations, separate Settings navigation, deadlines/priorities, agent/AI and advanced organization. Preserve basic Task Complete/Reopen, entry read/edit/remove, search and intentional linking; follow system theme by default.
+- **Data and historical boundaries:** No destructive reset of existing v6 records, migrations, original text, legacy Reflection/Creation content, links or Task history. Scheduling/notification effects must not continue invisibly once their controls are removed; legacy OS notification cleanup may be retained until safely retired. The unchanged current app remains 0.7.1 until a separately implemented and verified code change.
+- **Supersession:** Narrows earlier *forward-looking UI scope* from D-010, D-013–D-016 and D-020–D-023; it does not falsify earlier implementation records or undo proven provenance/retry guarantees. Retains D-011 stack, D-010 **no AI in V1**, D-018 **account-phase backup/export/restore deferral**, and D-023 standalone/agent separation.
+- **Reason:** Noeting should support capturing, searching, connecting and acting, not force the user to say whether a note counts as Reflection or Creation.
+- **Document owners:** [02_PRODUCT.md](02_PRODUCT.md) defines UI behavior; [03_ARCHITECTURE.md](03_ARCHITECTURE.md) defines migration constraints; [04_ROADMAP.md](04_ROADMAP.md) defines the Codex sequence; [07_V1_WORKFLOW_DRAFT.md](07_V1_WORKFLOW_DRAFT.md) defines tests; [06_CURRENT_STATE.md](06_CURRENT_STATE.md) keeps implementation status and the sole next action.
+
 ## Proposal register — accepted items reference decision records
 
 ### P-001 — Bounded background AI
@@ -245,9 +267,9 @@
 | --- | --- | --- |
 | O-001 | Are the detailed V1 acceptance criteria and lifecycle semantics complete? High-level feature scope approved; **no AI in V1**. | Partly resolved; details open |
 | O-002 | Mobile stack/SDK versions recorded in `03_ARCHITECTURE.md`; Android is the user-confirmed first physical target (P-006); exact test device / native compatibility? | Stack/versions resolved; device validation pending |
-| O-003 | What category/type taxonomy is understandable in use? | Open |
+| O-003 | What category/type taxonomy is understandable in use? | Resolved for D-024 M1: Notes and Tasks only; historical reflection/creation labels preserved as storage metadata, not displayed. |
 | O-004 | What is the precise data-sharing and on-device/cloud AI policy? | Open |
-| O-005 | How are reminders, importance, urgency, and user-confirmed priorities represented? | Open |
+| O-005 | How are reminders, importance, urgency, and user-confirmed priorities represented? | Not part of D-024 M1; future reintroduction requires a new decision. |
 | O-006 | What is the local security threat model and encryption approach? | Open |
 | O-007 | When, if ever, does Noeting need external integrations, desktop, or sync? | Open |
 | O-008 | How should a user-accepted Task derived from an existing Note preserve provenance without rewriting the Note, given the M1 trigger requires a Task-kind Entry? Decide relationship, migration, retry, and deletion rules before implementing that flow. | Resolved for the approved relationship under D-019/P-007; schema v4 implemented, validation recorded in current state |

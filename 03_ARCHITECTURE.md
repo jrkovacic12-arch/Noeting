@@ -4,6 +4,14 @@
 >
 > **Principle:** Local-first and user-controlled; verify privacy properties rather than assuming them.
 
+## Target M1 refactor architecture — D-024 (not implemented)
+
+Maintain React Native/Expo, SQLite, v6 upgrade compatibility and the local/offline repository. Expose only Note, Task and explicit source-link concepts in the new UI. Do not remove or rewrite historical `entries`, `tasks`, `thinking_links`, `task_sources`, `today_selection`, `scheduled_pins` or legacy `reminders` through a destructive migration. Historical Reflection/Creation rows should render as ordinary Notes while retaining original text, legacy `thinking_kind` metadata, source pointers, edits and creation timestamps. Fresh linked Notes must be possible from **either** Note or Task; avoid relying on the old Reflection/Creation-only API: introduce a generic link/save path with additive schema migration only if needed. Maintain source-at-creation provenance and idempotent request IDs. Reject cycles/self-links if the domain requires them, without breaking existing rows.
+
+For obsolete scheduling: remove UI and active due-pin application without deleting saved Tasks. Clear or park unconsumed scheduled pins safely, avoid invisible re-pinning on startup/resume, and retain the minimal old-notification cancellation path until upgrade cleanup is safe. A future release may explicitly clean old schema, but not during this preservation-first refactor. System theme can replace user theme selection without destroying stored appearance preferences.
+
+Preserve original/current words, task complete/reopen semantics, link navigation to removed sources, and atomic rollback/retry. Avoid broad storage rewrites, account work, import/sync and AI. Refactor the monolithic `App.tsx` into two list screens, shared entry details, shared editor and domain services with narrowly scoped changes; use indexed linked lookups and virtualized lists as justified by performance testing. See [02_PRODUCT.md](02_PRODUCT.md) for required behavior and [07_V1_WORKFLOW_DRAFT.md](07_V1_WORKFLOW_DRAFT.md) for acceptance.
+
 ## 1. Architectural goals (direction)
 
 - The core note/task application should work offline.
@@ -75,16 +83,16 @@ Actual build evidence, artifact identity, and executable build/verification comm
 - Migrate v1 to v2 transactionally without rebuilding old tables; set the schema version only after all new objects succeed. A failed migration rolls back new tables/indexes/triggers and leaves v1 data/version unchanged. Higher unknown schemas are refused without clearing data.
 - This schema does not resolve Note-derived Tasks (O-008), destructive edits/deletion, export/restore or encryption. All link targets are protected by restrictive foreign keys; there is no destructive UI.
 
-### M2 Note-to-Task linkage and data-recovery questions (open; not implemented)
+### Historical M2 Note-to-Task linkage investigation (resolved by D-019)
 
 The M1 `tasks_require_task_entry` SQLite trigger permits a Task only when its linked Entry has `kind = 'task'`. Consequently, the proposed action of creating an accepted Task **from an existing Note** cannot simply point `tasks.entry_id` at that Note. It would fail at the database boundary. This is a concrete difference between the M1 schema and the candidate M2 workflow, not a known runtime defect in M1.
 
-**Alternatives for O-008 (neither selected):** (a) create a separate Task-origin Entry while recording an explicit link to the unchanged Note; or (b) revise the relationship and trigger rules to allow an accepted derived Task with auditable provenance. The chosen design must keep source text intact, require explicit acceptance, avoid duplicate accepted tasks on retries, and specify link/deletion behavior. Do not change the existing trigger without a versioned migration and tests.
+**Historical alternatives for O-008 (subsequently resolved by D-019 and schema v4):** (a) create a separate Task-origin Entry while recording an explicit link to the unchanged Note; or (b) revise the relationship and trigger rules to allow an accepted derived Task with auditable provenance. The chosen design must keep source text intact, require explicit acceptance, avoid duplicate accepted tasks on retries, and specify link/deletion behavior. Do not change the existing trigger without a versioned migration and tests.
 
 **Proposed M2/M3 data checkpoints, not accepted implementation commitments:**
 - Test migration from existing schema v1 with real saved notes/tasks, including rollback, foreign-key integrity, and refusal of newer schemas.
 - Define whether edits are represented as revisions or separate derived content; distinguish editing a Task title from modifying its original captured Entry.
-- Define deletion behavior for linked material before enabling irreversible delete. M3 currently owns readable export/backup and restore; whether a recovery facility must ship before deletion is a sequencing decision to make explicitly.
+- Define deletion behavior for linked material before enabling irreversible delete. This was the historical M3 plan; D-018 subsequently deferred readable export/backup/restore to the account phase. The local data-loss tradeoff remains to be assessed.
 - Specify export content, integrity and restore tests, plus the local threat model. Plain SQLite is not encryption at rest, and Android `allowBackup: false` is not a substitute for a user-controlled backup.
 
 ### Schema v4 and local reminders — 0.5.0 (D-017/D-019)
@@ -124,7 +132,7 @@ User interface
   Capture · Today · Library · Review (Create is a linked action)
          |
 Application domain
-  Entries · Tasks · Projects · Scheduling · Search
+  Entries · Tasks · Scheduled pins · Search
          |
 Later optional AI/agent services (not in V1)
   Classify · Extract suggestions · Summarize · Prioritize
@@ -138,7 +146,13 @@ Future adapters (optional)
   Import/export · Calendar · Email · Desktop · Encrypted sync
 ```
 
-**Boundary:** The AI model proposes interpretations and actions. The application validates data, enforces permissions, schedules reminders, and commits state changes.
+**Diagram status:** Conceptual separation of implemented local functionality from optional agent services; the agent, integrations and extra data structures do not exist in V1.
+
+**Boundary:** Any future AI model proposes interpretations or actions. Deterministic application code validates permissions, changes to tasks, scheduled pins and persistent state.
+
+### Agent ownership and integration boundary (D-023)
+
+Any future agent must remain a replaceable, separately authorized consumer of narrowly scoped read-only entry/task/provenance data before write-capable tools are considered. Retrieval must retain source references; application code, not model output, enforces write permissions and transaction correctness. Xiaomi Notes has no assumed vault API or sync adapter. These are *proposed technical constraints*, not an implemented service. [D-023](05_DECISIONS.md) owns the decision and [04_ROADMAP.md](04_ROADMAP.md) owns the research sequence. V1 adds no agent runtime, backend or permissions; D-018's backup/export deferral is unchanged.
 
 ## 3. Preliminary data model (candidate, not schema commitment)
 

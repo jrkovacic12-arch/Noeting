@@ -1,8 +1,8 @@
 # Noeting — Current State and Session Handoff
 
-> **Updated:** 2026-10-15 (0.7.1 Task card simplification)
+> **Updated:** 2026-10-16 (D-024 minimal two-tab M1 future refactor documented; app remains 0.7.1)
 >
-> **Phase:** D-022 removes per-task + on Today, completed-Task + on all other screens and redundant source buttons. Source preview navigation and schema v6 remain. Earlier version evidence below is historical.
+> **Phase:** 0.7.1 local Capture/Today/Library/Review, linked entries, scheduled pins and settings implemented; D-023 sets the minimal independent-app direction. Schema v6 remains unchanged; older release evidence below is historical.
 >
 > **Current verification:** 0.7.1 TypeScript, web export and all three focused browser workflows passed; Android ARM64 build/static verification passed for 0.7.1/code 14. The 0.7.1 APK is published and its fetched checksum matches. The user reported testing the 0.7.1 APK and explicitly approved merging [PR #4](https://github.com/jrkovacic12-arch/Noeting/pull/4). Device/OS and individual test outcomes were not supplied; this is user-reported acceptance, not new automated native-runtime evidence.
 
@@ -232,13 +232,23 @@ Compilation and static verification passed. Follow the installation/device check
 - TypeScript, web export and **three focused browser workflows passed**: source navigation (including removed sources/restart), compact Note cards/entry Back state, and Task-source/checkbox workflows with new visibility assertions across Today, Review, Library, full entry and linked groups. Logs: `work/v071-typecheck.log`, `work/v071-web-export.log`, `work/v071-browser.log`. Reviewed `artifacts/ui-v071/review.png` and `task-entry.png`. Reuse 0.7.0 data-test evidence because repository/schema code is unchanged; the full browser suite was not rerun for this UI-only edit. Android ARM64 build/static verification passed: `/workspace/Noeting/artifacts/noeting-m1-android-arm64-test.apk`, **29568024 bytes**, SHA-256 `85eb138637879e81e2b2507ba4b974dd8eadb948259f8573346d38c3a95ac15c`; unchanged signer `fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c`. Signature, alignment, Hermes bundle, API 24/36 and disabled automatic backup verified. Report: `artifacts/noeting-v071-arm64-verification.json`; log: `work/v071-android-build.log`. Physical-phone/native runtime checks remain pending.
 - Following the user’s explicit instruction to upload and make a PR, published the verified 0.7.1/code 14 APK on `codex/android-phone-test-v071-85eb1386` (commit `a019a43a3f3ff70adde16be5e84793ac427be9cd`). Download: https://github.com/jrkovacic12-arch/Noeting/raw/refs/heads/codex/android-phone-test-v071-85eb1386/downloads/Noeting-0.7.1-android-arm64-test.apk . Fetched **29568024 bytes** match SHA-256 `85eb138637879e81e2b2507ba4b974dd8eadb948259f8573346d38c3a95ac15c`; evidence: `work/v071-download.json`. Fresh `npm run check` passed TypeScript and all 28 real-SQLite tests (`work/v071-pr-check.log`). The accumulated approved 0.5.0–0.7.1 source changes are published in [PR #4](https://github.com/jrkovacic12-arch/Noeting/pull/4) from `codex/task-workflows-v071` to `main`. The user subsequently reported “Tested the apk” and instructed merging PR #4. This records approval for the published 0.7.1 build; no device details or scenario-specific passes are inferred.
 
+### 2026-10-15 — Product direction clarified after PR #4 merge (D-023)
+
+GitHub confirms [PR #4](https://github.com/jrkovacic12-arch/Noeting/pull/4) was merged into `main`, including the approved 0.7.1 source and D-017–D-022 decisions. The user chose to continue Noeting as a simple independent app, inspired by Xiaomi Notes' interface rather than Obsidian's breadth, with a separate permissioned agent as a possible later differentiator. This is a **documentation-only product decision**, not a new implemented or validated agent feature.
+
+**Boundaries:** Preserve D-018's deferral of account-phase backup/export/restore, D-010's no-AI V1 and all 0.7.1 implementation/phone-evidence limitations. Xiaomi Notes access or automatic sync is neither selected nor verified. The existing next action below remains authoritative; later AI work requires separate scoping and approval.
+
+### 2026-10-16 — D-024 minimalist M1 reset defined for later Codex implementation
+
+The user chose Notes and Tasks as the only primary screens, each with search and a tab-specific +. Any Note/Task opens its own entry-detail screen; only there can a user deliberately create a linked Note or Task. Reflection and Creation remain philosophical outcomes, **not product categories**. The existing Today, Review, pin/scheduling, daily overview, Reflection/Creation actions and extra Settings UI are slated for removal in the *future refactor*. This PR changes documentation only; deployed/source version 0.7.1 and schema v6 are unchanged. Preserve legacy records/links and account-phase export deferral. See D-024 and the Codex roadmap.
+
 ## 2. Exact next action — only maintained here
 
-**Await the next user-selected development item after the approved PR #4 merge.** User-reported APK testing/merge approval is recorded above. Detailed device/OS/scenario evidence remains unspecified; do not infer checklist passes. Accounts/sync and backup/export/restore remain deferred.
+**Next Codex implementation task, once development is started:** implement D-024's new two-screen M1 beginning with a populated-v6 preservation/migration baseline and generic linked-Note/Task repository APIs. Then replace navigation/UI and retire scheduled-pin side effects. Use the exact stages in `04_ROADMAP.md` and acceptance tests in `07_V1_WORKFLOW_DRAFT.md`. This is **not yet implemented or tested**. User-reported 0.7.1 APK approval remains historical; actual per-device acceptance is unspecified. Accounts/sync and backup/export/restore remain deferred.
 
 **Handoff context:** The user agreed to the first-app feature set (D-010), to React Native + Expo + TypeScript + SQLite (D-011), and to implement using Codex. The user said the updated prototype was tested and **“worked as intended”**; the test device and per-scenario results were not specified. Do not claim full S1–S4 validation or verified native runtime from that prototype report or the static APK checks.
 
-**V1 after M1:** Library, linked Reflect/Create/Review, Today note, deterministic overview, OS reminders are intended V1 capabilities; export/backup is deferred by D-018 to the account phase. These workflows are outside the first M1 slice. No AI, sync, accounts, or external integrations in V1. Resolved versions and schemas v1–v4 are recorded; encryption, broader lifecycle changes and remaining device acceptance still require design or verification.
+**Current V1 status:** Library, linked Reflect/Create/Review, Today note, deterministic overview and scheduled pins are implemented in 0.7.1 source. Scheduled pins do not send OS notifications; separate Task deadlines and priority ranks remain unresolved. D-018 defers export/backup/restore to the account phase, leaving a recognized data-loss risk for local-only data. No AI, sync, accounts or integrations in V1. Schema v6 and older migration evidence are recorded; security and detailed physical-device validation remain open.
 
 ## 3. Open decisions and boundaries
 

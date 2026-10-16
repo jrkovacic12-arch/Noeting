@@ -3,6 +3,18 @@
 > Created: 2026-10-11. Updated: 2026-10-12 (V1.2 wireframe revision). Status: proposed workflow with a small interactive wireframe and limited automated checks; not an approved implementation specification.
 > Milestone: design and validate Capture → Today. The examples below are illustrative, not observations from real usage.
 
+## D-024 acceptance scenarios for future minimalist M1 (not yet executed)
+
+- **A1:** Open Notes: only Notes/Tasks primary navigation, searchable Note list and + creating a standalone Note. It appears once, is editable in its entry details, and survives offline restart. Saving does not classify it as Reflection/Creation, select a Today Note or open another flow.
+- **A2:** Open Tasks: searchable Task list and + creating a pending Task; Complete/Reopen updates the same Task without duplication, source edits or confirmation. Preserve state through restart.
+- **A3:** Open a Note's detail: Link note and Link task create independent children; cancel creates none. Only entry details expose these linked-create actions. Child cards open full detail and navigate back to parent.
+- **A4:** Open a Task's detail: Link note and Link task also work; completion/reopening of parent never cascades to linked child. Linked entries preserve provenance and source-at-creation words after separate edits.
+- **A5:** Upgrade an existing v6 database containing directly captured Notes/Tasks, Reflection/Creation records, Note-derived Tasks, Task-to-Task links, removed sources and completed Tasks. Every original/current text and relationship survives, and historical Reflection/Creation appear as ordinary Notes with no special filter/action. Verify failure rollback and retry.
+- **A6:** Navigate lists/detail, search, edit/remove, return with Android Back, use large text/keyboard, and restart offline. No Today, Review, summary card, pin/schedule controls, extra Settings or hidden scheduled-pin activation appears. Old OS notifications are cancelled through supported upgrade cleanup if applicable.
+- **A7:** No data loss or silent conversions when linking, completing, removing or retrying a failed save. No AI/account/sync/backend requirement. Record real device and automated evidence separately; previous tests remain historical and must be updated, not called passed for the refactor.
+
+**Scope status:** This section supersedes earlier wireframe tests as *future* acceptance criteria only. The remaining sections below preserve the pre-D-024 historical prototype and 0.7.1 testing record.
+
 ## Goal and boundary
 
 Help a person preserve thoughts and manage accepted commitments with little organizational overhead. The first testable loop is **Capture → Clarify → Today → Reminder (when explicitly set) → Review → Stop**. Preserve an intentional path through reflection, experiments, and creation without requiring a separate Create screen. **Save closes Capture immediately** and returns the user to the prior activity; clarification or AI suggestions, if used, happen later through a deliberate action, not as a save-time prompt. No default AI conversation, feeds, or silently created commitments.

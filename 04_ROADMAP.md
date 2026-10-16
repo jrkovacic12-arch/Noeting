@@ -2,7 +2,21 @@
 
 > **Status:** Working plan, not a committed schedule. Checked work items identify source implementation; device acceptance remains a separate gate.
 >
-> **Current phase:** Capture/Today/Library/Review plus basic edit/removal implemented; native Android 9 emulator checks passed; physical-device acceptance pending.
+> **Current phase:** D-024 documents the next two-screen M1 refactor; the actual 0.7.1 app still has Capture/Today/Library/Review/Settings. Native Android 9 emulator checks are historical, and physical-device acceptance remains pending.
+
+## Next Codex work — D-024 minimal M1 refactor (approved direction; NOT implemented)
+
+1. **Preserve data first:** baseline existing 0.7.1/schema v6 with snapshots, repeatable tests, and migrations for existing Note/Task/Reflection/Creation relationships. Avoid destructive database reset; test upgrade from populated v6.
+2. **Domain linking:** support independently authored linked Notes or Tasks from either Note or Task, keeping immutable originals, source snapshots and idempotent saves. Preserve all legacy link reads; add schema only if necessary.
+3. **Navigation/UI:** replace Today/Library/Review/Settings with Notes and Tasks destinations, both searchable with tab-specific + for standalone capture. Tap cards to open Note/Task details. Place Link note / Link task exclusively in entry detail; support edit/remove and Task Complete/Reopen.
+4. **Retire obsolete interactions safely:** remove Today selection and daily summary UI, Reflection/Creation labels/prompts/filters, pins, scheduled pin forms/timers, redundant list-card actions and old appearance Settings. Prevent silent due-pin execution, retaining only legacy OS notification cleanup where needed.
+5. **Verify and document:** typecheck, real SQLite migration and rollback tests, browser workflows, native Android focused tests for Back/keyboard/list/search/links/offline durability; verify no silent task mutations and no lost historical entries. User-device acceptance and remaining data-loss risk should be recorded separately in `06_CURRENT_STATE.md`.
+
+**Acceptance gate:** only two primary destinations; standalone + obeys current tab; links created only in entry details; historical reflection/creation content preserved as Notes; source provenance remains available; complete/reopen still works; offline persistence and rollback proven. No AI, account or sync. See [07_V1_WORKFLOW_DRAFT.md](07_V1_WORKFLOW_DRAFT.md). Earlier phase and completed-milestone sections below are **historical**, not instructions to re-add their superseded UI features.
+
+## Minimal product and later agent research (D-023)
+
+The accepted product is a minimal independent mobile app; Xiaomi Notes is only a UX reference. Retain accepted 0.7.1 behavior, with no AI in V1. Investigate real-life use before adding more UI. Later, separately approved research may test scoped read-only, source-grounded retrieval and bounded, explainable priority suggestions; only validated value could justify permissioned actions or optional import adapters. See [D-023](05_DECISIONS.md) for policy and [03_ARCHITECTURE.md](03_ARCHITECTURE.md) for technical boundaries. This section is not authorization to implement an agent, sync or Xiaomi integration. D-018 still defers export/backup/restore.
 
 ## 1. Already done (documented evidence)
 
@@ -50,7 +64,7 @@ A concise V1 specification exists with at least one complete flow from capture t
 
 **M1 exit gate:** Captures and task state survive restart offline; no duplicate tasks; atomically linked writes; no save-success UI on failed persistence; no backend, AI, or sign-in.
 
-**M1 validation plan (emulator smoke checks passed; physical-device gate pending):** Follow the implemented behavior/persistence contracts in [02_PRODUCT.md](02_PRODUCT.md) and [03_ARCHITECTURE.md](03_ARCHITECTURE.md). Check exact multiline/whitespace text; Note creates no Task; direct Task creates exactly one linked Pending Task; injected write failure rolls back and keeps the input; rapid/repeated Save and retry do not duplicate records; completion and up to three pending pins persist across restart and pin limits survive concurrent attempts. Automated real-SQLite checks and native Android 9 emulator capture/pin/completion/offline relaunch/reboot checks passed. The user subsequently chose a simulated phone for this run; physical Android acceptance, native rapid-save and injected-write-failure tests remain open. Record automated and physical-device evidence separately in `06_CURRENT_STATE.md`; host SQLite/browser checks and emulator evidence must remain distinct from physical-device acceptance.
+**M1 validation plan (emulator smoke checks passed; physical-device gate pending):** Follow the implemented behavior/persistence contracts in [02_PRODUCT.md](02_PRODUCT.md) and [03_ARCHITECTURE.md](03_ARCHITECTURE.md). Check exact multiline/whitespace text; Note creates no Task; direct Task creates exactly one linked Pending Task; injected write failure rolls back and keeps the input; rapid/repeated Save and retry do not duplicate records; completion and historical three-pin limits are tested against the *old* M1 contract; D-020 replaced that limit with unlimited pins. Automated real-SQLite checks and native Android 9 emulator capture/pin/completion/offline relaunch/reboot checks passed. The user subsequently chose a simulated phone for this run; physical Android acceptance, native rapid-save and injected-write-failure tests remain open. Record automated and physical-device evidence separately in `06_CURRENT_STATE.md`; host SQLite/browser checks and emulator evidence must remain distinct from physical-device acceptance.
 
 **M2 — Remaining core workflows (V1 target, not M1):** Library search/filter/edit/delete, optional Today note, deliberate Reflect/Create linked entries, Review, and deterministic daily overview.
 
@@ -67,9 +81,9 @@ Physical-device acceptance remains open. On 2026-10-13 the user requested contin
 2. **Link before deriving:** decide O-008 and migration/deletion semantics, then implement separately authored Reflect/Create entries and Review. Consider deliberate Note-to-Task conversion only after an accepted linkage model exists; S6–S7 remain research scenarios, not automatic extra V1 requirements. Proposed check: source text and links survive restart; dismissing a task proposal creates no task.
 3. **Complete accepted M2 surfaces:** optional Today note, deterministic daily overview, and deliberate edit/delete behaviors. Proposed check: summaries use existing records only; edits and deletions follow reviewed provenance/recovery rules and do not silently destroy linked source content.
 
-These are suggested ordering and test conditions, **not passed tests or finalized acceptance criteria**. M1's physical-device gate remains separately tracked; the current validation venue follows the user's subsequent request for a simulated phone. M3 retains OS reminders, readable export/restore, migrations, and security checks; determine the recovery prerequisite for destructive deletion before shipping that behavior.
+These are suggested ordering and test conditions, **not passed tests or finalized acceptance criteria**. M1's physical-device gate remains separately tracked; the current validation venue follows the user's subsequent request for a simulated phone. Historical M3 scope was superseded: D-020 replaced OS reminders with scheduled pins and D-018 moved readable export/restore to the account phase. Continue migration and security checks; explicitly track data-loss risk from unavailable recovery.
 
-**M3 — V1 operational reliability:** user-set due/reminder scheduling with permission/error states and device notification tests; readable export/backup and restore validation, database migrations, and privacy/security checks. Final V1 acceptance remains open until tested.
+**M3 — V1 operational reliability (revised by D-018/D-020):** test scheduled-pin foreground/launch/resume behavior (not OS notifications), migration resilience, offline restart durability, privacy/security and realistic-phone usability. Readable export/backup/restore is deferred to the account phase. Distinct deadlines and priority ranks remain unresolved, not implemented requirements.
 
 ### Approved development course — 2026-10-15 (D-019; source implemented, validation in current state)
 
@@ -112,7 +126,7 @@ Items 2/4/5 from the user's requested list are included above. The user approved
 
 - [x] Implement fast capture with SQLite-backed local entries; physical-device acceptance remains pending.
 - [x] Add basic read-only Library search/filtering using Note/Task types; richer category semantics remain open.
-- [ ] Add explicit tasks with editable status, priority, and optional deadline.
+- [x] Add explicit Tasks with Pending/Completed and Reopen, editable words and unlimited manual/scheduled pinning; separate priority ranks and deadlines remain open design decisions.
 - [x] Add Today tasks, a chosen note with Reflect/Create, and a summary card; no explicit-stop UI.
 - [x] Add user-set scheduled pins with foreground/open catch-up under D-020; physical-phone acceptance remains pending.
 - [x] Offer a deterministic current-record summary card; AI remains outside V1.
@@ -120,7 +134,7 @@ Items 2/4/5 from the user's requested list are included above. The user approved
 
 ### Exit criteria
 
-A user can capture an idea or task, clarify it, choose priorities, get a reminder for an explicitly scheduled commitment, review the day, and leave the app. Privacy/data behaviors are inspectable.
+A user can capture an idea or task, pin chosen pending tasks manually or at a selected future time (without OS notification), revisit linked thinking, review completed work and leave the app. Separate priority ranks and due-date alerts are not yet supported. Privacy/data behaviors are inspectable.
 
 **Scope note:** High-level Phase 1 V1 features are accepted (D-010); the M1 source slice is implemented. Remaining V1 features and detailed physical-device acceptance are pending.
 
@@ -180,6 +194,6 @@ A **prototype** helps test a workflow; a **product** requires reliability, secur
 - **2026-10-12 — Implementation direction:** User approved first-app feature scope and React Native + Expo + TypeScript + SQLite, and elected to use Codex. M1 is now the next build milestone; **no native project or product code created yet**.
 - **2026-10-13 — M1 source implemented:** Initialized the mobile project, schema v1 SQLite repository, Note/Task Capture, one pending task list with completion/pins, recoverable failures, with explicit stop functionality subsequently removed by D-012. Typecheck, eight real-SQLite repository tests, and all-platform JavaScript exports passed; actual evidence and commands are in `06_CURRENT_STATE.md`. No native APK or physical-device gate is claimed.
 - **2026-10-13 — Read-only Library and simulated-phone checks:** Implemented retrieval/search/filter/status without a schema change; seven real-storage browser tests passed. Native Android 9 x86_64 emulator checks passed for Capture, pins/completion, Library, exact SQLite text and offline relaunch/full reboot. This was a staged run after harness corrections; see `06_CURRENT_STATE.md`.
-- **Not yet verified:** Physical-phone/ARM64 runtime and usability, Android 15 app compatibility, native rapid-save/failed-save injection, notification delivery, export/restore, security acceptance, or any AI integration.
+- **Historical verification gap (as of early M1):** Physical-phone/ARM64 runtime and usability, Android 15 app compatibility, native rapid-save/failed-save injection and security acceptance were not established. Notification delivery was superseded by scheduled pins (D-020); export/restore was deferred (D-018), and AI remains outside V1. For current evidence see `06_CURRENT_STATE.md`.
 
 For the **single authoritative next action**, see [06_CURRENT_STATE.md](06_CURRENT_STATE.md). This roadmap tracks milestones and candidate work, not session handoff instructions.

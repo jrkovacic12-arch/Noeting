@@ -4,6 +4,25 @@
 >
 > **Source of truth for:** user needs, product objects, features, UX behavior, and MVP boundaries.
 
+## Target M1 product contract — D-024 (approved direction, not yet implemented)
+
+**Priority:** This current-facing contract supersedes conflicting historical 0.7.1 UX descriptions below. The existing shipped/tested source remains 0.7.1. Here “M1” means the *new minimalist refactor baseline*, not the original 2026-10-13 M1 milestone.
+
+| Screen | Behavior |
+| --- | --- |
+| Notes | Primary Notes destination: list, note-content search bar, + creates a standalone Note. Historical Reflection/Creation records appear as ordinary Notes. |
+| Tasks | Primary Tasks destination: list, task-content search bar, + creates a standalone pending Task. Display completion state and allow Complete/Reopen without confirmation. |
+| Note/Task entry detail | Tap any list item to read its full text, edit/remove it, inspect its source (if linked), browse its children and navigate to related entry details. |
+| Linked creation | **Only from an existing entry-detail screen**, allow “Link note” or “Link task.” Save produces a separate Note/Task with an explicit source; dismiss creates nothing. All four Note/Task source-target combinations are supported. |
+
+**User owns meaning:** No Reflection/Creation entry type, button, filter, prompt, template or forced writing classification. Do not infer meaning from content. Preserve past classification metadata invisibly for compatibility, never mislabel or drop old words.
+
+**Remove from target navigation/UI:** Today, Review, selected Today Note, daily summary dashboard, pins and scheduled-pin controls, dedicated Settings destination, generic Capture screen, extra organizational taxonomies, priority/deadline forms, AI surfaces. Two tabs only, each with a context-specific +; no linked-create + on list cards. System-following theme is the baseline. Retain basic note/task edit/remove and task complete/reopen.
+
+**Persistence:** Keep original capture words immutable, edits separately persisted, source links and source snapshots intact, and Note/Task records independent across removal, completion and retry. Offline, transactional and duplicate-safe saves. Removing UI features does *not* authorize deleting old data or migration scripts. No account, sync or AI. D-018 still defers export/restore; local-only data-loss risk must be disclosed.
+
+**Source of truth:** [D-024](05_DECISIONS.md) records the decision, [03_ARCHITECTURE.md](03_ARCHITECTURE.md) owns safe migration, [04_ROADMAP.md](04_ROADMAP.md) the Codex implementation, [07_V1_WORKFLOW_DRAFT.md](07_V1_WORKFLOW_DRAFT.md) the acceptance tests.
+
 ## 1. Validated observations and newly expressed needs
 
 **Observed during Obsidian trial (self-report):**
@@ -40,7 +59,7 @@ The user reported testing the revised prototype and that it **worked as intended
 
 **Important:** AI may *suggest* classifications or draft tasks; the app must preserve the original capture and distinguish a suggested action from an accepted commitment.
 
-## 4. Candidate navigation
+## 4. Historical candidate navigation (superseded by D-024)
 
 The original concept proposed **Capture / Today / Library / Review / Create**. The current **approved research wireframe** uses **Today / Library / Review** in navigation, one persistent header **Capture** button, and **+ Add task** inside Today. A separate Create or Tasks screen is not required for this prototype.
 
@@ -68,7 +87,7 @@ The original concept proposed **Capture / Today / Library / Review / Create**. T
 
 ## 5. Agreed first working app scope (high-level V1)
 
-**Accepted V1 direction (D-010); only the M1 slice is implemented in source, not the whole feature set:**
+**Accepted V1 direction (D-010, as revised by D-018 and D-020); core Capture/Today/Library/Review workflows are implemented in 0.7.1 source. Device acceptance and separate deadline/priority decisions remain open:**
 
 - **Capture:** Note / Task; preserve exact original text, save locally, then close without unsolicited follow-up. Direct Task capture creates a user-accepted task; a linked task from a Note requires deliberate acceptance.
 - **Today:** one pending Tasks list, task editing/completion, known due dates, unlimited pinned tasks, newest pin first (each shown once), optional **Today note** with Reflect/Create/Change, and a visible summary card. Explicit stop controls were removed by D-012.
@@ -91,9 +110,9 @@ The original concept proposed **Capture / Today / Library / Review / Create**. T
 **Scheduled pinning (D-020; replaces notifications):** Pending Tasks expose a clock icon at the right edge immediately before their pin to set/change a future local date and 24-hour time. Save persists the moment as UTC; display follows local time. While open, a timer applies due schedules; startup/foreground catches up overdue pins. Exact background execution while closed is not promised. No notification is sent or permission requested. Upgrade cleanup cancels old OS notifications on first launch and retries failures. Pins have no cap and sort newest pin time first; identical times use persisted pin order. An already-pinned Task stays in place when its schedule arrives. Completing/removing a Task cancels the schedule; Reopen/Undo removal never restores a schedule. Unpinning after a consumed scheduled pin stays unpinned. Manual pins newer than an overdue time remain above that overdue Task.
 
 
-**Stage boundary:** M1 only implements persistent Capture → Today plus a minimal task list; later stages implement remaining V1 features. AI, cloud sync, integrations, autonomous agent actions, and advanced organization are outside V1. Edit/removal semantics are approved under D-014; richer task lifecycle/deferment, date/time zones, encryption and cross-loop handoffs remain unresolved.
+**Historical M1 boundary (2026-10-13):** The initial implementation covered Capture → Today; subsequent 0.2.0–0.7.1 releases added Library, Review, editing, linked entries, Reopen and scheduled pins. The early M1 contract below remains as migration/test history, not current UX requirements. AI, cloud sync, integrations, autonomous agent actions and advanced organization remain outside V1.
 
-### Implemented M1 behavior contract — 2026-10-13; device evaluation pending
+### Historical M1 behavior contract — 2026-10-13 (superseded where D-012–D-022 apply)
 
 These implementation choices apply to the first slice. Automated repository checks exercise the data contract; physical-device acceptance remains pending. The original M1 UI displayed only a saved-note count; the subsequent read-only Library slice now retrieves those same schema v1 records.
 
@@ -111,8 +130,8 @@ For IDs, transactions, and retry handling, see [03_ARCHITECTURE.md](03_ARCHITECT
 | --- | --- |
 | Capture | Offer Note / Task; preserve original text locally; a manually captured Task is accepted; Save closes without an unsolicited follow-up. |
 | Clarify task | Distinguish an idea from a commitment; user accepts or edits a suggested task; no invented due date. |
-| Today | List each pending task once, pinned tasks first (maximum three); provide + Add task, known dates, and one compact daily summary. |
-| Reminder | Require a user-set/confirmed time; show notification and scheduling status. |
+| Today | List each pending task once, unlimited user-pinned tasks first (D-020), with + Add task and a deterministic summary; separate due dates are not implemented. |
+| Scheduled pin | Require a user-set future date/time; pin when due in the open app or at next launch/resume; no OS notification (D-020). |
 | Reflect/create | Revisit a thought and develop a linked reflection, experiment, or original output without overwriting its source. |
 | Thinking → action (research proposal) | From a note or reflection, deliberately record an experiment or accept a task if action is warranted; a note may stay a note indefinitely. |
 | Action → thinking (research proposal) | After an action, optionally record what happened or what changed as a linked reflection; task completion never requires additional writing. |
@@ -128,8 +147,8 @@ The status below is for a working product, not the interactive research wirefram
 | Fast manual capture | Essential foundation | M1 source implemented; physical-device validation pending |
 | Basic categories and search | Essential foundation | Note/Task capture and read-only Library search/filter implemented; native validation evidence is in `06_CURRENT_STATE.md` |
 | Explicit tasks and status | Essential foundation | M1 direct tasks and Pending/Completed implemented; broader lifecycle open |
-| Manual priorities and due dates | Essential foundation | M1 pending-task pins implemented; due dates remain later V1 |
-| Reliable user-set reminders | High | User need; unimplemented |
+| Pinned tasks and separate deadlines | Pinned tasks implemented; deadlines unresolved | Unlimited manual/scheduled pins implemented (D-020); no distinct priority rank or task deadline |
+| Scheduled pins (not reminders) | Accepted interaction | Implemented in 0.6.0; foreground/launch catch-up, not notification delivery |
 | Daily summary | High | Visible deterministic current-record summary card implemented; no AI or modal |
 | AI classification/task suggestions | High-interest experiment | Proposed; needs privacy/accuracy test |
 | AI priority proposals | High-interest experiment | Proposed; must remain user-confirmed |
@@ -138,7 +157,11 @@ The status below is for a working product, not the interactive research wirefram
 | Local model integration | Architectural research | Unchosen |
 | Desktop, sync, external integrations, agent actions | Later | Not MVP commitments |
 
-**V1 feature set is accepted at a high level (D-010); M1 and the first read-only M2 Library slice are implemented in source.** The user subsequently requested simulated-phone testing; keep emulator results separate from physical-device acceptance, with no AI in V1. Actual run/test evidence is maintained in [06_CURRENT_STATE.md](06_CURRENT_STATE.md).
+**The core approved local workflows through D-022 are implemented in 0.7.1 source; this does not establish all V1 acceptance gates.** The user subsequently requested simulated-phone testing; keep emulator results separate from physical-device acceptance, with no AI in V1. Actual run/test evidence is maintained in [06_CURRENT_STATE.md](06_CURRENT_STATE.md).
+
+### Minimalist interface constraints (D-023)
+
+Prefer a small Capture/Today/Library/Review interface and voluntary linked thinking to editor formatting, nested taxonomies, graphs or new screens without demonstrated need. Keep Xiaomi Notes a UX reference rather than an assumed integration. [D-023](05_DECISIONS.md) owns the decision; [04_ROADMAP.md](04_ROADMAP.md) owns unapproved later AI experiments. No agent feature is part of V1.
 
 ## 8. UX and safety constraints
 
@@ -147,16 +170,16 @@ The status below is for a working product, not the interactive research wirefram
 - Never silently convert a thought into an obligation.
 - Do not require a task, experiment, reflection, or creation as the price of capturing a note or completing a task.
 - Show a distinction between **original user text**, **AI suggestion**, and **accepted task/priority**; AI can suggest and ask for permission but must not silently commit tasks, priorities, or reminders.
-- Allow users to edit categories, tasks, priorities, and summaries.
+- Permit editing saved words and accepted tasks; do not imply editable categories, ranked priorities or generated summaries exist before those capabilities are designed.
 - Keep daily recommendations bounded and explainable.
-- Notifications should reflect chosen commitments, not maximize engagement.
+- Current scheduled pins do not send notifications; do not imply background alert delivery.
 - The core capture/task experience must remain usable without an internet connection. AI is outside V1; any later offline AI behavior remains an open implementation question.
 
 ## 9. Product validation outcomes and evidence gaps
 
 Validation must establish whether the experience **reduces organizational effort and overload**, distinguishes ideas from commitments, supports retrieval, protects attention, and preserves a path to reflection/creation. Specifically test whether users can (a) leave a thought untouched, (b) deliberately develop it into an experiment or accepted action, and (c) optionally reflect after finishing an action, **without additional forced steps or duplicate tasks**. Reminder reliability, offline behavior, and consent comprehension also need evidence.
 
-For prototype checks and the pending native-device checklist, see [07_V1_WORKFLOW_DRAFT.md](07_V1_WORKFLOW_DRAFT.md). The earlier prototype used simulated browser checks and user self-report without device/per-scenario details. M1 now has real-SQLite automated evidence, maintained in [06_CURRENT_STATE.md](06_CURRENT_STATE.md); physical-device restart durability, reminder delivery, offline native behavior, security, and broader product validation remain untested.
+For prototype checks and the pending native-device checklist, see [07_V1_WORKFLOW_DRAFT.md](07_V1_WORKFLOW_DRAFT.md). The earlier prototype used simulated browser checks and user self-report without device/per-scenario details. M1 now has real-SQLite automated evidence, maintained in [06_CURRENT_STATE.md](06_CURRENT_STATE.md); physical-device restart durability, scheduled-pin catch-up, offline native behavior, security, and broader product validation remain untested.
 
 ## 10. Unresolved product research questions
 

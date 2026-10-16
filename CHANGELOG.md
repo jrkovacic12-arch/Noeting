@@ -1,5 +1,23 @@
 # Noeting — Documentation Change Log (started 2026-10-11)
 
+## 2026-10-16 — D-024 minimalist Notes/Tasks refactor direction
+
+- Approve future M1 target of Notes and Tasks tabs with per-tab search/+ and dedicated entry detail; link a new Note or Task exclusively from an entry-detail screen.
+- Reserve Reflection and Creation for philosophy, not types/actions/filters. Preserve all historical content and relationships during the future Codex refactor; remove Today/Review/schedules/summary/Settings UI rather than deleting storage history.
+- Record migration safeguards, staged development and future acceptance scenarios in existing authoritative files. Documentation only; app remains 0.7.1/schema v6 and no new runtime tests were run.
+
+## 2026-10-16 — PR #5 documentation consistency review
+
+- Consolidate D-023 decision details and cross-reference them instead of restating the same agent proposal in each document.
+- Mark outdated M1 limitations and earlier reminder/linkage proposals as historical; align current-facing requirements with schema v6 and D-020 scheduled pins/unlimited pinning.
+- Clarify the remaining gaps: separate deadlines/ranked priorities, real-device acceptance, security and local data recovery risk (export/restore remains deferred by D-018). No application code, schema, or runtime test results changed.
+
+## 2026-10-15 — Product-direction documentation update after PR #4
+
+- Record D-023: continue Noeting as an independent minimal notes/thinking/action interface informed by Xiaomi Notes' simple UX, rather than emulate Obsidian feature breadth. A replaceable permissioned agent layer remains a later product direction, not V1.
+- Reconcile this direction with merged 0.7.1 (PR #4): preserve D-017 Reopen, D-018's account-phase export/backup/restore deferral, and D-019–D-022 linked Tasks/scheduled pins and navigation. Proposed later read-only agent experiments are not implemented or authorized by these docs.
+- Update vision, product, architecture, roadmap, decisions and current-state context. Documentation-only; application source, schema, verification evidence and founding archive are unchanged.
+
 ## 2026-10-15 — 0.7.1 Task card simplification
 
 - Implement D-022: remove per-task + on Today and completed-Task + in Review/Library/entry screens; remove redundant Task source buttons while preserving original-preview navigation.
