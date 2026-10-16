@@ -1,6 +1,6 @@
 # Noeting — Current State and Session Handoff
 
-> **Updated:** 2026-10-16 (PR #5 documentation consistency review; app remains 0.7.1)
+> **Updated:** 2026-10-16 (D-024 minimal two-tab M1 future refactor documented; app remains 0.7.1)
 >
 > **Phase:** 0.7.1 local Capture/Today/Library/Review, linked entries, scheduled pins and settings implemented; D-023 sets the minimal independent-app direction. Schema v6 remains unchanged; older release evidence below is historical.
 >
@@ -238,9 +238,13 @@ GitHub confirms [PR #4](https://github.com/jrkovacic12-arch/Noeting/pull/4) was 
 
 **Boundaries:** Preserve D-018's deferral of account-phase backup/export/restore, D-010's no-AI V1 and all 0.7.1 implementation/phone-evidence limitations. Xiaomi Notes access or automatic sync is neither selected nor verified. The existing next action below remains authoritative; later AI work requires separate scoping and approval.
 
+### 2026-10-16 — D-024 minimalist M1 reset defined for later Codex implementation
+
+The user chose Notes and Tasks as the only primary screens, each with search and a tab-specific +. Any Note/Task opens its own entry-detail screen; only there can a user deliberately create a linked Note or Task. Reflection and Creation remain philosophical outcomes, **not product categories**. The existing Today, Review, pin/scheduling, daily overview, Reflection/Creation actions and extra Settings UI are slated for removal in the *future refactor*. This PR changes documentation only; deployed/source version 0.7.1 and schema v6 are unchanged. Preserve legacy records/links and account-phase export deferral. See D-024 and the Codex roadmap.
+
 ## 2. Exact next action — only maintained here
 
-**Await the next user-selected development item after the approved PR #4 merge.** User-reported APK testing/merge approval is recorded above. Detailed device/OS/scenario evidence remains unspecified; do not infer checklist passes. Accounts/sync and backup/export/restore remain deferred.
+**Next Codex implementation task, once development is started:** implement D-024's new two-screen M1 beginning with a populated-v6 preservation/migration baseline and generic linked-Note/Task repository APIs. Then replace navigation/UI and retire scheduled-pin side effects. Use the exact stages in `04_ROADMAP.md` and acceptance tests in `07_V1_WORKFLOW_DRAFT.md`. This is **not yet implemented or tested**. User-reported 0.7.1 APK approval remains historical; actual per-device acceptance is unspecified. Accounts/sync and backup/export/restore remain deferred.
 
 **Handoff context:** The user agreed to the first-app feature set (D-010), to React Native + Expo + TypeScript + SQLite (D-011), and to implement using Codex. The user said the updated prototype was tested and **“worked as intended”**; the test device and per-scenario results were not specified. Do not claim full S1–S4 validation or verified native runtime from that prototype report or the static APK checks.
 
