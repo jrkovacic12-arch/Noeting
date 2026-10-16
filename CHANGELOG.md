@@ -1,5 +1,11 @@
 # Noeting — Documentation Change Log (started 2026-10-11)
 
+## 2026-10-16 — PR #5 documentation consistency review
+
+- Consolidate D-023 decision details and cross-reference them instead of restating the same agent proposal in each document.
+- Mark outdated M1 limitations and earlier reminder/linkage proposals as historical; align current-facing requirements with schema v6 and D-020 scheduled pins/unlimited pinning.
+- Clarify the remaining gaps: separate deadlines/ranked priorities, real-device acceptance, security and local data recovery risk (export/restore remains deferred by D-018). No application code, schema, or runtime test results changed.
+
 ## 2026-10-15 — Product-direction documentation update after PR #4
 
 - Record D-023: continue Noeting as an independent minimal notes/thinking/action interface informed by Xiaomi Notes' simple UX, rather than emulate Obsidian feature breadth. A replaceable permissioned agent layer remains a later product direction, not V1.
