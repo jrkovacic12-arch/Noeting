@@ -2,7 +2,7 @@
   "expo": {
     "name": "Noeting",
     "slug": "noeting",
-    "version": "0.10.0",
+    "version": "0.10.1",
     "orientation": "portrait",
     "icon": "./assets/brand/generated/icon.png",
     "userInterfaceStyle": "automatic",
@@ -25,7 +25,7 @@
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.VIBRATE"
       ],
-      "versionCode": 17
+      "versionCode": 18
     },
     "web": {
       "favicon": "./assets/brand/generated/favicon.png",

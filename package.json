@@ -2,7 +2,7 @@
   "name": "noeting",
   "description": "Minimal offline Notes and Tasks with intentional links",
   "license": "0BSD",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "main": "index.ts",
   "dependencies": {
     "expo": "~57.0.28",
