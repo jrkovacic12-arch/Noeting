@@ -78,6 +78,12 @@ export function InlineEditor({
   const flushRef = useRef(flush);
   flushRef.current = flush;
   useEffect(() => {
+    if (current.current === saved.current && drafts.get(context)) {
+      drafts.put(context, null);
+      setState("saved");
+    }
+  }, []);
+  useEffect(() => {
     mounted.current = true;
     const subscription = AppState.addEventListener("change", (state) => {
       if (state !== "active") void flushRef.current();
