@@ -1,5 +1,11 @@
 # Noeting — Documentation Change Log (started 2026-10-11)
 
+## 2026-10-16 — D-024 minimalist Notes/Tasks refactor direction
+
+- Approve future M1 target of Notes and Tasks tabs with per-tab search/+ and dedicated entry detail; link a new Note or Task exclusively from an entry-detail screen.
+- Reserve Reflection and Creation for philosophy, not types/actions/filters. Preserve all historical content and relationships during the future Codex refactor; remove Today/Review/schedules/summary/Settings UI rather than deleting storage history.
+- Record migration safeguards, staged development and future acceptance scenarios in existing authoritative files. Documentation only; app remains 0.7.1/schema v6 and no new runtime tests were run.
+
 ## 2026-10-16 — PR #5 documentation consistency review
 
 - Consolidate D-023 decision details and cross-reference them instead of restating the same agent proposal in each document.
