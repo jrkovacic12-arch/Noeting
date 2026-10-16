@@ -28,6 +28,10 @@ The long-term ambition is a personal AI agent. This is a direction, **not** a cl
 
 Preserve the smallest standalone interface that supports capturing, acting and reflecting without becoming a general-purpose knowledge workspace. Xiaomi Notes is a simplicity reference, not a storage dependency; agent capability does not technically require Noeting to own a note-taking UI. This is an accepted UX direction, not validated comparative product value. See [D-023](05_DECISIONS.md) for the decision, [02_PRODUCT.md](02_PRODUCT.md) for UX constraints and [04_ROADMAP.md](04_ROADMAP.md) for later agent research. **V1 remains AI-free (D-010).**
 
+### User-defined meaning (D-024; 2026-10-16)
+
+Reflection and Creation remain goals of independent thinking, **not product-defined note categories**. Only the writer decides whether a Note is reflection, creation, an observation, a question or anything else; its meaning can evolve. The minimal app supplies Notes, Tasks, search and deliberate links, without classifying content or directing the user's creative process. See [D-024](05_DECISIONS.md); it changes the future interface, not the founding philosophy.
+
 ## 3. Two connected loops
 
 ### Thinking loop
