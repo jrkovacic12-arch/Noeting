@@ -79,10 +79,31 @@ export function useDraft(enabled: boolean) {
     }
     return stored.current;
   }
+  // Keep the draft visible until its deletion is durably confirmed.
+  function discard(context: string): Promise<boolean> {
+    let success = false;
+    queue.current = queue.current
+      .then(async () => {
+        const next = { ...values.current };
+        delete next[context];
+        await Storage.setItem(key, JSON.stringify(next));
+        values.current = next;
+        bump((v) => v + 1);
+        stored.current = true;
+        setError(null);
+        success = true;
+      })
+      .catch(() => {
+        stored.current = false;
+        setError("Could not discard draft. Retry before leaving.");
+      });
+    return queue.current.then(() => success);
+  }
   return {
     get,
     put,
     flush,
+    discard,
     ready,
     error,
     revision,
