@@ -94,7 +94,7 @@ test('failed linked-task insert rolls back the entry and the same request can sa
     database.exec("CREATE TRIGGER simulate_task_failure BEFORE INSERT ON tasks BEGIN SELECT RAISE(ABORT, 'Injected write failure'); END;");
     const input = { requestId: 'retry-after-failure', kind: 'task' as const, text: 'Keep my input' };
     await assert.rejects(repository.saveCapture(input), /Injected write failure/);
-    assert.deepEqual(await repository.readSnapshot(), { entries: [], tasks: [], chosenEntryId: null });
+    assert.deepEqual(await repository.readSnapshot(), { entries: [], tasks: [], chosenEntryId: null, folders: [] });
     database.exec('DROP TRIGGER simulate_task_failure;');
     const saved = await repository.saveCapture(input);
     assert.equal(saved.entryId, 'entry_retry-after-failure');
@@ -154,7 +154,7 @@ test('a failed commit rejects the save, rolls back its records and leaves the qu
     failCommit = true;
     const input = { requestId: 'commit-retry', kind: 'task' as const, text: 'Persist both records' };
     await assert.rejects(repository.saveCapture(input), /Injected commit failure/);
-    assert.deepEqual(await repository.readSnapshot(), { entries: [], tasks: [], chosenEntryId: null });
+    assert.deepEqual(await repository.readSnapshot(), { entries: [], tasks: [], chosenEntryId: null, folders: [] });
     await repository.saveCapture(input);
     const after = await repository.readSnapshot();
     assert.equal(after.entries.length, 1);
@@ -202,7 +202,7 @@ test('a migration failure rolls back all schema changes and can retry after its 
     assert.equal(database.prepare("SELECT COUNT(*) AS total FROM sqlite_master WHERE name = 'tasks'").get()!.total, 1);
     database.exec('DROP TABLE tasks;');
     await repository.initialize();
-    assert.deepEqual(await repository.readSnapshot(), { entries: [], tasks: [], chosenEntryId: null });
+    assert.deepEqual(await repository.readSnapshot(), { entries: [], tasks: [], chosenEntryId: null, folders: [] });
   } finally {
     database.close();
   }
@@ -768,7 +768,7 @@ test('one-level Task ownership rejects missing, removed, cross-kind, self and re
   }finally{db.close();}
 });
 
-test('Note-linked Task and its Subtasks survive restart, independent state, parent removal and Undo',async()=>{
+test('Note-linked Task and its Subtasks survive restart, synchronized state, parent removal and Undo',async()=>{
   const dir=await mkdtemp(join(tmpdir(),'noeting-subtasks-')),file=join(dir,'db.sqlite');let db=new DatabaseSync(file);
   try {
     let repo=createRepository(sqliteDriver(db));
@@ -778,7 +778,7 @@ test('Note-linked Task and its Subtasks survive restart, independent state, pare
     const b=await repo.saveSubtask({requestId:'b',parentTaskId:parent.taskId!,text:'Write code'});
     await repo.completeTask(a.taskId!);await repo.editEntry(b.entryId,'Implement offline');await repo.completeTask(parent.taskId!);
     await repo.editEntry(note.entryId,'Later note');await repo.removeEntry(note.entryId);
-    const before=await repo.readSnapshot();assert.equal(before.tasks.find(t=>t.id===b.taskId)!.status,'pending');
+    const before=await repo.readSnapshot();assert.equal(before.tasks.find(t=>t.id===b.taskId)!.status,'completed');
     const removedParent=await repo.removeEntry(parent.entryId);
     let snapshot=await repo.readSnapshot();assert.equal(snapshot.tasks.length,2);assert.ok(snapshot.tasks.every(t=>t.parentRemoved));
     const {visibleEntries}=await import('../src/data/selectors');
@@ -787,10 +787,64 @@ test('Note-linked Task and its Subtasks survive restart, independent state, pare
     await repo.restoreEntry(removedParent);
     const removedChild=await repo.removeEntry(a.entryId);await repo.restoreEntry(removedChild);
     snapshot=await repo.readSnapshot();assert.equal(visibleEntries(snapshot,'task','').length,1);
-    assert.equal(snapshot.tasks.find(t=>t.id===parent.taskId)!.status,'completed');
+    assert.equal(snapshot.tasks.find(t=>t.id===parent.taskId)!.status,'pending');
     assert.equal(snapshot.tasks.find(t=>t.id===a.taskId)!.status,'pending');
     assert.equal(snapshot.entries.find(e=>e.id===parent.entryId)!.sourceText,'Note original');
     assert.equal(snapshot.tasks.find(t=>t.id===parent.taskId)!.parentTaskId,null);
     db.close();db=new DatabaseSync(file);repo=createRepository(sqliteDriver(db));assert.deepEqual(await repo.readSnapshot(),snapshot);
   }finally{db.close();await rm(dir,{recursive:true,force:true});}
+});
+
+for(const version of [6,7,8])test(`v${version} to v9 interruption preserves legacy columns and retry adds Note-only organization`,async()=>{
+  const db=new DatabaseSync(':memory:');try{
+    db.exec(await readFile(join(process.cwd(),`tests/fixtures/schema-v${version}-populated.sql`),'utf8'));
+    const tables=['entries','tasks','thinking_links','task_sources',...(version>=7?['entry_sources']:[])];
+    const old=new Map(tables.map(t=>[t,db.prepare(`SELECT * FROM ${t} ORDER BY id`.replace('ORDER BY id',t.includes('sources')||t==='thinking_links'?'ORDER BY entry_id':'ORDER BY id')).all()]));
+    const base=sqliteDriver(db);let failed=false;const repo=createRepository({...base,async exec(sql){if(sql.includes('CREATE TABLE note_folders')&&!failed){failed=true;await base.exec(sql.split('CREATE INDEX note_organization')[0]);throw Error('migration interrupted');}await base.exec(sql);}});
+    await assert.rejects(repo.initialize(),/interrupted/);assert.equal(db.prepare('PRAGMA user_version').get()!.user_version,version);assert.equal(db.prepare("SELECT name FROM sqlite_master WHERE name='note_folders'").get(),undefined);
+    await repo.initialize();assert.equal(db.prepare('PRAGMA user_version').get()!.user_version,9);
+    for(const [table,rows] of old){const cols=Object.keys(rows[0]??{});if(cols.length)assert.deepEqual(db.prepare(`SELECT ${cols.join(',')} FROM ${table} ORDER BY ${table.includes('sources')||table==='thinking_links'?'entry_id':'id'}`).all(),rows);}
+    const task=(await repo.readSnapshot()).tasks[0];if(task)assert.throws(()=>db.prepare('INSERT INTO note_organization(entry_id) VALUES (?)').run(task.entryId),/Only Notes/);
+    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
+  }finally{db.close();}
+});
+
+test('folders, scoped ordering, Note pins, bulk move/remove/recovery and failures are atomic and durable',async()=>{
+  const dir=await mkdtemp(join(tmpdir(),'noeting-organization-'));const path=join(dir,'db');let db=new DatabaseSync(path);
+  try{let r=createRepository(sqliteDriver(db));
+    const a=await r.saveCapture({kind:'note',text:'Alpha exact 🌿\n  words ',requestId:'a'});const b=await r.saveLinkedEntry({kind:'note',text:'Beta',sourceEntryId:a.entryId,requestId:'b'});const c=await r.saveCapture({kind:'note',text:'Gamma',requestId:'c'});const t=await r.saveCapture({kind:'task',text:'Legacy Task',requestId:'t'});await r.setPinned(t.taskId!,true);
+    await r.createFolder('f','  Ideas  ');await r.createFolder('f','Ideas');await assert.rejects(r.createFolder('collision','IDEAS'));await assert.rejects(r.renameFolder('f','  '));await r.createFolder('g','Work');await assert.rejects(r.renameFolder('g','ideas'));await r.renameFolder('f','Thoughts');
+    await r.organizeNotes([a.entryId],{pinned:true,folderId:'f'});const pinned=(await r.readSnapshot()).entries.find(e=>e.id===a.entryId)!.notePinnedAt;
+    await r.organizeNotes([a.entryId,b.entryId],{pinned:true});await r.organizeNotes([a.entryId,b.entryId],{folderId:'f'});await r.editEntry(a.entryId,'Alpha edited');
+    let snap=await r.readSnapshot();assert.equal(snap.entries.find(e=>e.id===a.entryId)!.notePinnedAt,pinned);assert.equal(snap.entries.find(e=>e.id===a.entryId)!.originalText,'Alpha exact 🌿\n  words ');assert.equal(snap.tasks[0].pinned,true);
+    const {visibleEntries}=await import('../src/data/selectors');assert.deepEqual(visibleEntries(snap,'note','Beta','f').map(e=>e.id),[b.entryId]);assert.equal(visibleEntries(snap,'note','Alpha','unfiled').length,0);assert.equal(visibleEntries(snap,'note','')[2].id,c.entryId);
+    const before=await r.readSnapshot();db.exec(`CREATE TRIGGER fail_org BEFORE UPDATE ON note_organization WHEN NEW.entry_id='${b.entryId}' BEGIN SELECT RAISE(ABORT,'bulk failed'); END;`);
+    await assert.rejects(r.organizeNotes([a.entryId,b.entryId],{pinned:false,folderId:'g'}),/bulk failed/);assert.deepEqual(await r.readSnapshot(),before);db.exec('DROP TRIGGER fail_org');
+    await r.organizeNotes([a.entryId,b.entryId],{pinned:false});assert.ok((await r.readSnapshot()).entries.filter(e=>e.kind==='note').every(e=>!e.notePinnedAt));await r.organizeNotes([a.entryId,b.entryId],{pinned:true});
+    db.exec(`CREATE TRIGGER fail_remove BEFORE UPDATE OF removed_at ON entries WHEN NEW.id='${b.entryId}' BEGIN SELECT RAISE(ABORT,'remove failed'); END;`);const preRemove=await r.readSnapshot();await assert.rejects(r.removeNotes([a.entryId,b.entryId]),/remove failed/);assert.deepEqual(await r.readSnapshot(),preRemove);db.exec('DROP TRIGGER fail_remove');
+    const receipts=await r.removeNotes([a.entryId,b.entryId]);assert.equal(visibleEntries(await r.readSnapshot(),'note','','all',true).length,2);
+    db.exec(`CREATE TRIGGER fail_restore BEFORE UPDATE OF removed_at ON entries WHEN NEW.id='${b.entryId}' BEGIN SELECT RAISE(ABORT,'restore failed'); END;`);await assert.rejects(r.restoreNotes(receipts));assert.equal(visibleEntries(await r.readSnapshot(),'note','','all',true).length,2);db.exec('DROP TRIGGER fail_restore');await r.restoreNotes(receipts);await r.restoreNotes(receipts);
+    await assert.rejects(r.organizeNotes([a.entryId,t.entryId],{pinned:false}));await r.removeFolder('f');snap=await r.readSnapshot();assert.ok(snap.entries.filter(e=>e.kind==='note').every(e=>!e.folderId));assert.equal(snap.entries.find(e=>e.id===b.entryId)!.sourceEntryId,a.entryId);assert.ok(snap.entries.find(e=>e.id===a.entryId)!.notePinnedAt);
+    db.close();db=new DatabaseSync(path);r=createRepository(sqliteDriver(db));assert.deepEqual(await r.readSnapshot(),snap);
+  }finally{db.close();await rm(dir,{recursive:true,force:true});}
+});
+
+for(const count of [1,2,3])test(`${count} children: synchronized completion, timestamp stability, removal/restore, retries and halfway rollback`,async()=>{
+  const db=new DatabaseSync(':memory:');try{const r=createRepository(sqliteDriver(db));const parent=await r.saveCapture({kind:'task',text:'Parent',requestId:'p'});const kids=[];for(let i=0;i<count;i++)kids.push(await r.saveSubtask({parentTaskId:parent.taskId!,text:'Child '+i,requestId:'c'+i}));
+    const status=async(id:string)=>(await r.readSnapshot()).tasks.find(t=>t.id===id)!;
+    for(let i=0;i<count;i++){await r.completeTask(kids[i].taskId!);assert.equal((await status(parent.taskId!)).status,i===count-1?'completed':'pending');}
+    const firstAt=(await status(kids[0].taskId!)).completedAt;await r.completeTask(parent.taskId!);assert.equal((await status(kids[0].taskId!)).completedAt,firstAt);
+    await r.reopenTask(kids[0].taskId!);assert.equal((await status(parent.taskId!)).status,'pending');await r.completeTask(parent.taskId!);assert.ok((await r.readSnapshot()).tasks.every(t=>t.status==='completed'));
+    await r.reopenTask(parent.taskId!);assert.ok((await r.readSnapshot()).tasks.every(t=>t.status==='pending'));
+    const before=await r.readSnapshot();db.exec(`CREATE TRIGGER fail_transition BEFORE UPDATE OF status ON tasks WHEN NEW.id='${kids[0].taskId}' BEGIN SELECT RAISE(ABORT,'transition interrupted'); END;`);await assert.rejects(r.completeTask(parent.taskId!),/interrupted/);assert.deepEqual(await r.readSnapshot(),before);db.exec('DROP TRIGGER fail_transition');
+    await Promise.all([r.completeTask(parent.taskId!),r.completeTask(parent.taskId!)]);const extra=await r.saveSubtask({parentTaskId:parent.taskId!,text:'Extra',requestId:'extra'});assert.equal((await status(parent.taskId!)).status,'pending');const receipt=await r.removeEntry(extra.entryId);assert.equal((await status(parent.taskId!)).status,'completed');await r.restoreEntry(receipt);assert.equal((await status(parent.taskId!)).status,'pending');
+    const removedParent=await r.removeEntry(parent.entryId);const oldParent=db.prepare('SELECT status,completed_at FROM tasks WHERE id=?').get(parent.taskId!);await r.completeTask(extra.taskId!);assert.deepEqual(db.prepare('SELECT status,completed_at FROM tasks WHERE id=?').get(parent.taskId!),oldParent);await r.restoreEntry(removedParent);assert.equal((await status(parent.taskId!)).status,'completed');
+    const all=[...kids,extra];for(const child of all)await r.removeEntry(child.entryId);assert.equal((await status(parent.taskId!)).status,'completed');await r.reopenTask(parent.taskId!);assert.equal((await status(parent.taskId!)).status,'pending');
+  }finally{db.close();}
+});
+
+test('large snapshot groups child search once and sorts pins deterministically without row reads',async()=>{
+  const {indexSnapshot,visibleEntries,matchingChildren}=await import('../src/data/selectors');const entries:any[]=[];const tasks:any[]=[];
+  for(let i=0;i<3000;i++){entries.push({id:'n'+i,kind:'note',text:'Note '+i,removed:false,createdAt:'2026-01-01',notePinnedAt:i%5===0?'2026-02-01':null});if(i<1000){entries.push({id:'p'+i,kind:'task',text:'Parent '+i,removed:false,createdAt:'2026-01-01'},{id:'c'+i,kind:'task',text:'needle '+i,removed:false,createdAt:'2026-01-01'});tasks.push({id:'pt'+i,entryId:'p'+i,title:'Parent '+i,parentTaskId:null,status:'pending'},{id:'ct'+i,entryId:'c'+i,title:'needle '+i,parentTaskId:'pt'+i,status:'pending'});}}
+  const snapshot={entries,tasks,chosenEntryId:null};const indexed=indexSnapshot(snapshot);assert.equal(indexed.children.size,1000);const found=visibleEntries(snapshot,'task','needle 999');assert.equal(found.length,1);assert.equal(found[0].id,'p999');assert.equal(matchingChildren(found[0],indexed.children.get('pt999')!,'needle 999').length,1);const notes=visibleEntries(snapshot,'note','');assert.equal(notes.length,3000);assert.ok(notes.slice(0,600).every(e=>e.notePinnedAt));assert.deepEqual(notes.map(e=>e.id),visibleEntries(snapshot,'note','').map(e=>e.id));
 });

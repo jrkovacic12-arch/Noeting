@@ -7,6 +7,10 @@ export interface Entry {
   originalText: string;
   text: string;
   removed: boolean;
+  folderId?: string | null;
+  notePinnedAt?: string | null;
+  lastEditedAt?: string | null;
+  removalVersion?: number;
   createdAt: string;
   thinkingKind: ThinkingKind | null;
   sourceEntryId: string | null;
@@ -31,7 +35,10 @@ export interface Task {
   parentRemoved: boolean;
 }
 
+export interface NoteFolder { id: string; name: string; createdAt: string }
+
 export interface Snapshot {
+  folders?: NoteFolder[];
   entries: Entry[];
   tasks: Task[];
   chosenEntryId: string | null;
@@ -63,6 +70,12 @@ export interface Removal {
 }
 
 export interface Repository {
+  createFolder(id: string, name: string): Promise<void>;
+  renameFolder(id: string, name: string): Promise<void>;
+  removeFolder(id: string): Promise<void>;
+  organizeNotes(ids: string[], change: { pinned?: boolean; folderId?: string | null }): Promise<void>;
+  removeNotes(ids: string[]): Promise<Removal[]>;
+  restoreNotes(receipts: Removal[]): Promise<void>;
   initialize(): Promise<void>;
   readSnapshot(): Promise<Snapshot>;
   saveCapture(input: CaptureInput): Promise<CaptureResult>;
@@ -97,7 +110,7 @@ export interface PinSchedule {
   status: 'waiting' | 'applied' | 'cancelled';
 }
 
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 type EntryRow = {
   id: string;
@@ -111,6 +124,9 @@ type EntryRow = {
   removed_pin_at?: string | null;
   removed_pin_order?: number;
   created_at: string;
+  folder_id?: string | null;
+  note_pinned_at?: string | null;
+  last_edited_at?: string | null;
   thinking_kind?: ThinkingKind | null;
   source_entry_id?: string | null;
   source_text?: string | null;
@@ -309,6 +325,19 @@ const migrationV8 = `
   END;
 `;
 
+const migrationV9 = `
+  CREATE TABLE note_folders(id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL CHECK(length(trim(name))>0), name_key TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL);
+  CREATE TABLE note_organization(entry_id TEXT PRIMARY KEY NOT NULL REFERENCES entries(id) ON DELETE RESTRICT,
+    folder_id TEXT REFERENCES note_folders(id) ON DELETE SET NULL, pinned_at TEXT, last_edited_at TEXT);
+  CREATE INDEX note_organization_folder_pin ON note_organization(folder_id,pinned_at);
+  CREATE TRIGGER organization_note_insert BEFORE INSERT ON note_organization
+    WHEN (SELECT kind FROM entries WHERE id=NEW.entry_id)<>'note'
+    BEGIN SELECT RAISE(ABORT,'Only Notes have organization.'); END;
+  CREATE TRIGGER organization_note_update BEFORE UPDATE OF entry_id ON note_organization
+    WHEN (SELECT kind FROM entries WHERE id=NEW.entry_id)<>'note'
+    BEGIN SELECT RAISE(ABORT,'Only Notes have organization.'); END;
+`;
+
 class SQLiteRepository implements Repository {
   private readonly mutex: Mutex;
   private initialized = false;
@@ -331,11 +360,11 @@ class SQLiteRepository implements Repository {
       await this.initializeLocked();
       return this.transaction(async () => {
         const entries = await this.db.all<EntryRow>(
-          `SELECT e.*, l.thinking_kind,
+          `SELECT e.*, o.folder_id,o.pinned_at AS note_pinned_at,o.last_edited_at,l.thinking_kind,
              COALESCE(g.source_entry_id,l.source_entry_id,s.source_entry_id) AS source_entry_id,
              COALESCE(g.source_text,s.source_text,original.original_text) AS source_text,
              s.source_entry_id AS task_source_id, s.source_text AS task_source_text
-           FROM entries e LEFT JOIN thinking_links l ON l.entry_id = e.id
+           FROM entries e LEFT JOIN note_organization o ON o.entry_id=e.id LEFT JOIN thinking_links l ON l.entry_id = e.id
            LEFT JOIN task_sources s ON s.entry_id = e.id
            LEFT JOIN entry_sources g ON g.entry_id = e.id
            LEFT JOIN entries original ON original.id = l.source_entry_id ORDER BY e.created_at, e.rowid`,
@@ -348,6 +377,7 @@ class SQLiteRepository implements Repository {
         );
         const [selection] = await this.db.all<{ entry_id: string }>('SELECT entry_id FROM today_selection WHERE id = 1');
         return {
+          folders: (await this.db.all<{id:string;name:string;created_at:string}>('SELECT * FROM note_folders ORDER BY name_key,id')).map(row=>({id:row.id,name:row.name,createdAt:row.created_at})),
           chosenEntryId: selection?.entry_id ?? null,
           entries: entries.map((row) => ({
             id: row.id,
@@ -356,6 +386,10 @@ class SQLiteRepository implements Repository {
             text: row.edited_text ?? row.original_text,
             removed: row.removed_at != null,
             createdAt: row.created_at,
+            folderId: row.folder_id ?? null,
+            notePinnedAt: row.note_pinned_at ?? null,
+            lastEditedAt: row.last_edited_at ?? null,
+            removalVersion: row.removal_version ?? 0,
             thinkingKind: row.thinking_kind ?? null,
             sourceEntryId: row.source_entry_id ?? null,
             sourceText: row.source_text ?? null,
@@ -453,33 +487,33 @@ class SQLiteRepository implements Repository {
     });
   }
 
-  completeTask(id: string): Promise<void> {
-    return this.mutex.run(async () => {
-      await this.initializeLocked();
-      await this.transaction(async () => {
-        const [task] = await this.db.all<TaskRow>('SELECT t.* FROM tasks t JOIN entries e ON e.id = t.entry_id WHERE t.id = ? AND e.removed_at IS NULL', [id]);
-        if (!task) throw new Error('Task was not found.');
-        if (task.status === 'completed') return;
-        await this.db.run(
-          "UPDATE tasks SET status = 'completed', pinned = 0, pinned_at = NULL, completed_at = ? WHERE id = ?",
-          [new Date().toISOString(), id],
-        );
-        await this.db.run("UPDATE scheduled_pins SET due_at = NULL, status = 'cancelled' WHERE task_id = ?", [id]);
-      });
-    });
+  private async transition(id:string, status:Task['status']):Promise<void> {
+    const [task]=await this.db.all<TaskRow>('SELECT * FROM tasks WHERE id=?',[id]);
+    if(!task || task.status===status)return;
+    await this.db.run('UPDATE tasks SET status=?,completed_at=?,pinned=0,pinned_at=NULL WHERE id=?',[status,status==='completed'?new Date().toISOString():null,id]);
+    if(status==='completed')await this.db.run("UPDATE scheduled_pins SET due_at=NULL,status='cancelled' WHERE task_id=?",[id]);
   }
-
-  reopenTask(id: string): Promise<void> {
-    return this.mutex.run(async () => {
-      await this.initializeLocked();
-      await this.transaction(async () => {
-        const [task] = await this.db.all<TaskRow>('SELECT t.* FROM tasks t JOIN entries e ON e.id = t.entry_id WHERE t.id = ? AND e.removed_at IS NULL', [id]);
-        if (!task) throw new Error('Task was not found.');
-        if (task.status === 'pending') return;
-        await this.db.run("UPDATE tasks SET status = 'pending', pinned = 0, pinned_at = NULL, completed_at = NULL WHERE id = ?", [id]);
-      });
-    });
+  private async reconcile(parentId:string|null):Promise<void> {
+    if(!parentId)return;
+    const [parent]=await this.db.all('SELECT t.id FROM tasks t JOIN entries e ON e.id=t.entry_id WHERE t.id=? AND e.removed_at IS NULL',[parentId]);
+    if(!parent)return;
+    const rows=await this.db.all<TaskRow>('SELECT t.* FROM tasks t JOIN entries e ON e.id=t.entry_id WHERE t.parent_task_id=? AND e.removed_at IS NULL',[parentId]);
+    if(rows.length)await this.transition(parentId,rows.every(t=>t.status==='completed')?'completed':'pending');
   }
+  private changeStatus(id:string,status:Task['status']):Promise<void> {
+    return this.mutex.run(async()=>{await this.initializeLocked();await this.transaction(async()=>{
+      const [task]=await this.db.all<TaskRow>('SELECT t.* FROM tasks t JOIN entries e ON e.id=t.entry_id WHERE t.id=? AND e.removed_at IS NULL',[id]);
+      if(!task)throw new Error('Task was not found.');
+      await this.transition(id,status);
+      if(task.parent_task_id)await this.reconcile(task.parent_task_id);
+      else {
+        const children=await this.db.all<{id:string}>('SELECT t.id FROM tasks t JOIN entries e ON e.id=t.entry_id WHERE t.parent_task_id=? AND e.removed_at IS NULL',[id]);
+        for(const child of children)await this.transition(child.id,status);
+      }
+    });});
+  }
+  completeTask(id:string){return this.changeStatus(id,'completed');}
+  reopenTask(id:string){return this.changeStatus(id,'pending');}
 
   saveDerivedTask(input: Omit<LinkedInput, 'kind'>): Promise<CaptureResult> {
     return this.mutex.run(async () => {
@@ -528,6 +562,7 @@ class SQLiteRepository implements Repository {
         const entryId=`entry_${request}`,taskId=`task_${request}`,createdAt=new Date().toISOString();
         await this.db.run("INSERT INTO entries(id,capture_request_id,kind,original_text,created_at) VALUES (?,?,'task',?,?)",[entryId,request,input.text,createdAt]);
         await this.db.run("INSERT INTO tasks(id,entry_id,title,status,pinned,created_at,completed_at,parent_task_id) VALUES (?,?,?,'pending',0,?,NULL,?)",[taskId,entryId,input.text.trim(),createdAt,parent.id]);
+        await this.reconcile(parent.id);
         return {entryId,taskId};
       });
     });
@@ -636,9 +671,11 @@ class SQLiteRepository implements Repository {
       if (typeof text !== 'string' || !text.trim()) throw new Error('Write something before saving.');
       await this.initializeLocked();
       await this.transaction(async () => {
-        const [entry] = await this.db.all('SELECT id FROM entries WHERE id = ? AND removed_at IS NULL', [id]);
+        const [entry] = await this.db.all<{kind:EntryKind;edited_text:string|null;original_text:string}>('SELECT * FROM entries WHERE id = ? AND removed_at IS NULL', [id]);
         if (!entry) throw new Error('Entry was not found.');
+        if((entry.edited_text??entry.original_text)===text)return;
         await this.db.run('UPDATE entries SET edited_text = ? WHERE id = ?', [text, id]);
+        if(entry.kind==='note')await this.db.run('INSERT INTO note_organization(entry_id,last_edited_at) VALUES (?,?) ON CONFLICT(entry_id) DO UPDATE SET last_edited_at=excluded.last_edited_at',[id,new Date().toISOString()]);
         await this.db.run('UPDATE tasks SET title = ? WHERE entry_id = ?', [text.trim(), id]);
       });
     });
@@ -659,6 +696,7 @@ class SQLiteRepository implements Repository {
         await this.db.run('UPDATE tasks SET pinned = 0, pinned_at = NULL WHERE entry_id = ?', [id]);
         await this.db.run("UPDATE scheduled_pins SET due_at=NULL,status='cancelled' WHERE task_id IN (SELECT id FROM tasks WHERE entry_id=?)", [id]);
         await this.db.run('DELETE FROM today_selection WHERE entry_id = ?', [id]);
+        if(task?.parent_task_id)await this.reconcile(task.parent_task_id);
         return removal;
       });
     });
@@ -676,10 +714,53 @@ class SQLiteRepository implements Repository {
           const [order] = await this.db.all<{next:number}>('SELECT COALESCE(MAX(pin_order),0)+1 AS next FROM tasks');
           await this.db.run("UPDATE tasks SET pinned=1,pinned_at=?,pin_order=? WHERE entry_id=? AND status='pending'", [entry.removed_pin_at ?? new Date().toISOString(),entry.removed_pin_order || order.next,entry.id]);
         }
+        const [task]=await this.db.all<TaskRow>('SELECT * FROM tasks WHERE entry_id=?',[entry.id]);
+        if(task)await this.reconcile(task.parent_task_id??task.id);
         if (entry.removed_selected === 1) await this.db.run('INSERT OR IGNORE INTO today_selection(id, entry_id) VALUES (1, ?)', [entry.id]);
       });
     });
   }
+
+  private folderName(name:string){
+    if(typeof name!=='string'||!name.trim())throw new Error('Enter a folder name.');
+    const display=name.trim();return {display,key:display.normalize('NFKC').toLocaleLowerCase('en-US')};
+  }
+  createFolder(id:string,name:string):Promise<void>{
+    return this.mutex.run(async()=>{await this.initializeLocked();const n=this.folderName(name);if(!id.trim())throw new Error('Missing folder ID.');await this.transaction(async()=>{
+      const [old]=await this.db.all<{name_key:string}>('SELECT name_key FROM note_folders WHERE id=?',[id]);
+      if(old){if(old.name_key!==n.key)throw new Error('Folder request changed.');return;}
+      await this.db.run('INSERT INTO note_folders(id,name,name_key,created_at) VALUES (?,?,?,?)',[id,n.display,n.key,new Date().toISOString()]);
+    });});
+  }
+  renameFolder(id:string,name:string):Promise<void>{return this.mutex.run(async()=>{await this.initializeLocked();const n=this.folderName(name);await this.transaction(async()=>{
+    const result=await this.db.run('UPDATE note_folders SET name=?,name_key=? WHERE id=?',[n.display,n.key,id]);if(!result.changes)throw new Error('Folder not found.');
+  });});}
+  removeFolder(id:string):Promise<void>{return this.mutex.run(async()=>{await this.initializeLocked();await this.transaction(async()=>{await this.db.run('DELETE FROM note_folders WHERE id=?',[id]);});});}
+  private async validateNotes(ids:string[],active=true){
+    const unique=[...new Set(ids)].sort();if(!unique.length)throw new Error('Select Notes.');
+    for(const id of unique){const [e]=await this.db.all<{kind:EntryKind;removed_at:string|null}>('SELECT kind,removed_at FROM entries WHERE id=?',[id]);if(!e||e.kind!=='note'||active&&e.removed_at!==null)throw new Error('Choose active Notes.');}return unique;
+  }
+  organizeNotes(ids:string[],change:{pinned?:boolean;folderId?:string|null}):Promise<void>{return this.mutex.run(async()=>{await this.initializeLocked();await this.transaction(async()=>{
+    const selected=await this.validateNotes(ids);if(change.pinned!==undefined&&typeof change.pinned!=='boolean')throw new Error('Invalid pin state.');
+    if(change.folderId!=null){const [f]=await this.db.all('SELECT id FROM note_folders WHERE id=?',[change.folderId]);if(!f)throw new Error('Folder not found.');}
+    const now=new Date().toISOString();
+    for(const id of selected){
+      await this.db.run('INSERT OR IGNORE INTO note_organization(entry_id) VALUES (?)',[id]);
+      if(change.pinned!==undefined)await this.db.run('UPDATE note_organization SET pinned_at=CASE WHEN ?=1 THEN COALESCE(pinned_at,?) ELSE NULL END WHERE entry_id=?',[Number(change.pinned),now,id]);
+      if('folderId' in change)await this.db.run('UPDATE note_organization SET folder_id=? WHERE entry_id=?',[change.folderId??null,id]);
+    }
+  });});}
+  removeNotes(ids:string[]):Promise<Removal[]>{return this.mutex.run(async()=>{await this.initializeLocked();return this.transaction(async()=>{
+    const selected=await this.validateNotes(ids);const receipts:Removal[]=[];
+    for(const id of selected){const [e]=await this.db.all<EntryRow>('SELECT * FROM entries WHERE id=?',[id]);const [chosen]=await this.db.all<{entry_id:string}>('SELECT entry_id FROM today_selection WHERE id=1');const receipt={entryId:id,version:(e.removal_version??0)+1,pinned:false,selected:chosen?.entry_id===id};
+      await this.db.run('UPDATE entries SET removed_at=?,removal_version=?,removed_pinned=0,removed_selected=? WHERE id=?',[new Date().toISOString(),receipt.version,Number(receipt.selected),id]);await this.db.run('DELETE FROM today_selection WHERE entry_id=?',[id]);receipts.push(receipt);
+    }return receipts;
+  });});}
+  restoreNotes(receipts:Removal[]):Promise<void>{return this.mutex.run(async()=>{await this.initializeLocked();await this.transaction(async()=>{
+    await this.validateNotes(receipts.map(r=>r.entryId),false);
+    for(const r of receipts){const [e]=await this.db.all<EntryRow>('SELECT * FROM entries WHERE id=?',[r.entryId]);if(e.removal_version!==r.version)throw new Error('Removal changed.');
+      await this.db.run('UPDATE entries SET removed_at=NULL WHERE id=?',[r.entryId]);if(e.removed_selected===1)await this.db.run('INSERT OR IGNORE INTO today_selection(id,entry_id) VALUES (1,?)',[r.entryId]);}
+  });});}
 
   private async initializeLocked(): Promise<void> {
     if (this.initialized) return;
@@ -707,6 +788,7 @@ class SQLiteRepository implements Repository {
       if (version.user_version < 6) await this.db.exec(migrationV6);
       if (version.user_version < 7) await this.db.exec(migrationV7);
       if (version.user_version < 8) await this.db.exec(migrationV8);
+      if (version.user_version < 9) await this.db.exec(migrationV9);
       if (version.user_version < SCHEMA_VERSION) await this.db.exec(`PRAGMA user_version = ${SCHEMA_VERSION};`);
     });
     this.initialized = true;
