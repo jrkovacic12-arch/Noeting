@@ -20,6 +20,7 @@ export type EditorDraft = {
   parentTaskId?: string;
   parentPreview?: string;
   editEntryId?: string;
+  folderId?: string | null;
 };
 export function EditorBody({
   draft,
