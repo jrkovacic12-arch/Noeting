@@ -1,8 +1,8 @@
 # Noeting — Current State and Session Handoff
 
-> **Updated:** 2026-10-15 (0.7.1 Task card simplification)
+> **Updated:** 2026-10-16 (PR #5 documentation consistency review; app remains 0.7.1)
 >
-> **Phase:** D-022 removes per-task + on Today, completed-Task + on all other screens and redundant source buttons. Source preview navigation and schema v6 remain. Earlier version evidence below is historical.
+> **Phase:** 0.7.1 local Capture/Today/Library/Review, linked entries, scheduled pins and settings implemented; D-023 sets the minimal independent-app direction. Schema v6 remains unchanged; older release evidence below is historical.
 >
 > **Current verification:** 0.7.1 TypeScript, web export and all three focused browser workflows passed; Android ARM64 build/static verification passed for 0.7.1/code 14. The 0.7.1 APK is published and its fetched checksum matches. The user reported testing the 0.7.1 APK and explicitly approved merging [PR #4](https://github.com/jrkovacic12-arch/Noeting/pull/4). Device/OS and individual test outcomes were not supplied; this is user-reported acceptance, not new automated native-runtime evidence.
 
@@ -244,7 +244,7 @@ GitHub confirms [PR #4](https://github.com/jrkovacic12-arch/Noeting/pull/4) was 
 
 **Handoff context:** The user agreed to the first-app feature set (D-010), to React Native + Expo + TypeScript + SQLite (D-011), and to implement using Codex. The user said the updated prototype was tested and **“worked as intended”**; the test device and per-scenario results were not specified. Do not claim full S1–S4 validation or verified native runtime from that prototype report or the static APK checks.
 
-**V1 after M1:** Library, linked Reflect/Create/Review, Today note, deterministic overview, OS reminders are intended V1 capabilities; export/backup is deferred by D-018 to the account phase. These workflows are outside the first M1 slice. No AI, sync, accounts, or external integrations in V1. Resolved versions and schemas v1–v4 are recorded; encryption, broader lifecycle changes and remaining device acceptance still require design or verification.
+**Current V1 status:** Library, linked Reflect/Create/Review, Today note, deterministic overview and scheduled pins are implemented in 0.7.1 source. Scheduled pins do not send OS notifications; separate Task deadlines and priority ranks remain unresolved. D-018 defers export/backup/restore to the account phase, leaving a recognized data-loss risk for local-only data. No AI, sync, accounts or integrations in V1. Schema v6 and older migration evidence are recorded; security and detailed physical-device validation remain open.
 
 ## 3. Open decisions and boundaries
 
