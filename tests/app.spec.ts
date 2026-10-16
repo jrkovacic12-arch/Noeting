@@ -766,6 +766,32 @@ test("Notes captured or linked within a folder remain there after restart", asyn
   await expect(page.getByRole("button", { name: /^Open note:/ })).toHaveCount(
     0,
   );
+  await page.getByRole("button", { name: "Folder: Project" }).click();
+  await page.getByRole("button", { name: "Add note" }).click();
+  await page
+    .getByRole("textbox", { name: "Note text" })
+    .fill("Retained folder draft");
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("textbox", { name: "Note text" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Folder options" }).click();
+  await page.getByRole("button", { name: "Remove folder" }).click();
+  await expect(
+    page.getByRole("button", { name: "Folder: Project" }),
+  ).toHaveCount(0);
+  page = await session.restart();
+  await page.getByRole("button", { name: "Add note" }).click();
+  await expect(page.getByRole("textbox", { name: "Note text" })).toHaveValue(
+    "Retained folder draft",
+  );
+  await saveText(page, "Note", "Retained folder draft");
+  await close(page, "note");
+  await expect(
+    page.getByRole("button", { name: "Folder: Unfiled" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    page.getByRole("button", { name: "Open note: Retained folder draft" }),
+  ).toBeVisible();
 });
 
 test.describe("durable cancellation", () => {

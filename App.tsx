@@ -323,10 +323,21 @@ function Noeting() {
     setEditorError(null);
     try {
       if (!(await drafts.flush())) throw new Error("Draft storage failed.");
+      // A retained creation draft can outlive its folder. Keep its words and
+      // request identity, and follow folder deletion's Unfiled behavior.
+      const capture =
+        draft.kind === "note" &&
+        draft.folderId &&
+        !data.folders?.some((folder) => folder.id === draft.folderId)
+          ? { ...draft, folderId: null }
+          : draft;
       const result = await mutate((r) =>
-        draft.sourceEntryId
-          ? r.saveLinkedEntry({ ...draft, sourceEntryId: draft.sourceEntryId! })
-          : r.saveCapture(draft),
+        capture.sourceEntryId
+          ? r.saveLinkedEntry({
+              ...capture,
+              sourceEntryId: capture.sourceEntryId,
+            })
+          : r.saveCapture(capture),
       );
       if (!(await drafts.discard(context)))
         throw new Error("Could not clear saved draft.");
@@ -401,14 +412,17 @@ function Noeting() {
           if (busy || cancellingDraft) return;
           setCancellingDraft(true);
           const context = editorContext!;
-          void drafts.discard(context).then((discarded) => {
-            if (discarded) {
-              setEditorContext(null);
-              setEditorError(null);
-            } else {
-              setEditorError("Could not discard draft. Retry Cancel.");
-            }
-          }).finally(() => setCancellingDraft(false));
+          void drafts
+            .discard(context)
+            .then((discarded) => {
+              if (discarded) {
+                setEditorContext(null);
+                setEditorError(null);
+              } else {
+                setEditorError("Could not discard draft. Retry Cancel.");
+              }
+            })
+            .finally(() => setCancellingDraft(false));
         },
         onSave: () => void save(),
         busy: busy || cancellingDraft,
@@ -538,7 +552,9 @@ function Noeting() {
                         text: "",
                         requestId: randomUUID(),
                         folderId:
-                          tab === "note" && folder !== "all" && folder !== "unfiled"
+                          tab === "note" &&
+                          folder !== "all" &&
+                          folder !== "unfiled"
                             ? folder
                             : null,
                       })
