@@ -75,16 +75,16 @@ Actual build evidence, artifact identity, and executable build/verification comm
 - Migrate v1 to v2 transactionally without rebuilding old tables; set the schema version only after all new objects succeed. A failed migration rolls back new tables/indexes/triggers and leaves v1 data/version unchanged. Higher unknown schemas are refused without clearing data.
 - This schema does not resolve Note-derived Tasks (O-008), destructive edits/deletion, export/restore or encryption. All link targets are protected by restrictive foreign keys; there is no destructive UI.
 
-### M2 Note-to-Task linkage and data-recovery questions (open; not implemented)
+### Historical M2 Note-to-Task linkage investigation (resolved by D-019)
 
 The M1 `tasks_require_task_entry` SQLite trigger permits a Task only when its linked Entry has `kind = 'task'`. Consequently, the proposed action of creating an accepted Task **from an existing Note** cannot simply point `tasks.entry_id` at that Note. It would fail at the database boundary. This is a concrete difference between the M1 schema and the candidate M2 workflow, not a known runtime defect in M1.
 
-**Alternatives for O-008 (neither selected):** (a) create a separate Task-origin Entry while recording an explicit link to the unchanged Note; or (b) revise the relationship and trigger rules to allow an accepted derived Task with auditable provenance. The chosen design must keep source text intact, require explicit acceptance, avoid duplicate accepted tasks on retries, and specify link/deletion behavior. Do not change the existing trigger without a versioned migration and tests.
+**Historical alternatives for O-008 (subsequently resolved by D-019 and schema v4):** (a) create a separate Task-origin Entry while recording an explicit link to the unchanged Note; or (b) revise the relationship and trigger rules to allow an accepted derived Task with auditable provenance. The chosen design must keep source text intact, require explicit acceptance, avoid duplicate accepted tasks on retries, and specify link/deletion behavior. Do not change the existing trigger without a versioned migration and tests.
 
 **Proposed M2/M3 data checkpoints, not accepted implementation commitments:**
 - Test migration from existing schema v1 with real saved notes/tasks, including rollback, foreign-key integrity, and refusal of newer schemas.
 - Define whether edits are represented as revisions or separate derived content; distinguish editing a Task title from modifying its original captured Entry.
-- Define deletion behavior for linked material before enabling irreversible delete. M3 currently owns readable export/backup and restore; whether a recovery facility must ship before deletion is a sequencing decision to make explicitly.
+- Define deletion behavior for linked material before enabling irreversible delete. This was the historical M3 plan; D-018 subsequently deferred readable export/backup/restore to the account phase. The local data-loss tradeoff remains to be assessed.
 - Specify export content, integrity and restore tests, plus the local threat model. Plain SQLite is not encryption at rest, and Android `allowBackup: false` is not a substitute for a user-controlled backup.
 
 ### Schema v4 and local reminders — 0.5.0 (D-017/D-019)
@@ -124,7 +124,7 @@ User interface
   Capture · Today · Library · Review (Create is a linked action)
          |
 Application domain
-  Entries · Tasks · Projects · Scheduling · Search
+  Entries · Tasks · Scheduled pins · Search
          |
 Later optional AI/agent services (not in V1)
   Classify · Extract suggestions · Summarize · Prioritize
@@ -138,15 +138,13 @@ Future adapters (optional)
   Import/export · Calendar · Email · Desktop · Encrypted sync
 ```
 
-**Boundary:** The AI model proposes interpretations and actions. The application validates data, enforces permissions, schedules reminders, and commits state changes.
+**Diagram status:** Conceptual separation of implemented local functionality from optional agent services; the agent, integrations and extra data structures do not exist in V1.
+
+**Boundary:** Any future AI model proposes interpretations or actions. Deterministic application code validates permissions, changes to tasks, scheduled pins and persistent state.
 
 ### Agent ownership and integration boundary (D-023)
 
-The mobile UI and current SQLite domain stay intentionally small. A prospective personal-agent layer should be **separate and replaceable**: provider-neutral retrieval and interpretation interfaces, explicit user-selected read scope, source/provenance references and permission-enforced tools. Models suggest interpretations/actions; deterministic domain code validates writes, timing, authorization, logging and recovery. These are design directions, **not implemented AI services**.
-
-**Proposed research order, outside V1:** define scoped read-only access to current v6 Entries, Tasks and links; test on-demand, source-grounded reflection and bounded daily-priority suggestions; evaluate usefulness and privacy; only then design authorized write/external actions and any extra UI. Do not silently turn interpretations into accepted commitments. Note portability remains a goal, but D-018 **defers readable backup/export/restore to the account phase**; this direction does not change that sequencing.
-
-An Android share/import adapter for Xiaomi Notes may be evaluated separately. **Do not assume** any supported Xiaomi Notes full-vault read/write API, bidirectional sync or available integration. No new permissions, backend or agent runtime are required for accepted no-AI V1.
+Any future agent must remain a replaceable, separately authorized consumer of narrowly scoped read-only entry/task/provenance data before write-capable tools are considered. Retrieval must retain source references; application code, not model output, enforces write permissions and transaction correctness. Xiaomi Notes has no assumed vault API or sync adapter. These are *proposed technical constraints*, not an implemented service. [D-023](05_DECISIONS.md) owns the decision and [04_ROADMAP.md](04_ROADMAP.md) owns the research sequence. V1 adds no agent runtime, backend or permissions; D-018's backup/export deferral is unchanged.
 
 ## 3. Preliminary data model (candidate, not schema commitment)
 
