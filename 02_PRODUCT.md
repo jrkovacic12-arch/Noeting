@@ -4,7 +4,19 @@
 >
 > **Source of truth for:** user needs, product objects, features, UX behavior, and MVP boundaries.
 
-## Current contract — D-025, focused Notes and Task/Subtask sheets (0.9.0 source)
+## Current contract — D-026, minimal inline Notes and Tasks (0.10.0)
+
+D-026 supersedes D-025's interaction design and independent hierarchy completion. Exactly two primary tabs remain; Xiaomi Notes is a visual/behavioral reference only. Verification belongs to `06_CURRENT_STATE.md`.
+
+- Notes use a compact responsive card list, literal current-text search scoped to All/Unfiled/the selected folder, and a single horizontal folder strip. Folder creation/rename enforces trimmed case-insensitive unique names; removing a folder moves Notes to Unfiled. List context persists across tabs/restart.
+- A 300 ms hold selects Notes without opening them; scroll cancels selection gestures. The contextual bar overlays the header without moving cards and offers explicit Pin, Unpin, Move, Remove and Close. Mixed selections receive the same requested state atomically. Note pin metadata is independent of legacy Task pins; pinned Notes sort first by most recent pin, then ID. Unpinned Notes sort by last edit/creation, then ID. Move/edit preserves pins. Bulk removal is soft and Undo/recent recovery preserves words, folder and pins. Recently deleted is secondary to Notes More; no permanent deletion.
+- Existing Note bodies, Task titles and child text edit directly, with no Edit actions. Notes open for reading without autofocus; new Note creation focuses writing. Existing edits debounce at 500 ms and flush on blur/background/navigation/unmount, retaining contextual drafts until repository confirmation. Failed/empty edits stay recoverable with Unsaved/Retry. New captures use explicit Save/Cancel; dismiss retains the same context and stable request. Resume is removed.
+- Note More/Link are anchored, dimmed overlays that leave content in place. Copy, relevant original capture, Connections and Remove are contextual. Connections alone shows source/children; Note-only link creation and frozen provenance remain unchanged. Task-source Notes remain read-only.
+- Task sheets initially size to content (minimum 190 dp, maximum 82% usable viewport), expand/scroll and adapt to keyboard/safe areas. Scrim appears immediately; only the sheet animates. Circular + is 60×60/radius 30. Existing Tasks do not autofocus. Enter in a nonempty Task title saves/focuses Next step; Enter in a nonempty pending child commits it once and focuses the next blank. Empty Enter creates nothing. Pending child blur saves, with scoped recovery on failure. One level only.
+- Tasks list groups indented children under roots with count and session collapse, then a collapsible Completed section. Child-only search retains its parent and matching rows; removed-parent children retain fallback access. Parent completion/reopen propagates atomically to active children; last-child completion completes parent, reopening/adding pending children reopens parent. Child removal/restore recomputes from remaining active children; zero-child parents retain manual state. Removed parents are unchanged by child actions and reconciled on restore.
+- System theme, offline storage, original words, historical source links and notification cleanup remain. No scheduling, Task pin UI, AI/accounts/sync/backend or Xiaomi dependency. SQLite/drafts remain unencrypted and export/restore deferred (D-018).
+
+## Historical contract — D-025, focused Notes and Task/Subtask sheets (0.9.0 source)
 
 This supersedes the all-four-links and full-screen Task UI of 0.8.0/D-024. Verification and device acceptance are maintained only in `06_CURRENT_STATE.md`.
 

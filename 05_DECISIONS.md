@@ -218,6 +218,18 @@
 - **Draft safety and scope:** Explicit Save/Cancel, locally retained drafts through safe dismissal/restart; accessible Back/keyboard behavior. Exactly Notes/Tasks, system theme, no AI/account/sync/Xiaomi integration or expanded organization. D-018 export/restore deferral remains.
 - **Supersession:** Supersedes D-024's all-four-combination linking and shared full-screen Task detail, not its historical evidence, minimal scope or data-preservation guarantees. Product behavior: `02_PRODUCT.md`; architecture: `03_ARCHITECTURE.md`; acceptance: `07_V1_WORKFLOW_DRAFT.md`.
 
+## D-026 — Inline Xiaomi-inspired organization and synchronized hierarchy (2026-10-16)
+
+**Accepted direction:** The user supplied `CODEX_PR6_XIAOMI_UIUX_REFINEMENT.md` and instructed “read the file and proceed.” The attachment specifies implementation requirements; it is not test evidence. This decision supersedes D-025's explicit existing-entry edit/Resume UI, always-visible connections, fixed sheet sizing and independent parent/child completion. D-025's provenance/data preservation and one-level boundaries continue.
+
+- Adopt inline existing-entry editing with debounce/lifecycle flushing, contextual durable draft migration/recovery, Unsaved/Retry, anchored dimmed menus, contextual Connections, compact Task sheets and circular FAB. New captures remain empty-safe and use stable idempotency identities.
+- Add Note-only folders, deterministic persistent Note pins, long-press multiselect, atomic bulk pin/unpin/move/soft-remove/restore and secondary Recently deleted. Folder removal unfiles Notes; Note pins never reuse Task metadata.
+- Adopt Enter-driven single-line Task/child creation, grouped/indented/collapsible children and Completed groups with parent-aware search/orphan fallback.
+- Synchronize completion transactionally over active children: parent toggles propagate; child toggles/add/remove/restore reconcile parent, with zero-child manual state and removed-parent reconciliation only on restore. Preserve unrelated historical completion timestamps and legacy cleanup.
+- Additive schema v9 preserves old data/links; Note-linked Tasks stay roots. No cascade deletion, source relinking, Task-origin generic writes, scheduling, extra tabs, AI/accounts/sync or Xiaomi integration. Keep same draft PR #6; use a fresh versioned test APK and document native acceptance as blocking if unavailable.
+
+Product, design and acceptance details: `02_PRODUCT.md`, `03_ARCHITECTURE.md`, `07_V1_WORKFLOW_DRAFT.md`. Verification and sole next action: `06_CURRENT_STATE.md`. Historical decisions remain unchanged.
+
 ## Proposal register — accepted items reference decision records
 
 ### P-001 — Bounded background AI

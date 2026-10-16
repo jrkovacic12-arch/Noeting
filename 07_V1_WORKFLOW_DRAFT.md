@@ -3,7 +3,19 @@
 > Created: 2026-10-11. Updated: 2026-10-12 (V1.2 wireframe revision). Status: proposed workflow with a small interactive wireframe and limited automated checks; not an approved implementation specification.
 > Milestone: design and validate Capture → Today. The examples below are illustrative, not observations from real usage.
 
-## Current D-025 acceptance — 0.9.0 redesign
+## Current D-026 acceptance — 0.10.0 refinement
+
+- Preserve populated v6/v7/v8 originals, edits, links, legacy pins, soft removals and timestamps; interrupt v9 migration, prove rollback, retry. Keep new generic links Note-origin only.
+- Create/rename/delete folders with case-insensitive collision handling, scoped search, persisted list context, deterministic pins across restart/offline, mixed bulk pin/unpin/move and atomic failure. Bulk soft removal/Undo and Recently deleted recover organization.
+- Hold selects without opening, scroll cancels, Back/tab/folder/search exits selection, selected state and 44 dp actions remain accessible.
+- Existing text edits directly with no Edit/Resume; exact-context recovery survives repository/storage failure and restart; originals/frozen provenance remain readable. Overlay menus preserve content bounds, dim immediately and isolate accessibility. Connections is contextual only.
+- New Task autofocus/Enter moves to Next step; blank Enter creates nothing, composition does not submit prematurely, repeated Enter deduplicates, pending child blur/failure/restart preserves text and request. Existing Tasks do not autofocus.
+- Inline grouped/indented child lists, count/collapse, Completed grouping, parent/child search and orphan access remain coherent from committed snapshots. For one/two/three children verify every D-026 completion transition plus halfway rollback and retry.
+- Compact/expanded sheets, circular FAB, system themes, narrow/large text, source read-only navigation, offline content and large fixture tab switching. Native keyboard/Back/IME, touch-scroll cancellation and in-place upgrade require separate device evidence; retain draft PR until resolved.
+
+Actual commands, counts, evidence and unresolved limits live only in `06_CURRENT_STATE.md`. Older acceptance sections below are historical.
+
+## Historical D-025 acceptance — 0.9.0 redesign
 
 1. Full-screen Note capture/read/edit, explicit Cancel/Save, Copy, original capture, Remove/Undo and exact words/line breaks.
 2. Note→Note and Note→Task only from Note detail; source snapshots remain frozen after source edit/removal. Note-linked Tasks remain roots, appear in Linked tasks, and open in sheets with read-only Note navigation. Cancel creates nothing.

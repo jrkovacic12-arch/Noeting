@@ -4,17 +4,17 @@
 
 Noeting is a minimal, local-first Notes and Tasks app built with React Native, Expo, TypeScript and SQLite. Xiaomi Notes is an interface reference: quiet lists, quick capture and focused writing.
 
-## Current source — 0.9.0 (draft PR #6 refinement)
+## Current source — 0.10.0 (draft PR #6 refinement)
 
-- **Notes:** searchable list and full-screen writing-first detail/editor, compact Edit/Link/More actions, explicit Save/Cancel, Copy and original-capture access.
-- **Intentional links:** only Note detail creates a linked Note or root Task. Task-source Note previews/navigation are read-only; Tasks never create generic links.
-- **Tasks:** searchable root list with direct Complete/Reopen and progress; text and + open compact expandable bottom sheets.
-- **Subtasks:** one level, independent text/completion, edit/remove/Undo; child search reveals its parent. Surviving children of a removed parent stay accessible with `Parent removed`, without changing stored ownership.
-- **Drafts and appearance:** local draft recovery after dismissal/restart; explicit Cancel discards. Follows system theme and preserves old appearance preferences.
+- **Notes:** compact responsive cards, scoped folder search, folders, long-press selection and atomic Pin/Unpin/Move/Remove with Undo and Recently deleted recovery.
+- **Direct writing:** existing Note/Task/child text edits inline with autosave, Unsaved/Retry and automatically restored contextual drafts. Original captures remain intact; no Edit or Resume buttons.
+- **Intentional links:** Note-only creation, frozen provenance and read-only Task-source Note navigation. Existing connections appear in Note More; options overlay content without shifting it.
+- **Tasks:** compact expandable sheets, Enter-driven child entry, indented grouped/collapsible lists and Completed section. Parent/child completion synchronizes transactionally; removed-parent fallback retains access.
+- **Appearance:** circular +, immediate scrim, accessible controls and system theme. Exactly Notes/Tasks tabs.
 
-Schema v8 adds `parent_task_id` without converting existing generic links into hierarchy. Historical v6/v7 captures, edits, source relationships and task states remain preserved. Schedule retirement and legacy notification cleanup remain intact. No AI, accounts, sync, backend or actual Xiaomi integration is added.
+Additive schema v9 separates Note organization from historical Task pins and preserves v6/v7/v8 captures, edits, links, hierarchy and removal history. SQLite/drafts remain unencrypted; export/restore is deferred. No AI, accounts, sync, scheduling or Xiaomi dependency.
 
-Current checks, fresh APK identity and native/device acceptance limits live in [06_CURRENT_STATE.md](06_CURRENT_STATE.md). The older 0.8.0 test APK does not validate this redesign. PR #6 remains draft pending review and native/device acceptance.
+Current checks, fresh APK identity and **blocking unverified native/device acceptance** live in [06_CURRENT_STATE.md](06_CURRENT_STATE.md). Older 0.9.0 APKs do not validate this revision. PR #6 remains draft; no production readiness is claimed.
 
 ## Run and verify
 

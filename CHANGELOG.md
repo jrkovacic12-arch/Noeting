@@ -1,5 +1,12 @@
 # Noeting — Documentation Change Log (started 2026-10-11)
 
+## 2026-10-16 — 0.10.0 PR #6 inline UX and Note organization
+
+- Record D-026 from the supplied refinement; supersede D-025 UI/independent completion while preserving its provenance/history boundaries.
+- Add v9 Note folders, separate Note pins, atomic bulk organization/removal/recovery and synchronized parent/child completion.
+- Replace Edit/Resume with contextual draft recovery and inline autosave; add anchored overlays, compact sheets, Enter-driven child creation and grouped Tasks.
+- Update the same draft PR #6 with new verification/APK evidence; native/device acceptance remains blocking. Exact results/identity are maintained in `06_CURRENT_STATE.md`.
+
 ## 2026-10-16 — 0.9.0 PR #6 Notes/Task-sheet redesign
 
 - Record D-025 from the user's supplied redesign: full-screen writing-first Notes, compact Task/Subtask sheets, Note→Note/Note→Task creation only from Note detail, and read-only Task-source provenance.
