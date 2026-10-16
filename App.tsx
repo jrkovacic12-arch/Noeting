@@ -63,6 +63,7 @@ function Noeting() {
   const operations = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [editorError, setEditorError] = useState<string | null>(null);
+  const [cancellingDraft, setCancellingDraft] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [removal, setRemoval] = useState<Removal[] | null>(null);
   const [selection, setSelection] = useState<Set<string>>(new Set());
@@ -171,7 +172,7 @@ function Noeting() {
   const selectedTask = taskEntry ? tasks.get(taskEntry.id) : undefined;
   const selectedChildren = children.get(selectedTask?.id ?? "") ?? [];
   async function safeNavigate(action: () => void) {
-    if (operations.current) return;
+    if (operations.current || cancellingDraft) return;
     if (await drafts.flush()) action();
     else setError("Unsaved draft. Retry before leaving.");
   }
@@ -321,14 +322,14 @@ function Noeting() {
     const context = editorContext;
     setEditorError(null);
     try {
-      await drafts.flush();
+      if (!(await drafts.flush())) throw new Error("Draft storage failed.");
       const result = await mutate((r) =>
         draft.sourceEntryId
           ? r.saveLinkedEntry({ ...draft, sourceEntryId: draft.sourceEntryId! })
           : r.saveCapture(draft),
       );
-      drafts.put(context, null);
-      await drafts.flush();
+      if (!(await drafts.discard(context)))
+        throw new Error("Could not clear saved draft.");
       setEditorContext(null);
       if (draft.kind === "task")
         setTaskRoutes((p) => [...p, { id: result.entryId, focusChild: true }]);
@@ -397,13 +398,20 @@ function Noeting() {
         onChange: (text: string) =>
           drafts.put(editorContext!, { ...draft, text }),
         onCancel: () => {
-          if (!busy) {
-            drafts.put(editorContext!, null);
-            setEditorContext(null);
-          }
+          if (busy || cancellingDraft) return;
+          setCancellingDraft(true);
+          const context = editorContext!;
+          void drafts.discard(context).then((discarded) => {
+            if (discarded) {
+              setEditorContext(null);
+              setEditorError(null);
+            } else {
+              setEditorError("Could not discard draft. Retry Cancel.");
+            }
+          }).finally(() => setCancellingDraft(false));
         },
         onSave: () => void save(),
-        busy,
+        busy: busy || cancellingDraft,
         error: editorError ?? drafts.error,
       }
     : null;
@@ -504,6 +512,7 @@ function Noeting() {
                       requestId: randomUUID(),
                       sourceEntryId: note.id,
                       sourcePreview: note.text,
+                      folderId: kind === "note" ? note.folderId : undefined,
                     })
                   }
                 />
@@ -528,6 +537,10 @@ function Noeting() {
                         kind: tab,
                         text: "",
                         requestId: randomUUID(),
+                        folderId:
+                          tab === "note" && folder !== "all" && folder !== "unfiled"
+                            ? folder
+                            : null,
                       })
                     }
                     onToggle={toggle}
