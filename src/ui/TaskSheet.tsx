@@ -72,7 +72,7 @@ export function TaskSheet({
   const [text, setText] = useState(restored?.text ?? "");
   const current = useRef(text);
   const request = useRef(restored?.requestId ?? randomUUID());
-  const saving = useRef(false);
+  const pendingCommit = useRef<Promise<boolean> | null>(null);
   const [adding, setAdding] = useState(false);
   const editable = !entry.removed && !readOnly && !!task;
   useEffect(() => {
@@ -88,33 +88,45 @@ export function TaskSheet({
       parentTaskId: task?.id,
     });
   }
-  async function commit(focus = false) {
-    if (!task || composing.current || saving.current) return;
-    if (!current.current.trim()) {
-      if (focus) Keyboard.dismiss();
-      return;
-    }
-    saving.current = true;
+  function commit(focus = false): Promise<boolean> {
+    if (pendingCommit.current) return pendingCommit.current;
+    if (composing.current) return Promise.resolve(false);
+    if (!task || !current.current.trim()) return Promise.resolve(true);
     setAdding(true);
     const value = current.current;
     const id = request.current;
-    try {
-      await drafts.flush();
-      await onAdd(task.id, value, id);
-      if (current.current === value) {
-        current.current = "";
-        setText("");
+    const operation = (async () => {
+      try {
+        if (!(await drafts.flush())) throw new Error("Draft storage failed.");
+        await onAdd(task.id, value, id);
         request.current = randomUUID();
-        drafts.put(context, null);
+        if (current.current === value) {
+          current.current = "";
+          setText("");
+          drafts.put(context, null);
+        } else {
+          drafts.put(context, {
+            kind: "task",
+            text: current.current,
+            requestId: request.current,
+            parentTaskId: task.id,
+          });
+        }
+        setLocalError(false);
+        if (focus) requestAnimationFrame(() => input.current?.focus());
+        return true;
+      } catch {
+        setLocalError(true);
+        return false;
+      } finally {
+        setAdding(false);
       }
-      setLocalError(false);
-      if (focus) requestAnimationFrame(() => input.current?.focus());
-    } catch {
-      setLocalError(true);
-    } finally {
-      saving.current = false;
-      setAdding(false);
-    }
+    })();
+    pendingCommit.current = operation;
+    void operation.finally(() => {
+      if (pendingCommit.current === operation) pendingCommit.current = null;
+    });
+    return operation;
   }
   const selected = menu === "root" ? entry : entries.get(menu ?? "");
   function options(id: string, view?: View | null) {
@@ -153,7 +165,9 @@ export function TaskSheet({
             name="close"
             label="Close task"
             onPress={() => {
-              void commit().then(onClose);
+              void commit().then((saved) => {
+                if (saved) onClose();
+              });
             }}
             disabled={busy}
           />
