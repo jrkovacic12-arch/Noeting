@@ -59,6 +59,7 @@ export interface CaptureInput {
   requestId: string;
   kind: EntryKind;
   text: string;
+  folderId?: string | null;
 }
 
 export interface CaptureResult {
@@ -453,6 +454,8 @@ class SQLiteRepository implements Repository {
       if (typeof input.text !== "string" || !input.text.trim()) {
         throw new Error("Write something before saving.");
       }
+      if (input.kind === "task" && input.folderId != null)
+        throw new Error("Only Notes can belong to folders.");
       await this.initializeLocked();
       return this.transaction(async () => {
         const [existing] = await this.db.all<EntryRow>(
@@ -507,6 +510,11 @@ class SQLiteRepository implements Repository {
             [taskId, entryId, input.text.trim(), createdAt],
           );
         }
+        if (input.folderId != null)
+          await this.db.run(
+            "INSERT INTO note_organization(entry_id,folder_id) VALUES (?,?)",
+            [entryId, input.folderId],
+          );
         return { entryId, taskId };
       });
     });
@@ -822,6 +830,11 @@ class SQLiteRepository implements Repository {
           "INSERT INTO entry_sources(entry_id,source_entry_id,source_text) VALUES (?,?,?)",
           [entryId, source.id, source.edited_text ?? source.original_text],
         );
+        if (input.kind === "note" && input.folderId != null)
+          await this.db.run(
+            "INSERT INTO note_organization(entry_id,folder_id) VALUES (?,?)",
+            [entryId, input.folderId],
+          );
         return { entryId, taskId };
       });
     });
