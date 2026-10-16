@@ -4,6 +4,25 @@
 >
 > **Source of truth for:** user needs, product objects, features, UX behavior, and MVP boundaries.
 
+## Target M1 product contract — D-024 (approved direction, not yet implemented)
+
+**Priority:** This current-facing contract supersedes conflicting historical 0.7.1 UX descriptions below. The existing shipped/tested source remains 0.7.1. Here “M1” means the *new minimalist refactor baseline*, not the original 2026-10-13 M1 milestone.
+
+| Screen | Behavior |
+| --- | --- |
+| Notes | Primary Notes destination: list, note-content search bar, + creates a standalone Note. Historical Reflection/Creation records appear as ordinary Notes. |
+| Tasks | Primary Tasks destination: list, task-content search bar, + creates a standalone pending Task. Display completion state and allow Complete/Reopen without confirmation. |
+| Note/Task entry detail | Tap any list item to read its full text, edit/remove it, inspect its source (if linked), browse its children and navigate to related entry details. |
+| Linked creation | **Only from an existing entry-detail screen**, allow “Link note” or “Link task.” Save produces a separate Note/Task with an explicit source; dismiss creates nothing. All four Note/Task source-target combinations are supported. |
+
+**User owns meaning:** No Reflection/Creation entry type, button, filter, prompt, template or forced writing classification. Do not infer meaning from content. Preserve past classification metadata invisibly for compatibility, never mislabel or drop old words.
+
+**Remove from target navigation/UI:** Today, Review, selected Today Note, daily summary dashboard, pins and scheduled-pin controls, dedicated Settings destination, generic Capture screen, extra organizational taxonomies, priority/deadline forms, AI surfaces. Two tabs only, each with a context-specific +; no linked-create + on list cards. System-following theme is the baseline. Retain basic note/task edit/remove and task complete/reopen.
+
+**Persistence:** Keep original capture words immutable, edits separately persisted, source links and source snapshots intact, and Note/Task records independent across removal, completion and retry. Offline, transactional and duplicate-safe saves. Removing UI features does *not* authorize deleting old data or migration scripts. No account, sync or AI. D-018 still defers export/restore; local-only data-loss risk must be disclosed.
+
+**Source of truth:** [D-024](05_DECISIONS.md) records the decision, [03_ARCHITECTURE.md](03_ARCHITECTURE.md) owns safe migration, [04_ROADMAP.md](04_ROADMAP.md) the Codex implementation, [07_V1_WORKFLOW_DRAFT.md](07_V1_WORKFLOW_DRAFT.md) the acceptance tests.
+
 ## 1. Validated observations and newly expressed needs
 
 **Observed during Obsidian trial (self-report):**
@@ -40,7 +59,7 @@ The user reported testing the revised prototype and that it **worked as intended
 
 **Important:** AI may *suggest* classifications or draft tasks; the app must preserve the original capture and distinguish a suggested action from an accepted commitment.
 
-## 4. Candidate navigation
+## 4. Historical candidate navigation (superseded by D-024)
 
 The original concept proposed **Capture / Today / Library / Review / Create**. The current **approved research wireframe** uses **Today / Library / Review** in navigation, one persistent header **Capture** button, and **+ Add task** inside Today. A separate Create or Tasks screen is not required for this prototype.
 
