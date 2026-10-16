@@ -300,15 +300,23 @@ export function EntryList({
           <Text accessibilityLiveRegion="polite" style={styles.meta}>
             {selection.size} selected
           </Text>
-          {(["pin", "unpin", "move", "remove"] as const).map((a) => (
-            <Button
-              key={a}
-              quiet
-              label={a[0].toUpperCase() + a.slice(1)}
-              onPress={() => onBulk(a)}
-              disabled={busy}
-            />
-          ))}
+          <ScrollView
+            horizontal
+            style={{ flex: 1 }}
+            contentContainerStyle={{ alignItems: "center", gap: 4 }}
+            showsHorizontalScrollIndicator={false}
+            accessibilityLabel="Selection actions"
+          >
+            {(["pin", "unpin", "move", "remove"] as const).map((a) => (
+              <Button
+                key={a}
+                quiet
+                label={a[0].toUpperCase() + a.slice(1)}
+                onPress={() => onBulk(a)}
+                disabled={busy}
+              />
+            ))}
+          </ScrollView>
           <IconButton
             name="close"
             label="Close selection"
