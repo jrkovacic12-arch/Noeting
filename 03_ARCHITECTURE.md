@@ -4,6 +4,14 @@
 >
 > **Principle:** Local-first and user-controlled; verify privacy properties rather than assuming them.
 
+## Target M1 refactor architecture — D-024 (not implemented)
+
+Maintain React Native/Expo, SQLite, v6 upgrade compatibility and the local/offline repository. Expose only Note, Task and explicit source-link concepts in the new UI. Do not remove or rewrite historical `entries`, `tasks`, `thinking_links`, `task_sources`, `today_selection`, `scheduled_pins` or legacy `reminders` through a destructive migration. Historical Reflection/Creation rows should render as ordinary Notes while retaining original text, legacy `thinking_kind` metadata, source pointers, edits and creation timestamps. Fresh linked Notes must be possible from **either** Note or Task; avoid relying on the old Reflection/Creation-only API: introduce a generic link/save path with additive schema migration only if needed. Maintain source-at-creation provenance and idempotent request IDs. Reject cycles/self-links if the domain requires them, without breaking existing rows.
+
+For obsolete scheduling: remove UI and active due-pin application without deleting saved Tasks. Clear or park unconsumed scheduled pins safely, avoid invisible re-pinning on startup/resume, and retain the minimal old-notification cancellation path until upgrade cleanup is safe. A future release may explicitly clean old schema, but not during this preservation-first refactor. System theme can replace user theme selection without destroying stored appearance preferences.
+
+Preserve original/current words, task complete/reopen semantics, link navigation to removed sources, and atomic rollback/retry. Avoid broad storage rewrites, account work, import/sync and AI. Refactor the monolithic `App.tsx` into two list screens, shared entry details, shared editor and domain services with narrowly scoped changes; use indexed linked lookups and virtualized lists as justified by performance testing. See [02_PRODUCT.md](02_PRODUCT.md) for required behavior and [07_V1_WORKFLOW_DRAFT.md](07_V1_WORKFLOW_DRAFT.md) for acceptance.
+
 ## 1. Architectural goals (direction)
 
 - The core note/task application should work offline.
