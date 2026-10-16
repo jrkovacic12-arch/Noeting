@@ -46,7 +46,11 @@ export function InlineEditor({
       return;
     }
     const value = current.current;
-    if (value === saved.current) return;
+    if (value === saved.current) {
+      if (drafts.get(context)) drafts.put(context, null);
+      if (mounted.current) setState("saved");
+      return;
+    }
     if (!value.trim()) {
       if (mounted.current) setState("failed");
       return;
@@ -55,7 +59,7 @@ export function InlineEditor({
     let succeeded = false;
     flight.current = (async () => {
       try {
-        await drafts.flush();
+        if (!(await drafts.flush())) throw new Error("Draft storage failed.");
         await saveRef.current(entry.id, value);
         saved.current = value;
         succeeded = true;
