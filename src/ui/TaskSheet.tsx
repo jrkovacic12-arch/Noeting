@@ -74,6 +74,13 @@ export function TaskSheet({
   const request = useRef(restored?.requestId ?? randomUUID());
   const pendingCommit = useRef<Promise<boolean> | null>(null);
   const [adding, setAdding] = useState(false);
+  const [focusPending, setFocusPending] = useState(false);
+  useEffect(() => {
+    if (!adding && focusPending) {
+      setFocusPending(false);
+      input.current?.focus();
+    }
+  }, [adding, focusPending]);
   const editable = !entry.removed && !readOnly && !!task;
   useEffect(() => {
     if (focusChild) input.current?.focus();
@@ -113,7 +120,7 @@ export function TaskSheet({
           });
         }
         setLocalError(false);
-        if (focus) requestAnimationFrame(() => input.current?.focus());
+        if (focus) setFocusPending(true);
         return true;
       } catch {
         setLocalError(true);
