@@ -5,6 +5,7 @@
 - Implement D-024 with two searchable tabs, shared entry details/editor, intentional links, edit/remove/Undo and Complete/Reopen. Remove Today/Review/pin/classification/Settings surfaces; use system theme.
 - Add schema v7 generic source snapshots, preserve populated v6 data, park schedules and stop due-pin effects. Keep legacy notification cleanup.
 - Record automated verification and delivery limits in `06_CURRENT_STATE.md`; no AI, accounts, sync or export/restore added.
+- Following explicit publication approval, open draft PR #6 and upload the verified 0.8.0/code 15 ARM64 APK on a separate download branch; fetched bytes match the verified checksum. Main remains unchanged.
 
 ## 2026-10-16 — D-024 minimalist Notes/Tasks refactor direction
 
