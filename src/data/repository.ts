@@ -10,6 +10,7 @@ export interface Entry {
   createdAt: string;
   thinkingKind: ThinkingKind | null;
   sourceEntryId: string | null;
+  sourceText?: string | null;
   taskSourceId?: string | null;
   taskSourceText?: string | null;
 }
@@ -61,6 +62,7 @@ export interface Repository {
   initialize(): Promise<void>;
   readSnapshot(): Promise<Snapshot>;
   saveCapture(input: CaptureInput): Promise<CaptureResult>;
+  saveLinkedEntry(input: CaptureInput & { sourceEntryId: string }): Promise<CaptureResult>;
   setPinned(id: string, pinned: boolean): Promise<void>;
   completeTask(id: string): Promise<void>;
   reopenTask(id: string): Promise<void>;
@@ -90,7 +92,7 @@ export interface PinSchedule {
   status: 'waiting' | 'applied' | 'cancelled';
 }
 
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 type EntryRow = {
   id: string;
@@ -106,6 +108,7 @@ type EntryRow = {
   created_at: string;
   thinking_kind?: ThinkingKind | null;
   source_entry_id?: string | null;
+  source_text?: string | null;
   task_source_id?: string | null;
   task_source_text?: string | null;
 };
@@ -258,6 +261,18 @@ const migrationV6 = `
   BEGIN SELECT RAISE(ABORT, 'A derived task needs a task entry.'); END;
 `;
 
+// Add generic links without changing legacy classifications or provenance.
+const migrationV7 = `
+  CREATE TABLE entry_sources (
+    entry_id TEXT PRIMARY KEY NOT NULL REFERENCES entries(id) ON DELETE RESTRICT,
+    source_entry_id TEXT NOT NULL REFERENCES entries(id) ON DELETE RESTRICT,
+    source_text TEXT NOT NULL,
+    CHECK (entry_id <> source_entry_id)
+  );
+  CREATE INDEX entry_sources_source ON entry_sources(source_entry_id);
+  UPDATE scheduled_pins SET status='cancelled' WHERE status='waiting';
+`;
+
 class SQLiteRepository implements Repository {
   private readonly mutex: Mutex;
   private initialized = false;
@@ -280,9 +295,14 @@ class SQLiteRepository implements Repository {
       await this.initializeLocked();
       return this.transaction(async () => {
         const entries = await this.db.all<EntryRow>(
-          `SELECT e.*, l.thinking_kind, l.source_entry_id, s.source_entry_id AS task_source_id, s.source_text AS task_source_text
+          `SELECT e.*, l.thinking_kind,
+             COALESCE(g.source_entry_id,l.source_entry_id,s.source_entry_id) AS source_entry_id,
+             COALESCE(g.source_text,s.source_text,original.original_text) AS source_text,
+             s.source_entry_id AS task_source_id, s.source_text AS task_source_text
            FROM entries e LEFT JOIN thinking_links l ON l.entry_id = e.id
-           LEFT JOIN task_sources s ON s.entry_id = e.id ORDER BY e.created_at, e.rowid`,
+           LEFT JOIN task_sources s ON s.entry_id = e.id
+           LEFT JOIN entry_sources g ON g.entry_id = e.id
+           LEFT JOIN entries original ON original.id = l.source_entry_id ORDER BY e.created_at, e.rowid`,
         );
         const tasks = await this.db.all<TaskRow>(
           'SELECT t.* FROM tasks t JOIN entries e ON e.id = t.entry_id WHERE e.removed_at IS NULL ORDER BY t.created_at, t.rowid',
@@ -299,6 +319,7 @@ class SQLiteRepository implements Repository {
             createdAt: row.created_at,
             thinkingKind: row.thinking_kind ?? null,
             sourceEntryId: row.source_entry_id ?? null,
+            sourceText: row.source_text ?? null,
             taskSourceId: row.task_source_id ?? null,
             taskSourceText: row.task_source_text ?? null,
           })),
@@ -336,7 +357,7 @@ class SQLiteRepository implements Repository {
           [input.requestId],
         );
         if (existing) {
-          const linked = await this.db.all('SELECT entry_id FROM thinking_links WHERE entry_id = ?', [existing.id]);
+          const linked = await this.db.all('SELECT entry_id FROM thinking_links WHERE entry_id = ? UNION ALL SELECT entry_id FROM entry_sources WHERE entry_id = ?', [existing.id,existing.id]);
           if (linked.length) throw new Error('This request belongs to a linked entry.');
           const derived = await this.db.all('SELECT entry_id FROM task_sources WHERE entry_id = ?', [existing.id]);
           if (derived.length) throw new Error('This request belongs to a derived task.');
@@ -365,9 +386,6 @@ class SQLiteRepository implements Repository {
             "INSERT INTO tasks(id, entry_id, title, status, pinned, created_at, completed_at) VALUES (?, ?, ?, 'pending', 0, ?, NULL)",
             [taskId, entryId, input.text.trim(), createdAt],
           );
-        }
-        if (input.kind === 'note') {
-          await this.db.run('INSERT INTO today_selection(id, entry_id) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET entry_id = excluded.entry_id', [entryId]);
         }
         return { entryId, taskId };
       });
@@ -466,20 +484,36 @@ class SQLiteRepository implements Repository {
     });
   }
 
-  applyDuePins(now = new Date().toISOString()): Promise<void> {
+  /** Retained for upgrade callers; scheduling is retired in the minimal app. */
+  async applyDuePins(_now?: string): Promise<void> {
+    await this.initialize();
+  }
+
+  saveLinkedEntry(input: CaptureInput & { sourceEntryId: string }): Promise<CaptureResult> {
     return this.mutex.run(async () => {
-      if (!Number.isFinite(Date.parse(now))) throw new Error('Invalid pin clock.');
+      if (typeof input.requestId !== 'string' || !input.requestId.trim()) throw new Error('A linked entry needs a stable request ID.');
+      if (input.kind !== 'note' && input.kind !== 'task') throw new Error('Choose Note or Task.');
+      if (typeof input.text !== 'string' || !input.text.trim()) throw new Error('Write something before saving.');
       await this.initializeLocked();
-      await this.transaction(async () => {
-        const due = await this.db.all<{task_id:string;due_at:string;pinned:number}>(
-          `SELECT s.task_id,s.due_at,t.pinned FROM scheduled_pins s JOIN tasks t ON t.id=s.task_id JOIN entries e ON e.id=t.entry_id
-           WHERE s.status='waiting' AND s.due_at<=? AND t.status='pending' AND e.removed_at IS NULL ORDER BY s.due_at,s.task_id`, [new Date(now).toISOString()]);
-        const [order] = await this.db.all<{next:number}>('SELECT COALESCE(MAX(pin_order),0)+1 AS next FROM tasks');
-        let next=order.next;
-        for (const item of due) {
-          if (!item.pinned) await this.db.run('UPDATE tasks SET pinned=1,pinned_at=?,pin_order=? WHERE id=?', [item.due_at,next++,item.task_id]);
-          await this.db.run("UPDATE scheduled_pins SET status='applied' WHERE task_id=?", [item.task_id]);
+      return this.transaction(async () => {
+        const request = `entry-link:${input.requestId}`;
+        const [existing] = await this.db.all<EntryRow>(
+          `SELECT e.*,s.source_entry_id FROM entries e LEFT JOIN entry_sources s ON s.entry_id=e.id WHERE e.capture_request_id=?`, [request]);
+        if (existing) {
+          if (existing.kind !== input.kind || existing.original_text !== input.text || existing.source_entry_id !== input.sourceEntryId) throw new Error('This request was already saved with different content or source.');
+          const [task] = await this.db.all<{id:string}>('SELECT id FROM tasks WHERE entry_id=?',[existing.id]);
+          if (input.kind === 'task' && !task) throw new Error('The saved task is missing.');
+          return {entryId:existing.id,taskId:task?.id ?? null};
         }
+        const [source] = await this.db.all<EntryRow>('SELECT * FROM entries WHERE id=? AND removed_at IS NULL',[input.sourceEntryId]);
+        if (!source) throw new Error('Source entry was not found.');
+        // Every link points from a new entry to an existing source, so cycles cannot form.
+        const entryId=`entry_${request}`, taskId=input.kind === 'task' ? `task_${request}` : null;
+        const createdAt=new Date().toISOString();
+        await this.db.run('INSERT INTO entries(id,capture_request_id,kind,original_text,created_at) VALUES (?,?,?,?,?)',[entryId,request,input.kind,input.text,createdAt]);
+        if (taskId) await this.db.run("INSERT INTO tasks(id,entry_id,title,status,pinned,created_at,completed_at) VALUES (?,?,?,'pending',0,?,NULL)",[taskId,entryId,input.text.trim(),createdAt]);
+        await this.db.run('INSERT INTO entry_sources(entry_id,source_entry_id,source_text) VALUES (?,?,?)',[entryId,source.id,source.edited_text ?? source.original_text]);
+        return {entryId,taskId};
       });
     });
   }
@@ -599,6 +633,7 @@ class SQLiteRepository implements Repository {
       if (version.user_version < 4) await this.db.exec(migrationV4);
       if (version.user_version < 5) await this.db.exec(migrationV5);
       if (version.user_version < 6) await this.db.exec(migrationV6);
+      if (version.user_version < 7) await this.db.exec(migrationV7);
       if (version.user_version < SCHEMA_VERSION) await this.db.exec(`PRAGMA user_version = ${SCHEMA_VERSION};`);
     });
     this.initialized = true;

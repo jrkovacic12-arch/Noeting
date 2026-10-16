@@ -308,27 +308,21 @@ test('linked saves are atomic and retry idempotent; changed source/text/type is 
     await assert.rejects(repo.chooseTodayNote('absent'), /saved note/);
     const task = await repo.saveCapture({requestId:'task',kind:'task',text:'A task'});
     await assert.rejects(repo.chooseTodayNote(task.entryId), /saved note/);
-    assert.equal((await repo.readSnapshot()).chosenEntryId, other.entryId);
+    assert.equal((await repo.readSnapshot()).chosenEntryId, null);
   } finally { database.close(); }
 });
 
-test('new Note and Today selection commit atomically; linked saves and retries do not steal selection', async () => {
+test('standalone captures never select Today or change a legacy selection', async () => {
   const db=new DatabaseSync(':memory:');
   try {
     const repo=createRepository(sqliteDriver(db));
-    const first=await repo.saveCapture({requestId:'auto-first',kind:'note',text:'First'});
+    const first=await repo.saveCapture({requestId:'first',kind:'note',text:'First'});
+    assert.equal((await repo.readSnapshot()).chosenEntryId,null);
+    await repo.chooseTodayNote(first.entryId); // Simulate an existing historical selection.
+    db.exec("CREATE TRIGGER fail_selection BEFORE INSERT ON today_selection BEGIN SELECT RAISE(ABORT,'Must not select'); END;");
+    await repo.saveCapture({requestId:'second',kind:'note',text:'Second'});
+    await repo.saveCapture({requestId:'third',kind:'task',text:'Third'});
     assert.equal((await repo.readSnapshot()).chosenEntryId,first.entryId);
-    db.exec("CREATE TRIGGER fail_selection BEFORE INSERT ON today_selection BEGIN SELECT RAISE(ABORT,'Selection failed'); END;");
-    const input={requestId:'auto-second',kind:'note' as const,text:'  Second 🌿\n  '};
-    await assert.rejects(repo.saveCapture(input),/Selection failed/);
-    assert.equal((await repo.readSnapshot()).entries.length,1);
-    assert.equal((await repo.readSnapshot()).chosenEntryId,first.entryId);
-    db.exec('DROP TRIGGER fail_selection;');
-    const second=await repo.saveCapture(input);
-    await repo.saveLinked({requestId:'auto-reflect',sourceEntryId:first.entryId,kind:'reflection',text:'Reflection'});
-    await repo.saveCapture({requestId:'auto-first',kind:'note',text:'First'});
-    await repo.saveCapture({requestId:'auto-task',kind:'task',text:'Task'});
-    assert.equal((await repo.readSnapshot()).chosenEntryId,second.entryId);
   } finally {db.close();}
 });
 
@@ -388,6 +382,7 @@ test('removal keeps provenance, clears selection and pin, and durable Undo does 
     let repo=createRepository(sqliteDriver(db));
     const source=await repo.saveCapture({requestId:'remove-source',kind:'note',text:'Source'});
     const linked=await repo.saveLinked({requestId:'remove-reflection',sourceEntryId:source.entryId,kind:'reflection',text:'Keep reflection'});
+    await repo.chooseTodayNote(source.entryId);
     const receipt=await repo.removeEntry(source.entryId);
     assert.deepEqual(await repo.removeEntry(source.entryId),receipt);
     const removed=await repo.readSnapshot();assert.equal(removed.chosenEntryId,null);
@@ -397,6 +392,7 @@ test('removal keeps provenance, clears selection and pin, and durable Undo does 
     await assert.rejects(repo.chooseTodayNote(source.entryId),/saved note/);
     db.close();db=new DatabaseSync(file);repo=createRepository(sqliteDriver(db));
     const newer=await repo.saveCapture({requestId:'remove-newer',kind:'note',text:'Newer'});
+    await repo.chooseTodayNote(newer.entryId);
     await repo.restoreEntry(receipt);await repo.restoreEntry(receipt);
     assert.equal((await repo.readSnapshot()).chosenEntryId,newer.entryId);
     await repo.removeEntry(source.entryId);await assert.rejects(repo.restoreEntry(receipt),/no longer/);
@@ -424,6 +420,7 @@ test('failed removal rolls back hidden state, pin and Today selection and Undo c
   const db=new DatabaseSync(':memory:');
   try {
     const repo=createRepository(sqliteDriver(db));const note=await repo.saveCapture({requestId:'remove-fail',kind:'note',text:'Keep selected'});
+    await repo.chooseTodayNote(note.entryId);
     const before=await repo.readSnapshot();
     db.exec("CREATE TRIGGER fail_remove BEFORE DELETE ON today_selection BEGIN SELECT RAISE(ABORT,'Remove failed'); END;");
     await assert.rejects(repo.removeEntry(note.entryId),/Remove failed/);assert.deepEqual(await repo.readSnapshot(),before);
@@ -500,7 +497,7 @@ test('derived task link failure rolls back entry and task, then retries with one
     assert.deepEqual(await repo.readSnapshot(),before);
     db.exec('DROP TRIGGER fail_source');
     await repo.saveDerivedTask(input);
-    assert.equal((await repo.readSnapshot()).chosenEntryId,source.entryId);
+    assert.equal((await repo.readSnapshot()).chosenEntryId,null);
     assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
   } finally {db.close();}
 });
@@ -526,7 +523,7 @@ test('schema v3 to v4 preserves all historical rows and rolls back an interrupte
 });
 
 
-import {parseLocalPinTime} from '../src/reminders';
+
 
 test('v4 migration preserves source data and pins, converts outstanding reminders and clears notification intent atomically',async()=>{
   const db=new DatabaseSync(':memory:');
@@ -545,77 +542,25 @@ test('v4 migration preserves source data and pins, converts outstanding reminder
     fail=false;await repo.initialize();
     const snap=await repo.readSnapshot();assert.equal(snap.entries[1].taskSourceId,'n');assert.equal(snap.tasks[0].pinned,true);
     assert.equal(snap.tasks[0].pinnedAt,'2026-10-15T00:00:01Z');
-    assert.deepEqual(await repo.readScheduledPins(),[{taskId:'task',dueAt:'2035-01-01T12:00:00Z',status:'waiting'}]);
+    assert.deepEqual(await repo.readScheduledPins(),[{taskId:'task',dueAt:'2035-01-01T12:00:00Z',status:'cancelled'}]);
     assert.equal(db.prepare("SELECT status FROM reminders WHERE task_id='task'").get()!.status,'cancelled');
     assert.equal(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='trigger' AND name LIKE 'tasks_pin_limit%'").get()!.n,0);
     assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
   }finally{db.close();}
 });
 
-test('scheduled pins apply once when due, catch up after restart and order overdue times below newer manual pins',async()=>{
-  const dir=await mkdtemp(join(tmpdir(),'noeting-pins-')),file=join(dir,'db.sqlite');let db=new DatabaseSync(file);
-  try{
+test('retired due-pin calls never mutate tasks, including across restart', async () => {
+  const db=new DatabaseSync(':memory:');
+  try {
     let repo=createRepository(sqliteDriver(db));
-    const earlier=await repo.saveCapture({requestId:'earlier',kind:'task',text:'Earlier'});
-    const later=await repo.saveCapture({requestId:'later',kind:'task',text:'Later'});
-    const manual=await repo.saveCapture({requestId:'manual',kind:'task',text:'Manual'});
-    const t1=new Date(Date.now()+3600000).toISOString(),t2=new Date(Date.now()+7200000).toISOString();
-    await repo.setScheduledPin(earlier.taskId!,t1);await repo.setScheduledPin(later.taskId!,t2);
-    await repo.applyDuePins(new Date(Date.parse(t1)-1).toISOString());
-    assert.equal((await repo.readSnapshot()).tasks.filter(t=>t.pinned).length,0);
-    db.close();db=new DatabaseSync(file);repo=createRepository(sqliteDriver(db));
-    await repo.applyDuePins(t2);
-    let tasks=(await repo.readSnapshot()).tasks;
-    assert.equal(tasks.filter(t=>t.pinned).length,2);assert.equal(tasks[0].pinnedAt,t1);assert.equal(tasks[1].pinnedAt,t2);
-    assert.equal((await repo.readScheduledPins()).filter(s=>s.status==='applied').length,2);
-    const before=await repo.readSnapshot();await repo.applyDuePins(t2);assert.deepEqual(await repo.readSnapshot(),before);
-    await repo.setPinned(manual.taskId!,true);
-    // Simulate a newer actual manual pin, then replay a due check. It must stay newest.
-    db.prepare('UPDATE tasks SET pinned_at=? WHERE id=?').run(new Date(Date.parse(t2)+1000).toISOString(),manual.taskId!);
-    await repo.applyDuePins(t2);tasks=(await repo.readSnapshot()).tasks;
-    tasks.sort((a,b)=>(b.pinnedAt??'').localeCompare(a.pinnedAt??'') || b.pinOrder-a.pinOrder);
-    assert.equal(tasks[0].id,manual.taskId);assert.equal(tasks[1].id,later.taskId);
-  }finally{db.close();await rm(dir,{recursive:true,force:true});}
+    const task=await repo.saveCapture({requestId:'old-schedule',kind:'task',text:'Leave alone'});
+    await repo.setScheduledPin(task.taskId!,'2099-01-01T00:00:00Z');
+    const before=await repo.readSnapshot();
+    repo=createRepository(sqliteDriver(db));
+    await repo.applyDuePins('2100-01-01T00:00:00Z');
+    assert.deepEqual(await repo.readSnapshot(),before);
+  } finally {db.close();}
 });
-
-test('due schedules keep already-pinned order, manual pin order breaks ties, cancellation and completion do not re-pin',async()=>{
-  const db=new DatabaseSync(':memory:');
-  try{
-    const repo=createRepository(sqliteDriver(db));
-    const a=await repo.saveCapture({requestId:'a',kind:'task',text:'A'}),b=await repo.saveCapture({requestId:'b',kind:'task',text:'B'});
-    await repo.setPinned(a.taskId!,true);await repo.setPinned(b.taskId!,true);
-    const before=(await repo.readSnapshot()).tasks;assert.ok(before[1].pinOrder>before[0].pinOrder);
-    await repo.setPinned(a.taskId!,true);assert.deepEqual((await repo.readSnapshot()).tasks,before);
-    const due=new Date(Date.now()+3600000).toISOString();await repo.setScheduledPin(a.taskId!,due);await repo.applyDuePins(due);
-    assert.deepEqual((await repo.readSnapshot()).tasks,before);
-    await repo.setPinned(a.taskId!,false);await repo.applyDuePins(due);assert.equal((await repo.readSnapshot()).tasks[0].pinned,false);
-    await repo.setScheduledPin(a.taskId!,due);await repo.setScheduledPin(a.taskId!,null);await repo.applyDuePins(due);
-    assert.equal((await repo.readSnapshot()).tasks[0].pinned,false);
-    await repo.setScheduledPin(a.taskId!,due);await repo.completeTask(a.taskId!);await repo.reopenTask(a.taskId!);await repo.applyDuePins(due);
-    assert.equal((await repo.readSnapshot()).tasks[0].pinned,false);
-    await repo.setScheduledPin(b.taskId!,due);const removal=await repo.removeEntry(b.entryId);await repo.restoreEntry(removal);await repo.setPinned(b.taskId!,false);await repo.applyDuePins(due);
-    assert.equal((await repo.readSnapshot()).tasks[1].pinned,false);
-  }finally{db.close();}
-});
-
-test('scheduled pin application and intent roll back together on failure; changed times and invalid inputs are safe',async()=>{
-  const db=new DatabaseSync(':memory:');
-  try{
-    const repo=createRepository(sqliteDriver(db));const task=await repo.saveCapture({requestId:'failure',kind:'task',text:'Task'});
-    await assert.rejects(repo.setScheduledPin(task.taskId!,'invalid'),/future/);
-    const due=new Date(Date.now()+3600000).toISOString();await repo.setScheduledPin(task.taskId!,due);
-    db.exec("CREATE TRIGGER fail_apply BEFORE UPDATE OF status ON scheduled_pins WHEN NEW.status='applied' BEGIN SELECT RAISE(ABORT,'apply failure'); END");
-    await assert.rejects(repo.applyDuePins(due),/apply failure/);
-    assert.equal((await repo.readSnapshot()).tasks[0].pinned,false);assert.equal((await repo.readScheduledPins())[0].status,'waiting');
-    db.exec('DROP TRIGGER fail_apply');
-    const changed=new Date(Date.parse(due)+3600000).toISOString();await repo.setScheduledPin(task.taskId!,changed);await repo.applyDuePins(due);
-    assert.equal((await repo.readSnapshot()).tasks[0].pinned,false);
-    await repo.applyDuePins(changed);assert.equal((await repo.readSnapshot()).tasks[0].pinned,true);
-    assert.throws(()=>parseLocalPinTime('2035-02-30','12:00'),/valid/);
-    assert.throws(()=>parseLocalPinTime('2035-01-01','24:00'),/valid/);
-  }finally{db.close();}
-});
-
 
 test('task-to-task links keep independent completion, pins and immutable source across removal/retry',async()=>{
   const db=new DatabaseSync(':memory:');
@@ -661,7 +606,92 @@ test('v5 migration changes source validation atomically while preserving existin
     fail=false;await repo.initialize();
     await repo.saveDerivedTask({requestId:'c',sourceEntryId:'p',text:'Child'});
     assert.equal((await repo.readSnapshot()).tasks.length,2);
+    assert.equal(db.prepare('PRAGMA user_version').get()!.user_version,SCHEMA_VERSION);
+    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
+  }finally{db.close();}
+});
+
+test('populated v6 upgrade preserves all historical tables and parks schedules atomically',async()=>{
+  const db=new DatabaseSync(':memory:');
+  try {
+    db.exec(await readFile(new URL('./fixtures/schema-v6-populated.sql',import.meta.url),'utf8'));
+    const tables=['entries','tasks','thinking_links','task_sources','today_selection','reminders'];
+    const original=tables.map(table=>db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all());
+    const schedules=db.prepare('SELECT * FROM scheduled_pins').all();
+    const driver=sqliteDriver(db);let fail=true;
+    const repo=createRepository({...driver,async exec(sql){await driver.exec(sql);if(fail&&sql.includes('CREATE TABLE entry_sources'))throw Error('Migration interrupted');}});
+    await assert.rejects(repo.initialize(),/Migration interrupted/);
     assert.equal(db.prepare('PRAGMA user_version').get()!.user_version,6);
+    assert.equal(db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE name='entry_sources'").get()!.n,0);
+    assert.deepEqual(db.prepare('SELECT * FROM scheduled_pins').all(),schedules);
+    fail=false;const snapshot=await repo.readSnapshot();
+    tables.forEach((table,i)=>assert.deepEqual(db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all(),original[i],table));
+    assert.equal(snapshot.entries.length,6);
+    assert.equal(snapshot.entries.filter(e=>e.thinkingKind!==null).length,2);
+    assert.equal(snapshot.entries.find(e=>e.id==='entry_legacy-note')!.text,'Edited legacy note');
+    assert.equal(snapshot.entries.find(e=>e.id==='entry_legacy-note')!.removed,true);
+    assert.equal(snapshot.entries.find(e=>e.id==='entry_derived:legacy-derived')!.sourceText,'Edited legacy note');
+    assert.equal(snapshot.tasks.find(t=>t.id==='task_derived:legacy-derived')!.status,'completed');
+    assert.deepEqual(db.prepare('SELECT * FROM scheduled_pins').all(),schedules.map(row=>Object.assign(Object.create(null),row,{status:'cancelled'})));
+    await repo.applyDuePins('2100-01-01T00:00:00Z');
+    assert.deepEqual(await repo.readSnapshot(),snapshot);
+    assert.deepEqual(await createRepository(sqliteDriver(db)).readSnapshot(),snapshot);
+    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
+  }finally{db.close();}
+});
+
+test('all four generic link combinations preserve independent words, status and source snapshots through reopen',async()=>{
+  const dir=await mkdtemp(join(tmpdir(),'noeting-links-')),file=join(dir,'db.sqlite');let db=new DatabaseSync(file);
+  try {
+    let repo=createRepository(sqliteDriver(db));
+    for(const sourceKind of ['note','task'] as const){
+      const source=await repo.saveCapture({requestId:`parent-${sourceKind}`,kind:sourceKind,text:`Original ${sourceKind}`});
+      await repo.editEntry(source.entryId,`Edited ${sourceKind}`);
+      for(const kind of ['note','task'] as const){
+        const input={requestId:`${sourceKind}-${kind}`,sourceEntryId:source.entryId,kind,text:`  Independent ${kind}\n🌿  `};
+        const results=await Promise.all(Array.from({length:4},()=>repo.saveLinkedEntry(input)));
+        assert.ok(results.every(result=>result.entryId===results[0].entryId));
+        await assert.rejects(repo.saveLinkedEntry({...input,text:'Changed'}),/different content or source/);
+        await assert.rejects(repo.saveLinkedEntry({...input,kind:kind==='note'?'task':'note'}),/different content or source/);
+        await assert.rejects(repo.saveLinkedEntry({...input,sourceEntryId:'absent'}),/different content or source/);
+        const child=(await repo.readSnapshot()).entries.find(e=>e.id===results[0].entryId)!;
+        assert.equal(child.sourceText,`Edited ${sourceKind}`);assert.equal(child.sourceEntryId,source.entryId);assert.equal(child.thinkingKind,null);
+        await repo.editEntry(child.id,'Child edited');
+        if(results[0].taskId){await repo.completeTask(results[0].taskId!);await repo.reopenTask(results[0].taskId!);}
+        assert.deepEqual(await repo.saveLinkedEntry(input),results[0]);
+      }
+      if(source.taskId)await repo.completeTask(source.taskId);
+      await repo.editEntry(source.entryId,'Later parent');await repo.removeEntry(source.entryId);
+      const children=(await repo.readSnapshot()).entries.filter(e=>e.sourceEntryId===source.entryId);
+      assert.equal(children.length,2);assert.ok(children.every(e=>!e.removed&&e.sourceText===`Edited ${sourceKind}`));
+      const childTask=(await repo.readSnapshot()).tasks.find(t=>t.entryId===children.find(e=>e.kind==='task')!.id)!;
+      assert.equal(childTask.status,'pending');
+      await assert.rejects(repo.saveLinkedEntry({requestId:`removed-${sourceKind}`,sourceEntryId:source.entryId,kind:'note',text:'No'}),/not found/);
+      const retry=await repo.saveLinkedEntry({requestId:`${sourceKind}-note`,sourceEntryId:source.entryId,kind:'note',text:'  Independent note\n🌿  '});
+      assert.equal(retry.entryId,children.find(e=>e.kind==='note')!.id);
+    }
+    const before=await repo.readSnapshot();db.close();db=new DatabaseSync(file);repo=createRepository(sqliteDriver(db));
+    assert.deepEqual(await repo.readSnapshot(),before);assert.equal(before.entries.length,6);assert.equal(before.chosenEntryId,null);
+  }finally{db.close();await rm(dir,{recursive:true,force:true});}
+});
+
+test('generic linked saves roll back source, entry and task together and retry without duplicates',async()=>{
+  const db=new DatabaseSync(':memory:');
+  try{
+    const repo=createRepository(sqliteDriver(db));const parent=await repo.saveCapture({requestId:'source',kind:'note',text:'Parent'});
+    const before=await repo.readSnapshot();
+    db.exec("CREATE TRIGGER fail_generic BEFORE INSERT ON entry_sources BEGIN SELECT RAISE(ABORT,'Link failed'); END;");
+    for(const kind of ['note','task'] as const)await assert.rejects(repo.saveLinkedEntry({requestId:kind,sourceEntryId:parent.entryId,kind,text:'Keep my words'}),/Link failed/);
+    assert.deepEqual(await repo.readSnapshot(),before);
+    db.exec('DROP TRIGGER fail_generic');
+    for(const kind of ['note','task'] as const){
+      const input={requestId:kind,sourceEntryId:parent.entryId,kind,text:'Keep my words'};
+      const saved=await repo.saveLinkedEntry(input);assert.deepEqual(await repo.saveLinkedEntry(input),saved);
+      // A standalone request must not accidentally claim a linked record.
+      await assert.rejects(repo.saveCapture({requestId:`entry-link:${kind}`,kind,text:input.text}),/linked entry/);
+    }
+    assert.equal((await repo.readSnapshot()).entries.length,3);
+    assert.equal((await repo.readSnapshot()).tasks.length,1);
     assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
   }finally{db.close();}
 });

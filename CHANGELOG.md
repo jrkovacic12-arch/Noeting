@@ -1,5 +1,11 @@
 # Noeting — Documentation Change Log (started 2026-10-11)
 
+## 2026-10-16 — 0.8.0 minimal Notes/Tasks implementation
+
+- Implement D-024 with two searchable tabs, shared entry details/editor, intentional links, edit/remove/Undo and Complete/Reopen. Remove Today/Review/pin/classification/Settings surfaces; use system theme.
+- Add schema v7 generic source snapshots, preserve populated v6 data, park schedules and stop due-pin effects. Keep legacy notification cleanup.
+- Record automated verification and delivery limits in `06_CURRENT_STATE.md`; no AI, accounts, sync or export/restore added.
+
 ## 2026-10-16 — D-024 minimalist Notes/Tasks refactor direction
 
 - Approve future M1 target of Notes and Tasks tabs with per-tab search/+ and dedicated entry detail; link a new Note or Task exclusively from an entry-detail screen.

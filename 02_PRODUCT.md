@@ -4,9 +4,9 @@
 >
 > **Source of truth for:** user needs, product objects, features, UX behavior, and MVP boundaries.
 
-## Target M1 product contract — D-024 (approved direction, not yet implemented)
+## Current M1 product contract — D-024 (0.8.0 source)
 
-**Priority:** This current-facing contract supersedes conflicting historical 0.7.1 UX descriptions below. The existing shipped/tested source remains 0.7.1. Here “M1” means the *new minimalist refactor baseline*, not the original 2026-10-13 M1 milestone.
+**Priority:** This current-facing contract supersedes conflicting historical 0.7.1 UX descriptions below. The local 0.8.0 implementation follows this contract; native and phone acceptance are tracked in `06_CURRENT_STATE.md`. Here “M1” means the *new minimalist refactor baseline*, not the original 2026-10-13 M1 milestone.
 
 | Screen | Behavior |
 | --- | --- |
@@ -161,7 +161,7 @@ The status below is for a working product, not the interactive research wirefram
 
 ### Minimalist interface constraints (D-023)
 
-Prefer a small Capture/Today/Library/Review interface and voluntary linked thinking to editor formatting, nested taxonomies, graphs or new screens without demonstrated need. Keep Xiaomi Notes a UX reference rather than an assumed integration. [D-023](05_DECISIONS.md) owns the decision; [04_ROADMAP.md](04_ROADMAP.md) owns unapproved later AI experiments. No agent feature is part of V1.
+Use the Notes/Tasks contract above; avoid editor formatting, nested taxonomies, graphs or new screens without demonstrated need. Keep Xiaomi Notes a UX reference rather than an assumed integration. [D-023](05_DECISIONS.md) owns the decision; [04_ROADMAP.md](04_ROADMAP.md) owns unapproved later AI experiments. No agent feature is part of V1.
 
 ## 8. UX and safety constraints
 

@@ -3,7 +3,7 @@
 > Created: 2026-10-11. Updated: 2026-10-12 (V1.2 wireframe revision). Status: proposed workflow with a small interactive wireframe and limited automated checks; not an approved implementation specification.
 > Milestone: design and validate Capture → Today. The examples below are illustrative, not observations from real usage.
 
-## D-024 acceptance scenarios for future minimalist M1 (not yet executed)
+## D-024 acceptance scenarios — 0.8.0 automated coverage; native acceptance pending
 
 - **A1:** Open Notes: only Notes/Tasks primary navigation, searchable Note list and + creating a standalone Note. It appears once, is editable in its entry details, and survives offline restart. Saving does not classify it as Reflection/Creation, select a Today Note or open another flow.
 - **A2:** Open Tasks: searchable Task list and + creating a pending Task; Complete/Reopen updates the same Task without duplication, source edits or confirmation. Preserve state through restart.
@@ -13,7 +13,9 @@
 - **A6:** Navigate lists/detail, search, edit/remove, return with Android Back, use large text/keyboard, and restart offline. No Today, Review, summary card, pin/schedule controls, extra Settings or hidden scheduled-pin activation appears. Old OS notifications are cancelled through supported upgrade cleanup if applicable.
 - **A7:** No data loss or silent conversions when linking, completing, removing or retrying a failed save. No AI/account/sync/backend requirement. Record real device and automated evidence separately; previous tests remain historical and must be updated, not called passed for the refactor.
 
-**Scope status:** This section supersedes earlier wireframe tests as *future* acceptance criteria only. The remaining sections below preserve the pre-D-024 historical prototype and 0.7.1 testing record.
+**Evidence:** TypeScript and 29 real-SQLite tests pass, including populated v6 preservation, migration rollback, generic-link failure/retry, all four link combinations and file reopen. Five Playwright workflows against the real Expo SQLite web build pass: searchable/offline capture and completion/restart; all four detail-only links and removed sources; populated v6 UI upgrade; failed-save text retention/retry and edit/remove/Undo; system theme and 320px/large-text layout. These cover browser portions of A1–A7, not native Android Back, keyboard, OS notification cleanup, phone in-place upgrade or native offline reboot. See `06_CURRENT_STATE.md` for delivery evidence.
+
+**Scope status:** This section supersedes earlier wireframe tests as current acceptance criteria. The remaining sections below preserve the pre-D-024 historical prototype and 0.7.1 testing record.
 
 ## Goal and boundary
 

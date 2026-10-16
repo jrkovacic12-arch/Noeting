@@ -1,12 +1,24 @@
 # Noeting — Current State and Session Handoff
 
-> **Updated:** 2026-10-16 (D-024 minimal two-tab M1 future refactor documented; app remains 0.7.1)
+> **Updated:** 2026-10-16 (D-024 implemented locally as 0.8.0/schema v7)
 >
-> **Phase:** 0.7.1 local Capture/Today/Library/Review, linked entries, scheduled pins and settings implemented; D-023 sets the minimal independent-app direction. Schema v6 remains unchanged; older release evidence below is historical.
+> **Phase:** Minimal Notes/Tasks interface implemented. Earlier Capture/Today/Library/Review/pin evidence below is historical.
 >
-> **Current verification:** 0.7.1 TypeScript, web export and all three focused browser workflows passed; Android ARM64 build/static verification passed for 0.7.1/code 14. The 0.7.1 APK is published and its fetched checksum matches. The user reported testing the 0.7.1 APK and explicitly approved merging [PR #4](https://github.com/jrkovacic12-arch/Noeting/pull/4). Device/OS and individual test outcomes were not supplied; this is user-reported acceptance, not new automated native-runtime evidence.
+> **Current verification:** TypeScript and 29 real-SQLite tests pass; web export and five real-storage browser workflows pass. Native Android build status is recorded below. Android runtime and physical-device acceptance for 0.8.0 remain pending; the user-reported 0.7.1 approval does not cover this refactor.
 
 ## 1. Verified progress
+
+### 2026-10-16 — 0.8.0 minimal Notes/Tasks implementation (current)
+
+- Reviewed `00_START_HERE.md`, the project contract and accepted D-024 in latest main commit `e04b51ba3ff87e4928ffe4a78f3a22507d55ded0` (PR #5). Updated the local checkout to that commit before completing the refactor. Source is prepared locally against that commit on `codex/minimal-notes-tasks-v080`. Automatic approval review rejected the combined commit/push command because this session lacks explicit authorization to export source changes to GitHub. The command did not run; no source, PR or APK was published. The configured chat attachment path is unavailable because `/codex` is read-only on this host.
+- Replace the monolithic UI with shared searchable list, entry-detail and editor components. Notes and Tasks are the only primary destinations; each + creates a standalone entry. Details support intentional Link note / Link task, full text, source/original capture, children, edit/remove/Undo and Task Complete/Reopen. System appearance replaces Settings without overwriting saved preferences. No Today/Review/dashboard/pin controls, writing classifications or schedule timers remain in the app.
+- Add schema v7 generic source snapshots and duplicate-safe linked saves. The populated-v6 fixture was generated with the original 0.7.1 repository, before code edits. SQLite tests compare every historical entry/task/link/selection/reminder row, preserve removed sources and completed tasks, and prove migration rollback/retry. Waiting schedules become cancelled while retaining their dates; due-pin compatibility calls cannot mutate Tasks. Old OS notification cancellation is retained and retried on resume, with native acceptance pending.
+- `npm run check` passes TypeScript and **29 real-SQLite tests** (`work/check.log`); final accessibility changes also pass `npm run typecheck` (`work/typecheck-final.log`). `npm run export:web` passes (`work/export-web.log`). All **five Playwright workflows** pass (`work/ui.log`): offline capture/search/completion and full browser restart; all four detail-only link combinations and removed sources; populated-v6 upgrade UI; failed-save text retention/retry, edit/remove/Undo; live system theme and 320px/large-text layout. Injected SQLite errors are deliberate failure-test evidence.
+- **Android ARM64 build/static verification passed:** `npm run build:android:test` completed in 12m 7s. Version **0.8.0/code 15**, package `com.noeting.app`, API 24/36, same development signer `fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c`. APK: `artifacts/noeting-m1-android-arm64-test.apk`, **29465748 bytes**, SHA-256 `8698a7440cf5a69e2eadc05b00a6cae72589215fe49d96127f0657cfbdd1ce40`. Verified signature, ZIP integrity, 16KB alignment, embedded Hermes/SQLite/React Native, explicit disabled backups, version/code and blocked unused permissions. Report: `artifacts/noeting-v080-arm64-verification.json`; build log: `work/build-android.log`. Static checks do not establish native runtime acceptance. The user subsequently explicitly approved publishing a draft PR and uploading this verified APK; delivery results are recorded below.
+- No native runtime checks were run: this workspace has no configured emulator/system image. Android Back, keyboard, native upgrade/offline reboot, legacy notification cancellation and physical-phone acceptance remain unverified. Browser durability covers an already loaded offline app and browser restart with the server available, not offline browser cold start.
+- Local SQLite remains unencrypted; backup/export/restore remains deferred under D-018. Source originals/edits/links are preserved by tested upgrades, but physical-device migration and data recovery remain separate acceptance risks. No AI, accounts, sync, backend or Xiaomi integration was added. Large-backlog performance is not benchmarked.
+
+**Earlier records below are historical.**
 
 - The user reported using Obsidian for thoughts, plans, tasks, and review, with unmet needs for task clarity, priorities, summaries, and reminders.
 - Vision and accepted project directions are recorded in [01_VISION.md](01_VISION.md) and [05_DECISIONS.md](05_DECISIONS.md).
@@ -244,7 +256,7 @@ The user chose Notes and Tasks as the only primary screens, each with search and
 
 ## 2. Exact next action — only maintained here
 
-**Next Codex implementation task, once development is started:** implement D-024's new two-screen M1 beginning with a populated-v6 preservation/migration baseline and generic linked-Note/Task repository APIs. Then replace navigation/UI and retire scheduled-pin side effects. Use the exact stages in `04_ROADMAP.md` and acceptance tests in `07_V1_WORKFLOW_DRAFT.md`. This is **not yet implemented or tested**. User-reported 0.7.1 APK approval remains historical; actual per-device acceptance is unspecified. Accounts/sync and backup/export/restore remain deferred.
+**Next action:** test the delivered 0.8.0 ARM64 APK as an in-place 0.7.1 upgrade without uninstalling: legacy notes/edits/links/completion; capture/search; all four links; edit/remove/Undo; Android Back/keyboard; offline relaunch; old notification cancellation and no due-pin activation. Record device/OS and actual outcomes here. The source PR stays draft pending review/device acceptance; accounts/sync and backup/export/restore remain deferred.
 
 **Handoff context:** The user agreed to the first-app feature set (D-010), to React Native + Expo + TypeScript + SQLite (D-011), and to implement using Codex. The user said the updated prototype was tested and **“worked as intended”**; the test device and per-scenario results were not specified. Do not claim full S1–S4 validation or verified native runtime from that prototype report or the static APK checks.
 
