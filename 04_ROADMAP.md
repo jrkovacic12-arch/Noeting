@@ -2,14 +2,22 @@
 
 > **Status:** Working plan, not a committed schedule. Checked work items identify source implementation; device acceptance remains a separate gate.
 >
-> **Current phase:** D-027 adds folder management and persistent folder pins to PR #6 in 0.10.2/schema v10, retaining D-026 inline editing and synchronized hierarchy. Native Android 9 emulator checks are historical, and physical-device acceptance remains pending.
+> **Current phase:** PR #6 merged 0.10.2/schema v10 (D-024–D-027) into `main` on 2026-10-17. Physical-device acceptance remains pending; older Android 9 emulator checks concern historical builds.
 
-## Current folder refinement — D-027
+## Immediate post-merge validation gate — 0.10.2
+
+1. Install the matching 0.10.2/code 19 ARM64 test APK **over a compatible populated installation without uninstalling**; record device, Android version, signer and whether prior entries/migrations remain intact.
+2. Verify folder creation, selection, Edit, Pin/Unpin, deletion confirmation, Notes preservation, quick-bar ordering, scoped search and recovery of drafts whose folder was removed.
+3. Test native keyboard/IME, Enter and child focus, Back/modal dismissal, touch hold versus scroll, autosave/retry/Undo, synchronized Task completion, offline force-stop/reboot, and legacy notification cleanup.
+4. Record pass/fail/not-run outcomes and device/build evidence in `06_CURRENT_STATE.md`. Browser, SQLite and static APK checks are not substitutes for phone acceptance. Merge does not establish release readiness.
+5. Keep local-data risk explicit: SQLite/drafts are unencrypted and export/restore is deferred under D-018. Revisit portability only through a separate accepted decision.
+
+## Merged folder implementation — D-027
 
 1. Keep the quick bar All → pinned/other user folders → Uncategorized and add the header folder icon.
 2. Add the dedicated Folders screen, selection-mode Pin/Unpin/Delete/Edit, protected system buckets, counts and confirmation.
 3. Verify additive v10 migration/retry, transactional bulk failures, persistence and affected browser flows; publish a matching 0.10.2/code 19 ARM64 test APK on the same PR #6.
-4. Native acceptance before merge/release remains pending. Current evidence and sole next action: `06_CURRENT_STATE.md`.
+4. Native acceptance remains pending **after merge**, before any release-readiness claim. Current evidence and sole next action: `06_CURRENT_STATE.md`.
 
 ## Historical PR #6 refinement — D-026
 
@@ -41,6 +49,8 @@
 ## Minimal product and later agent research (D-023)
 
 The accepted product is a minimal independent mobile app; Xiaomi Notes is only a UX reference. Apply D-024 above while retaining historical data/provenance guarantees, with no AI in V1. Investigate real-life use before adding more UI. Later, separately approved research may test scoped read-only, source-grounded retrieval and bounded, explainable priority suggestions; only validated value could justify permissioned actions or optional import adapters. See [D-023](05_DECISIONS.md) for policy and [03_ARCHITECTURE.md](03_ARCHITECTURE.md) for technical boundaries. This section is not authorization to implement an agent, sync or Xiaomi integration. D-018 still defers export/backup/restore.
+
+**Historical plan note:** Phase 0/1 checkboxes and earlier M1/M2 details below preserve previously implemented and later removed 0.7.1-era work, not a competing current product specification. Use the post-merge gate above and current behavior in `02_PRODUCT.md`.
 
 ## 1. Already done (documented evidence)
 
@@ -146,7 +156,7 @@ Items 2/4/5 from the user's requested list are included above. The user approved
 - [x] Publish after explicit approval and confirm the downloaded checksum.
 - [x] User reported testing the 0.7.1 APK and approved PR #4 merge; specific device/OS/scenario evidence remains unspecified.
 
-### V1 target features (accepted scope, unordered outside M1)
+### Historical V1 target features (implemented earlier; superseded by D-024)
 
 - [x] Implement fast capture with SQLite-backed local entries; physical-device acceptance remains pending.
 - [x] Add basic read-only Library search/filtering using Note/Task types; richer category semantics remain open.
