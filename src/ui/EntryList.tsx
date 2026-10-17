@@ -27,8 +27,7 @@ export function EntryList({
   folders,
   folder,
   onFolder,
-  onNewFolder,
-  onFolderOptions,
+  onFolders,
   selection,
   onSelect,
   onClear,
@@ -52,8 +51,7 @@ export function EntryList({
   folders: NoteFolder[];
   folder: string;
   onFolder: (id: string) => void;
-  onNewFolder: () => void;
-  onFolderOptions: (id: string) => void;
+  onFolders: () => void;
   selection: Set<string>;
   onSelect: (id: string) => void;
   onClear: () => void;
@@ -208,7 +206,10 @@ export function EntryList({
         </Text>
         <View style={styles.grow} />
         {kind === "note" && !recent && (
-          <IconButton name="more" label="More notes options" onPress={onMore} />
+          <>
+            <IconButton name="folder" label="Folders" onPress={onFolders} />
+            <IconButton name="more" label="More notes options" onPress={onMore} />
+          </>
         )}
       </View>
       <TextInput
@@ -238,8 +239,8 @@ export function EntryList({
           >
             {[
               { id: "all", name: "All" },
-              { id: "unfiled", name: "Unfiled" },
               ...folders,
+              { id: "unfiled", name: "Uncategorized" },
             ].map((f) => (
               <Pressable
                 key={f.id}
@@ -248,11 +249,6 @@ export function EntryList({
                 aria-pressed={folder === f.id}
                 accessibilityState={{ selected: folder === f.id }}
                 onPress={() => onFolder(f.id)}
-                onLongPress={() => {
-                  if (f.id !== "all" && f.id !== "unfiled")
-                    onFolderOptions(f.id);
-                }}
-                delayLongPress={300}
                 style={[
                   styles.button,
                   folder === f.id && styles.accent,
@@ -269,14 +265,6 @@ export function EntryList({
                 </Text>
               </Pressable>
             ))}
-            <Button quiet label="New folder" onPress={onNewFolder} />
-            {folder !== "all" && folder !== "unfiled" && (
-              <IconButton
-                name="more"
-                label="Folder options"
-                onPress={() => onFolderOptions(folder)}
-              />
-            )}
           </ScrollView>
         </View>
       )}

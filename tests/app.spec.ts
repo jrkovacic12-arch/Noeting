@@ -232,12 +232,12 @@ async function hold(locator: Locator) {
   await page.mouse.up();
 }
 async function newFolder(page: Page, name: string) {
+  await page.getByRole("button", { name: "Folders", exact: true }).click();
   await page.getByRole("button", { name: "New folder", exact: true }).click();
   await page.getByRole("textbox", { name: "Folder name" }).fill(name);
   await page.getByRole("button", { name: "Save folder", exact: true }).click();
-  await expect(
-    page.getByRole("button", { name: `Folder: ${name}`, exact: true }),
-  ).toBeVisible();
+  await page.getByRole("button", { name: `Folder: ${name}`, exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "Search notes" })).toBeVisible();
 }
 
 test("writing-first Note supports direct edit, copy, original, overlay without layout shift and Remove/Undo", async ({
@@ -729,12 +729,14 @@ test("folders, long-press multi-select, mixed Pin/Unpin, move, search restart an
   await expect(
     page.getByRole("button", { name: "Open note: Alpha" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Folder options" }).click();
-  await page.getByRole("button", { name: "Rename folder" }).click();
+  await page.getByRole("button", { name: "Folders", exact: true }).click();
+  await hold(page.getByRole("button", { name: "Folder: Ideas", exact: true }));
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
   await page.getByRole("textbox", { name: "Folder name" }).fill("Thoughts");
   await page.getByRole("button", { name: "Save folder" }).click();
-  await page.getByRole("button", { name: "Folder options" }).click();
-  await page.getByRole("button", { name: "Remove folder" }).click();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await page.getByRole("button", { name: "Delete folders", exact: true }).click();
+  await page.getByRole("button", { name: "Back to notes", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Open note: Alpha" }),
   ).toBeVisible();
@@ -762,7 +764,7 @@ test("Notes captured or linked within a folder remain there after restart", asyn
   await expect(
     page.getByRole("button", { name: "Open note: Folder link" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Folder: Unfiled" }).click();
+  await page.getByRole("button", { name: "Folder: Uncategorized" }).click();
   await expect(page.getByRole("button", { name: /^Open note:/ })).toHaveCount(
     0,
   );
@@ -774,8 +776,11 @@ test("Notes captured or linked within a folder remain there after restart", asyn
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("textbox", { name: "Note text" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Folder options" }).click();
-  await page.getByRole("button", { name: "Remove folder" }).click();
+  await page.getByRole("button", { name: "Folders", exact: true }).click();
+  await hold(page.getByRole("button", { name: "Folder: Project", exact: true }));
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await page.getByRole("button", { name: "Delete folders", exact: true }).click();
+  await page.getByRole("button", { name: "Back to notes", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Folder: Project" }),
   ).toHaveCount(0);
@@ -787,7 +792,7 @@ test("Notes captured or linked within a folder remain there after restart", asyn
   await saveText(page, "Note", "Retained folder draft");
   await close(page, "note");
   await expect(
-    page.getByRole("button", { name: "Folder: Unfiled" }),
+    page.getByRole("button", { name: "Folder: Uncategorized" }),
   ).toHaveAttribute("aria-pressed", "true");
   await expect(
     page.getByRole("button", { name: "Open note: Retained folder draft" }),
@@ -922,8 +927,10 @@ test("immediate scrim, compact sheet, circle FAB, IME/Enter, 320px large text an
     ),
   ).toBeTruthy();
   await page.getByRole("button", { name: "More task actions" }).click();
-  await expect(page.getByRole("dialog")).toBeVisible();
+  // The sheet is already a dialog; wait for the newly opened menu itself.
+  await expect(page.getByTestId("popover-scrim")).toBeVisible();
   await page.keyboard.press("Escape");
+  await expect(page.getByTestId("popover-scrim")).toHaveCount(0);
   await expect(page.getByTestId("task-sheet")).toBeVisible();
 });
 
@@ -1033,4 +1040,63 @@ test.describe("bulk integrity, scroll gestures and large lists", () => {
       page.getByRole("textbox", { name: "Search notes" }),
     ).toHaveValue("Note 000");
   });
+});
+
+
+test("folder screen long-press selection, pin ordering, rename and safe bulk deletion", async ({ session }) => {
+  let { page } = session;
+  await capture(page, "note", "Keep these words");
+  await newFolder(page, "Alpha");
+  await newFolder(page, "Beta");
+  await capture(page, "note", "Beta note");
+  const strip = page.getByTestId("folder-strip");
+  await expect(strip.getByRole("button")).toHaveText(["All", "Alpha", "Beta", "Uncategorized"]);
+  await page.getByRole("textbox", { name: "Search notes" }).fill("not a match");
+  await page.getByRole("button", { name: "Folders", exact: true }).click();
+  await page.screenshot({ path: "work/folders-screen.png" });
+  const beta = page.getByRole("button", { name: "Folder: Beta", exact: true });
+  await expect(beta).toContainText("1"); // Counts ignore search.
+  await hold(beta);
+  await expect(page.getByText("1 selected", { exact: true })).toBeVisible();
+  await expect(beta).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Folder: Alpha", exact: true }).click();
+  await expect(page.getByText("2 selected", { exact: true })).toBeVisible();
+  await page.screenshot({ path: "work/folders-selection.png" });
+  await expect(page.getByRole("button", { name: "Edit", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Folder: All", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Folder: Uncategorized", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "Pin", exact: true }).click();
+  await hold(beta);
+  await expect(page.getByRole("button", { name: "Unpin", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Unpin", exact: true }).click();
+  await page.getByRole("button", { name: "Back to notes", exact: true }).click();
+  page = await session.restart();
+  await expect(page.getByTestId("folder-strip").getByRole("button")).toHaveText(["All", "Alpha", "Beta", "Uncategorized"]);
+  await page.getByRole("button", { name: "Folders", exact: true }).click();
+  await hold(page.getByRole("button", { name: "Folder: Alpha", exact: true }));
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByRole("textbox", { name: "Folder name" }).fill("Zebra");
+  await page.getByRole("button", { name: "Save folder", exact: true }).click();
+  await page.getByRole("button", { name: "Close folder selection" }).click();
+  await page.getByRole("button", { name: "Back to notes", exact: true }).click();
+  await expect(page.getByTestId("folder-strip").getByRole("button")).toHaveText(["All", "Zebra", "Beta", "Uncategorized"]);
+  await page.getByRole("button", { name: "Folders", exact: true }).click();
+  await page.getByRole("button", { name: "Select folders to delete" }).click();
+  await page.getByRole("button", { name: "Folder: Zebra", exact: true }).click();
+  await page.getByRole("button", { name: "Folder: Beta", exact: true }).click();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(page.getByText("Your notes will move to Uncategorized. No notes will be deleted.")).toBeVisible();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.getByText("2 selected", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await page.getByRole("button", { name: "Delete folders", exact: true }).click();
+  await page.getByRole("button", { name: "Back to notes", exact: true }).click();
+  await page.getByRole("button", { name: "Clear search" }).click();
+  await expect(page.getByRole("button", { name: "Folder: Uncategorized", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Open note: Keep these words" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Open note: Beta note" })).toBeVisible();
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.getByRole("button", { name: "Folders", exact: true }).click();
+  await expect(page.getByRole("button", { name: "New folder", exact: true })).toBeVisible();
+  await page.screenshot({ path: "work/folders-small.png" });
 });

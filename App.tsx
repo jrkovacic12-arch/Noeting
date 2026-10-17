@@ -25,6 +25,7 @@ import type {
 import { indexSnapshot, visibleEntries } from "./src/data/selectors";
 import { clearLegacyNotifications } from "./src/notificationDriver";
 import { ThemeProvider } from "./src/theme";
+import { FolderScreen } from "./src/ui/FolderScreen";
 import { EntryList } from "./src/ui/EntryList";
 import { NoteDetail } from "./src/ui/NoteDetail";
 import { TaskSheet } from "./src/ui/TaskSheet";
@@ -67,10 +68,13 @@ function Noeting() {
   const [attempt, setAttempt] = useState(0);
   const [removal, setRemoval] = useState<Removal[] | null>(null);
   const [selection, setSelection] = useState<Set<string>>(new Set());
+  const [foldersScreen, setFoldersScreen] = useState(false);
+  const [folderSelection, setFolderSelection] = useState<Set<string>>(new Set());
+  const [selectingFolders, setSelectingFolders] = useState(false);
   const [recent, setRecent] = useState(false);
   const [recentQuery, setRecentQuery] = useState("");
   const [menu, setMenu] = useState<
-    "notes" | "new-folder" | "folder" | "rename" | "move" | null
+    "notes" | "new-folder" | "delete-folders" | "rename" | "move" | null
   >(null);
   const [folderTarget, setFolderTarget] = useState<string | null>(null);
   const [folderName, setFolderName] = useState("");
@@ -223,6 +227,10 @@ function Noeting() {
         backNote();
         return true;
       }
+      if (foldersScreen) {
+        backFolders();
+        return true;
+      }
       if (selection.size) {
         setSelection(new Set());
         return true;
@@ -238,7 +246,7 @@ function Noeting() {
       return false;
     });
     return () => listener.remove();
-  }, [menu, editorContext, taskRoutes, notes, selection, recent, tab]);
+  }, [menu, editorContext, taskRoutes, notes, selection, recent, tab, foldersScreen, selectingFolders]);
   useEffect(() => {
     if (typeof document === "undefined") return;
     const handler = (event: KeyboardEvent) => {
@@ -435,7 +443,31 @@ function Noeting() {
     !!taskEntry ||
     (!!editorContext && draft?.kind === "task") ||
     !!menu;
+  function backFolders() {
+    if (busy) return;
+    if (selectingFolders) {
+      setSelectingFolders(false);
+      setFolderSelection(new Set());
+    } else setFoldersScreen(false);
+  }
+  function folderAction(action: "pin" | "unpin" | "edit" | "delete") {
+    if (!folderSelection.size || busy) return;
+    if (action === "edit") {
+      if (folderSelection.size !== 1) return;
+      const id = [...folderSelection][0];
+      setFolderTarget(id);
+      setFolderName(data.folders?.find((f) => f.id === id)?.name ?? "");
+      setMenuError(null);
+      setMenu("rename");
+    } else if (action === "delete") setMenu("delete-folders");
+    else run(async (r) => {
+      await r.pinFolders([...folderSelection], action === "pin");
+      setFolderSelection(new Set());
+      setSelectingFolders(false);
+    });
+  }
   async function folderSave() {
+    if (busy) return;
     try {
       await mutate((r) =>
         menu === "rename"
@@ -530,6 +562,27 @@ function Noeting() {
                     })
                   }
                 />
+              ) : foldersScreen ? (
+                <FolderScreen
+                  folders={data.folders ?? []} entries={data.entries} folder={folder}
+                  selection={folderSelection} selecting={selectingFolders} busy={busy}
+                  onBack={backFolders}
+                  onSelect={(id) => {
+                    setSelectingFolders(true);
+                    setFolderSelection((old) => {
+                      const next = new Set(old);
+                      if (next.has(id)) next.delete(id); else next.add(id);
+                      return next;
+                    });
+                  }}
+                  onChoose={(id) => { setFolder(id); setFoldersScreen(false); }}
+                  onManage={() => setSelectingFolders(true)}
+                  onAction={folderAction}
+                  onNew={() => {
+                    setFolderTarget(randomUUID()); setFolderName("");
+                    setMenuError(null); setMenu("new-folder");
+                  }}
+                />
               ) : (
                 <>
                   <EntryList
@@ -566,17 +619,10 @@ function Noeting() {
                       setSelection(new Set());
                       setFolder(id);
                     }}
-                    onNewFolder={() => {
-                      setFolderTarget(randomUUID());
-                      setFolderName("");
-                      setMenuError(null);
-                      setMenu("new-folder");
-                    }}
-                    onFolderOptions={(id) => {
-                      setFolderTarget(id);
-                      setMenuError(null);
-                      setMenu("folder");
-                    }}
+                    onFolders={() => void safeNavigate(() => {
+                      setSelection(new Set()); setFoldersScreen(true);
+                      setFolderSelection(new Set()); setSelectingFolders(false);
+                    })}
                     selection={selection}
                     onSelect={(id) =>
                       setSelection((old) => {
@@ -709,37 +755,20 @@ function Noeting() {
                     setRecent(true);
                   }}
                 />
-              ) : menu === "folder" ? (
+              ) : menu === "delete-folders" ? (
                 <>
-                  <Button
-                    quiet
-                    label="Rename folder"
-                    onPress={() => {
-                      setFolderName(
-                        data.folders?.find((f) => f.id === folderTarget)
-                          ?.name ?? "",
-                      );
-                      setMenu("rename");
-                    }}
-                  />
-                  <Button
-                    quiet
-                    danger
-                    label="Remove folder"
-                    disabled={busy}
-                    onPress={() =>
-                      run(async (r) => {
-                        await r.removeFolder(folderTarget!);
-                        if (folder === folderTarget) setFolder("unfiled");
-                        setSelection(new Set());
-                        setMenu(null);
-                      })
-                    }
-                  />
+                  <Text accessibilityRole="header" style={styles.cardText}>Delete {folderSelection.size} {folderSelection.size === 1 ? "folder" : "folders"}?</Text>
+                  <Text style={styles.hint}>Your notes will move to Uncategorized. No notes will be deleted.</Text>
+                  <Button label="Cancel" disabled={busy} onPress={() => setMenu(null)} />
+                  <Button label="Delete folders" danger disabled={busy} onPress={() => run(async (r) => {
+                    await r.removeFolders([...folderSelection]);
+                    if (folderSelection.has(folder)) setFolder("unfiled");
+                    setFolderSelection(new Set()); setSelectingFolders(false); setMenu(null);
+                  })} />
                 </>
               ) : menu === "move" ? (
                 <>
-                  {[{ id: null, name: "Unfiled" }, ...(data.folders ?? [])].map(
+                  {[{ id: null, name: "Uncategorized" }, ...(data.folders ?? [])].map(
                     (f) => (
                       <Button
                         key={f.id ?? "unfiled"}

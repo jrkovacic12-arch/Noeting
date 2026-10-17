@@ -1859,7 +1859,7 @@ test("Note-linked Task and its Subtasks survive restart, synchronized state, par
 });
 
 for (const version of [6, 7, 8])
-  test(`v${version} to v9 interruption preserves legacy columns and retry adds Note-only organization`, async () => {
+  test(`v${version} through v10 interruption preserves legacy columns and retry adds Note-only organization`, async () => {
     const db = new DatabaseSync(":memory:");
     try {
       db.exec(
@@ -1918,7 +1918,7 @@ for (const version of [6, 7, 8])
         undefined,
       );
       await repo.initialize();
-      assert.equal(db.prepare("PRAGMA user_version").get()!.user_version, 9);
+      assert.equal(db.prepare("PRAGMA user_version").get()!.user_version, SCHEMA_VERSION);
       for (const [table, rows] of old) {
         const cols = Object.keys(rows[0] ?? {});
         if (cols.length)
@@ -2271,4 +2271,76 @@ test("large snapshot groups child search once and sorts pins deterministically w
     notes.map((e) => e.id),
     visibleEntries(snapshot, "note", "").map((e) => e.id),
   );
+});
+
+test("v9 folder pins migrate additively, survive restart, and bulk actions roll back", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "noeting-folder-pins-"));
+  const path = join(dir, "db");
+  let db = new DatabaseSync(path);
+  try {
+    let r = createRepository(sqliteDriver(db));
+    await r.createFolder("a", "Alpha");
+    await r.createFolder("b", "Beta");
+    const note = await r.saveCapture({ kind: "note", requestId: "preserve", text: "Exact 🌿\n words ", folderId: "a" });
+    await r.organizeNotes([note.entryId], { pinned: true });
+    const receipt = await r.removeNotes([note.entryId]);
+    const before = (await r.readSnapshot()).entries;
+    db.exec("ALTER TABLE note_folders DROP COLUMN pinned_at; PRAGMA user_version=9;");
+    db.close(); db = new DatabaseSync(path); r = createRepository(sqliteDriver(db));
+    assert.deepEqual((await r.readSnapshot()).entries, before);
+    assert.equal(db.prepare("PRAGMA user_version").get()!.user_version, 10);
+    assert.ok((await r.readSnapshot()).folders!.every((f) => f.pinnedAt === null));
+    db.exec("CREATE TRIGGER fail_pin BEFORE UPDATE OF pinned_at ON note_folders WHEN NEW.id='b' BEGIN SELECT RAISE(ABORT,'pin failed'); END;");
+    await assert.rejects(r.pinFolders(["a", "b"], true), /pin failed/);
+    assert.ok((await r.readSnapshot()).folders!.every((f) => f.pinnedAt === null));
+    db.exec("DROP TRIGGER fail_pin;");
+    await r.pinFolders(["b"], true);
+    const pinned = (await r.readSnapshot()).folders![0].pinnedAt;
+    await r.pinFolders(["b"], true);
+    await r.renameFolder("b", "Zebra");
+    assert.equal((await r.readSnapshot()).folders![0].pinnedAt, pinned);
+    await assert.rejects(r.pinFolders(["b", "all"], false));
+    assert.equal((await r.readSnapshot()).folders![0].id, "b");
+    db.exec("CREATE TRIGGER fail_folder_delete BEFORE DELETE ON note_folders WHEN OLD.id='b' BEGIN SELECT RAISE(ABORT,'delete failed'); END;");
+    await assert.rejects(r.removeFolders(["a", "b"]), /delete failed/);
+    assert.deepEqual((await r.readSnapshot()).entries, before);
+    assert.equal((await r.readSnapshot()).folders!.length, 2);
+    db.exec("DROP TRIGGER fail_folder_delete;");
+    const snapshot = await r.readSnapshot();
+    db.close(); db = new DatabaseSync(path); r = createRepository(sqliteDriver(db));
+    assert.deepEqual(await r.readSnapshot(), snapshot);
+    await r.pinFolders(["b"], false);
+    assert.equal((await r.readSnapshot()).folders![0].id, "a");
+    await r.removeFolders(["a", "b"]);
+    await r.restoreNotes(receipt);
+    const restored = (await r.readSnapshot()).entries[0];
+    assert.equal(restored.folderId, null);
+    assert.equal(restored.originalText, "Exact 🌿\n words ");
+    assert.equal(restored.notePinnedAt, before[0].notePinnedAt);
+    assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
+  } finally { db.close(); await rm(dir, { recursive: true, force: true }); }
+});
+
+test("interrupted v10 migration rolls back and retries without changing populated v9", async () => {
+  const db = new DatabaseSync(":memory:");
+  try {
+    const r = createRepository(sqliteDriver(db));
+    await r.createFolder("work", "Work");
+    await r.saveCapture({ requestId: "migration", kind: "note", text: "Preserved", folderId: "work" });
+    const before = (await r.readSnapshot()).entries;
+    db.exec("ALTER TABLE note_folders DROP COLUMN pinned_at; PRAGMA user_version=9;");
+    const driver = sqliteDriver(db);
+    let fail = true;
+    const retry = createRepository({ ...driver, async exec(sql) {
+      await driver.exec(sql);
+      if (fail && sql.includes("ALTER TABLE note_folders ADD COLUMN pinned_at")) {
+        fail = false; throw new Error("migration interrupted");
+      }
+    } });
+    await assert.rejects(retry.initialize(), /migration interrupted/);
+    assert.equal(db.prepare("PRAGMA user_version").get()!.user_version, 9);
+    assert.ok(!db.prepare("PRAGMA table_info(note_folders)").all().some((c) => c.name === "pinned_at"));
+    assert.deepEqual((await retry.readSnapshot()).entries, before);
+    assert.equal(db.prepare("PRAGMA user_version").get()!.user_version, SCHEMA_VERSION);
+  } finally { db.close(); }
 });

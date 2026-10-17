@@ -39,6 +39,7 @@ export interface NoteFolder {
   id: string;
   name: string;
   createdAt: string;
+  pinnedAt?: string | null;
 }
 
 export interface Snapshot {
@@ -78,6 +79,8 @@ export interface Repository {
   createFolder(id: string, name: string): Promise<void>;
   renameFolder(id: string, name: string): Promise<void>;
   removeFolder(id: string): Promise<void>;
+  removeFolders(ids: string[]): Promise<void>;
+  pinFolders(ids: string[], pinned: boolean): Promise<void>;
   organizeNotes(
     ids: string[],
     change: { pinned?: boolean; folderId?: string | null },
@@ -124,7 +127,7 @@ export interface PinSchedule {
   status: "waiting" | "applied" | "cancelled";
 }
 
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 type EntryRow = {
   id: string;
@@ -355,6 +358,8 @@ const migrationV9 = `
     BEGIN SELECT RAISE(ABORT,'Only Notes have organization.'); END;
 `;
 
+const migrationV10 = `ALTER TABLE note_folders ADD COLUMN pinned_at TEXT;`;
+
 class SQLiteRepository implements Repository {
   private readonly mutex: Mutex;
   private initialized = false;
@@ -397,13 +402,14 @@ class SQLiteRepository implements Repository {
         );
         return {
           folders: (
-            await this.db.all<{ id: string; name: string; created_at: string }>(
-              "SELECT * FROM note_folders ORDER BY name_key,id",
+            await this.db.all<{ id: string; name: string; created_at: string; pinned_at: string | null }>(
+              "SELECT * FROM note_folders ORDER BY (pinned_at IS NULL),pinned_at DESC,name_key,id",
             )
           ).map((row) => ({
             id: row.id,
             name: row.name,
             createdAt: row.created_at,
+            pinnedAt: row.pinned_at,
           })),
           chosenEntryId: selection?.entry_id ?? null,
           entries: entries.map((row) => ({
@@ -1082,10 +1088,37 @@ class SQLiteRepository implements Repository {
     });
   }
   removeFolder(id: string): Promise<void> {
+    return this.removeFolders([id]);
+  }
+  private async validateFolders(ids: string[]) {
+    const unique = [...new Set(ids)].sort();
+    if (!unique.length) throw new Error("Select folders.");
+    for (const id of unique) {
+      const [folder] = await this.db.all("SELECT id FROM note_folders WHERE id=?", [id]);
+      if (!folder) throw new Error("Folder not found.");
+    }
+    return unique;
+  }
+  removeFolders(ids: string[]): Promise<void> {
     return this.mutex.run(async () => {
       await this.initializeLocked();
       await this.transaction(async () => {
-        await this.db.run("DELETE FROM note_folders WHERE id=?", [id]);
+        const selected = await this.validateFolders(ids);
+        for (const id of selected) await this.db.run("DELETE FROM note_folders WHERE id=?", [id]);
+      });
+    });
+  }
+  pinFolders(ids: string[], pinned: boolean): Promise<void> {
+    return this.mutex.run(async () => {
+      await this.initializeLocked();
+      await this.transaction(async () => {
+        if (typeof pinned !== "boolean") throw new Error("Invalid pin state.");
+        const selected = await this.validateFolders(ids);
+        const now = new Date().toISOString();
+        for (const id of selected) await this.db.run(
+          "UPDATE note_folders SET pinned_at=CASE WHEN ?=1 THEN COALESCE(pinned_at,?) ELSE NULL END WHERE id=?",
+          [Number(pinned), now, id],
+        );
       });
     });
   }
@@ -1237,6 +1270,7 @@ class SQLiteRepository implements Repository {
       if (version.user_version < 7) await this.db.exec(migrationV7);
       if (version.user_version < 8) await this.db.exec(migrationV8);
       if (version.user_version < 9) await this.db.exec(migrationV9);
+      if (version.user_version < 10) await this.db.exec(migrationV10);
       if (version.user_version < SCHEMA_VERSION)
         await this.db.exec(`PRAGMA user_version = ${SCHEMA_VERSION};`);
     });
