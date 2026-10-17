@@ -232,6 +232,17 @@
 
 Product, design and acceptance details: `02_PRODUCT.md`, `03_ARCHITECTURE.md`, `07_V1_WORKFLOW_DRAFT.md`. Verification and sole next action: `06_CURRENT_STATE.md`. Historical decisions remain unchanged.
 
+## D-027 — Dedicated Folders screen and retained quick bar (2026-10-17)
+
+**Accepted:** The user approved the screenshot-based Folders screen, clarified that long-press enters multi-folder selection with Pin/Delete/Edit, and explicitly retained the main Notes quick bar: All first, user folders next, Uncategorized last. “Proceed all above” and “resume” authorize implementation and the previously requested PR/APK delivery.
+
+- Folder icon beside Notes’ More opens a full screen with Back, Folders title, rounded rows, active-note counts, current-folder checkmark, top-right trash entry to selection, and New folder card.
+- Tap selects scope and returns to Notes. Long-press selects the held custom folder; subsequent taps toggle additional folders. Pin/Unpin applies to all selected folders, Delete confirms and preserves Notes in Uncategorized, and Edit renames exactly one selection. System buckets are protected; Back exits selection before leaving the screen.
+- Keep the quick bar as All → user folders (pinned first) → Uncategorized. Remove creation/management controls from that bar. Use Uncategorized as the display name while preserving the existing internal scope key.
+- Add persistent folder pins independently of Note pins via additive schema v10; bulk actions must roll back together. Preserve existing data, source boundaries and D-026 completion/draft behavior. Update existing ready-for-review PR #6 and publish a matching versioned test APK. Native acceptance and explicit merge authorization remain required.
+
+Behavior and design belong to `02_PRODUCT.md` and `03_ARCHITECTURE.md`; acceptance to `07_V1_WORKFLOW_DRAFT.md`; actual verification and next action to `06_CURRENT_STATE.md`.
+
 ## Proposal register — accepted items reference decision records
 
 ### P-001 — Bounded background AI

@@ -1,5 +1,10 @@
 # Noeting — Documentation Change Log (started 2026-10-11)
 
+## 2026-10-17 — Folder screen and retained quick bar
+
+- D-027 records the user-approved folder screen, multi-selection, persistent folder pins and All/user folders/Uncategorized quick-bar order. Additive schema v10 preserves existing Notes. Implementation is 0.10.2/code 19; verification and APK identity belong to `06_CURRENT_STATE.md`.
+
+
 ## 2026-10-16 — PR #6 finalization and 0.10.1 test build
 
 - Review the ten newer PR fixes, retain atomic folder capture and durable draft cancellation/recovery, and correct reverted-edit status plus next-child focus after saving.

@@ -3,7 +3,14 @@
 > Created: 2026-10-11. Updated: 2026-10-12 (V1.2 wireframe revision). Status: proposed workflow with a small interactive wireframe and limited automated checks; not an approved implementation specification.
 > Milestone: design and validate Capture → Today. The examples below are illustrative, not observations from real usage.
 
-## Current D-026 acceptance — 0.10.1 refinement
+## Current D-027 folder acceptance — 0.10.2
+
+- Verify quick bar ordering All → user folders (pinned first) → Uncategorized, and identical ordering on the Folders screen; counts exclude deleted Notes and ignore active search.
+- Verify tap chooses scope, long-press selects without navigating, additional taps toggle selection, multi-selection disables Edit, and system buckets cannot be selected. Verify the trash icon enters selection with zero selected; Back exits mode before leaving.
+- Verify folder pin/unpin, rename retaining pin order, collision/empty-name errors, restart persistence and preserved scoped search. Confirm/cancel bulk deletion, preserve active/removed Notes and their pins, and recover a creation draft whose folder was removed.
+- Interrupt populated v9→v10 migration, prove rollback and retry. Inject halfway pin/delete failures and prove all selected folders/Note references remain unchanged; retry successfully. Preserve existing D-026 boundaries and accepted native-device gate below.
+
+## Continuing D-026 acceptance — 0.10.1 refinement
 
 - Preserve populated v6/v7/v8 originals, edits, links, legacy pins, soft removals and timestamps; interrupt v9 migration, prove rollback, retry. Keep new generic links Note-origin only.
 - Create/rename/delete folders with case-insensitive collision handling, scoped search, persisted list context, deterministic pins across restart/offline, mixed bulk pin/unpin/move and atomic failure. Bulk soft removal/Undo and Recently deleted recover organization.

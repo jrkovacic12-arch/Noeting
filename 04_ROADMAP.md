@@ -2,9 +2,16 @@
 
 > **Status:** Working plan, not a committed schedule. Checked work items identify source implementation; device acceptance remains a separate gate.
 >
-> **Current phase:** D-026 finalizes PR #6 for review with inline editing, Note organization and synchronized hierarchy in 0.10.1/schema v9. Native Android 9 emulator checks are historical, and physical-device acceptance remains pending.
+> **Current phase:** D-027 adds folder management and persistent folder pins to PR #6 in 0.10.2/schema v10, retaining D-026 inline editing and synchronized hierarchy. Native Android 9 emulator checks are historical, and physical-device acceptance remains pending.
 
-## Current PR #6 refinement — D-026
+## Current folder refinement — D-027
+
+1. Keep the quick bar All → pinned/other user folders → Uncategorized and add the header folder icon.
+2. Add the dedicated Folders screen, selection-mode Pin/Unpin/Delete/Edit, protected system buckets, counts and confirmation.
+3. Verify additive v10 migration/retry, transactional bulk failures, persistence and affected browser flows; publish a matching 0.10.2/code 19 ARM64 test APK on the same PR #6.
+4. Native acceptance before merge/release remains pending. Current evidence and sole next action: `06_CURRENT_STATE.md`.
+
+## Historical PR #6 refinement — D-026
 
 1. Implement additive v9 Note folders/organization and atomic pin/move/remove/recovery, preserving populated v6/v7/v8 records and source boundaries.
 2. Implement contextual draft migration, inline autosave/retry, Enter-driven child creation, immediate overlay scrims and content-sized sheets.
