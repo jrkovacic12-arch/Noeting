@@ -1,6 +1,6 @@
 # Noeting — Product Requirements and Workflows
 
-> **Status:** High-level V1 feature scope accepted on 2026-10-12 (D-010); M1 source implemented on 2026-10-13 with real-SQLite automated checks. Physical-device acceptance and remaining V1 workflows are pending.
+> **Current baseline:** 0.10.2/schema v10 (D-024–D-027), merged via PR #6 on 2026-10-17. Physical-device acceptance is pending. The current contract below supersedes the 0.7.1 Today/Review/scheduled-pin UI; those descriptions remain historical evidence, not active requirements.
 >
 > **Source of truth for:** user needs, product objects, features, UX behavior, and MVP boundaries.
 
@@ -111,9 +111,9 @@ The original concept proposed **Capture / Today / Library / Review / Create**. T
 - **Original requirement:** Synthesize related thoughts into an essay, principle, decision, design, software idea, project, or other original result.
 - **Constraint:** This should remain a first-class capability even as task management expands.
 
-## 5. Agreed first working app scope (high-level V1)
+## 5. Historical high-level V1 scope (0.7.1; superseded as current UI)
 
-**Accepted V1 direction (D-010, as revised by D-018 and D-020); core Capture/Today/Library/Review workflows are implemented in 0.7.1 source. Device acceptance and separate deadline/priority decisions remain open:**
+**Historical scope:** The following records the earlier D-010/D-018/D-020 direction, not the current 0.10.2 interface. D-024–D-027 subsequently superseded Today/Review, scheduled pins and Reflect/Create categories with the Notes/Tasks-only design. Use the current contract at the beginning of this document for new work; preserve the details below as migration and decision history.
 
 - **Capture:** Note / Task; preserve exact original text, save locally, then close without unsolicited follow-up. Direct Task capture creates a user-accepted task; a linked task from a Note requires deliberate acceptance.
 - **Today:** one pending Tasks list, task editing/completion, known due dates, unlimited pinned tasks, newest pin first (each shown once), optional **Today note** with Reflect/Create/Change, and a visible summary card. Explicit stop controls were removed by D-012.
@@ -207,7 +207,7 @@ Validation must establish whether the experience **reduces organizational effort
 
 For prototype checks and the pending native-device checklist, see [07_V1_WORKFLOW_DRAFT.md](07_V1_WORKFLOW_DRAFT.md). The earlier prototype used simulated browser checks and user self-report without device/per-scenario details. M1 now has real-SQLite automated evidence, maintained in [06_CURRENT_STATE.md](06_CURRENT_STATE.md); physical-device restart durability, scheduled-pin catch-up, offline native behavior, security, and broader product validation remain untested.
 
-## 10. Unresolved product research questions
+## 10. Historical and future product research questions (not current 0.10.2 requirements)
 
 - Which candidate entry labels are understandable, and how should source provenance appear?
 - Does a finite Today experience with at most three confirmed priorities make actual commitments clearer?
