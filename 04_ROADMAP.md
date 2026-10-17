@@ -2,21 +2,45 @@
 
 > **Status:** Working plan, not a committed schedule. Checked work items identify source implementation; device acceptance remains a separate gate.
 >
-> **Current phase:** D-024 documents the next two-screen M1 refactor; the actual 0.7.1 app still has Capture/Today/Library/Review/Settings. Native Android 9 emulator checks are historical, and physical-device acceptance remains pending.
+> **Current phase:** D-027 adds folder management and persistent folder pins to PR #6 in 0.10.2/schema v10, retaining D-026 inline editing and synchronized hierarchy. Native Android 9 emulator checks are historical, and physical-device acceptance remains pending.
 
-## Next Codex work — D-024 minimal M1 refactor (approved direction; NOT implemented)
+## Current folder refinement — D-027
 
-1. **Preserve data first:** baseline existing 0.7.1/schema v6 with snapshots, repeatable tests, and migrations for existing Note/Task/Reflection/Creation relationships. Avoid destructive database reset; test upgrade from populated v6.
-2. **Domain linking:** support independently authored linked Notes or Tasks from either Note or Task, keeping immutable originals, source snapshots and idempotent saves. Preserve all legacy link reads; add schema only if necessary.
-3. **Navigation/UI:** replace Today/Library/Review/Settings with Notes and Tasks destinations, both searchable with tab-specific + for standalone capture. Tap cards to open Note/Task details. Place Link note / Link task exclusively in entry detail; support edit/remove and Task Complete/Reopen.
-4. **Retire obsolete interactions safely:** remove Today selection and daily summary UI, Reflection/Creation labels/prompts/filters, pins, scheduled pin forms/timers, redundant list-card actions and old appearance Settings. Prevent silent due-pin execution, retaining only legacy OS notification cleanup where needed.
-5. **Verify and document:** typecheck, real SQLite migration and rollback tests, browser workflows, native Android focused tests for Back/keyboard/list/search/links/offline durability; verify no silent task mutations and no lost historical entries. User-device acceptance and remaining data-loss risk should be recorded separately in `06_CURRENT_STATE.md`.
+1. Keep the quick bar All → pinned/other user folders → Uncategorized and add the header folder icon.
+2. Add the dedicated Folders screen, selection-mode Pin/Unpin/Delete/Edit, protected system buckets, counts and confirmation.
+3. Verify additive v10 migration/retry, transactional bulk failures, persistence and affected browser flows; publish a matching 0.10.2/code 19 ARM64 test APK on the same PR #6.
+4. Native acceptance before merge/release remains pending. Current evidence and sole next action: `06_CURRENT_STATE.md`.
+
+## Historical PR #6 refinement — D-026
+
+1. Implement additive v9 Note folders/organization and atomic pin/move/remove/recovery, preserving populated v6/v7/v8 records and source boundaries.
+2. Implement contextual draft migration, inline autosave/retry, Enter-driven child creation, immediate overlay scrims and content-sized sheets.
+3. Implement grouped/collapsible task lists, child search and transactionally synchronized parent/child completion; retain one-level and orphan safeguards.
+4. Verify migrations/rollback, real storage failure recovery, selection/folder/pin workflows, responsive themes and large lists; build fresh 0.10.1/code 18 ARM64 APK and verify signer/download identity.
+5. Finalize the same PR #6 as ready for review under the user’s latest instruction. Native keyboard/IME/Back/scroll gestures, offline reboot and in-place upgrade are **blocking unverified acceptance**, not implied by browser/static checks. Sole current status/next action: `06_CURRENT_STATE.md`.
+
+## Historical PR #6 refinement — D-025
+
+1. Add and verify preservation-first v8 hierarchy, Note-only new source links and independent Subtask operations; preserve v6/v7 legacy links as roots.
+2. Replace full-screen Task details with a compact expandable sheet; refine full-screen Note writing, menus, Note-linked entries and read-only task-source navigation.
+3. Verify durable draft dismissal, parent/child search, independent completion/removal/Undo, accessible modal isolation, responsive/system-theme behavior and failure recovery.
+4. Run TypeScript, real-SQLite and browser checks, exports and available Android build/static validation. Record unavailable native/runtime coverage rather than inferring it from web checks.
+5. Update the existing draft PR #6 head, description and a newly versioned verified test APK; keep draft pending independent native/device acceptance. Current status and sole next action live in `06_CURRENT_STATE.md`.
+
+## Historical D-024 minimal M1 refactor — implementation stages
+
+
+1. **Implemented and SQLite-tested — Preserve data first:** baseline existing 0.7.1/schema v6 with snapshots, repeatable tests, and migrations for existing Note/Task/Reflection/Creation relationships. Avoid destructive database reset; test upgrade from populated v6.
+2. **Implemented and SQLite/browser-tested — Domain linking:** support independently authored linked Notes or Tasks from either Note or Task, keeping immutable originals, source snapshots and idempotent saves. Preserve all legacy link reads; add schema only if necessary.
+3. **Implemented and browser-tested — Navigation/UI:** replace Today/Library/Review/Settings with Notes and Tasks destinations, both searchable with tab-specific + for standalone capture. Tap cards to open Note/Task details. Place Link note / Link task exclusively in entry detail; support edit/remove and Task Complete/Reopen.
+4. **Implemented; native notification cleanup acceptance pending — Retire obsolete interactions safely:** remove Today selection and daily summary UI, Reflection/Creation labels/prompts/filters, pins, scheduled pin forms/timers, redundant list-card actions and old appearance Settings. Prevent silent due-pin execution, retaining only legacy OS notification cleanup where needed.
+5. **Automated checks complete; native/device gate pending — Verify and document:** typecheck, real SQLite migration and rollback tests, browser workflows, native Android focused tests for Back/keyboard/list/search/links/offline durability; verify no silent task mutations and no lost historical entries. User-device acceptance and remaining data-loss risk should be recorded separately in `06_CURRENT_STATE.md`.
 
 **Acceptance gate:** only two primary destinations; standalone + obeys current tab; links created only in entry details; historical reflection/creation content preserved as Notes; source provenance remains available; complete/reopen still works; offline persistence and rollback proven. No AI, account or sync. See [07_V1_WORKFLOW_DRAFT.md](07_V1_WORKFLOW_DRAFT.md). Earlier phase and completed-milestone sections below are **historical**, not instructions to re-add their superseded UI features.
 
 ## Minimal product and later agent research (D-023)
 
-The accepted product is a minimal independent mobile app; Xiaomi Notes is only a UX reference. Retain accepted 0.7.1 behavior, with no AI in V1. Investigate real-life use before adding more UI. Later, separately approved research may test scoped read-only, source-grounded retrieval and bounded, explainable priority suggestions; only validated value could justify permissioned actions or optional import adapters. See [D-023](05_DECISIONS.md) for policy and [03_ARCHITECTURE.md](03_ARCHITECTURE.md) for technical boundaries. This section is not authorization to implement an agent, sync or Xiaomi integration. D-018 still defers export/backup/restore.
+The accepted product is a minimal independent mobile app; Xiaomi Notes is only a UX reference. Apply D-024 above while retaining historical data/provenance guarantees, with no AI in V1. Investigate real-life use before adding more UI. Later, separately approved research may test scoped read-only, source-grounded retrieval and bounded, explainable priority suggestions; only validated value could justify permissioned actions or optional import adapters. See [D-023](05_DECISIONS.md) for policy and [03_ARCHITECTURE.md](03_ARCHITECTURE.md) for technical boundaries. This section is not authorization to implement an agent, sync or Xiaomi integration. D-018 still defers export/backup/restore.
 
 ## 1. Already done (documented evidence)
 

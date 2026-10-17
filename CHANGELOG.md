@@ -1,5 +1,37 @@
 # Noeting — Documentation Change Log (started 2026-10-11)
 
+## 2026-10-17 — Folder screen and retained quick bar
+
+- D-027 records the user-approved folder screen, multi-selection, persistent folder pins and All/user folders/Uncategorized quick-bar order. Additive schema v10 preserves existing Notes. Implementation is 0.10.2/code 19; verification and APK identity belong to `06_CURRENT_STATE.md`.
+
+
+## 2026-10-16 — PR #6 finalization and 0.10.1 test build
+
+- Review the ten newer PR fixes, retain atomic folder capture and durable draft cancellation/recovery, and correct reverted-edit status plus next-child focus after saving.
+- Correct cancellation/keyboard test assumptions and complete the current automated checks; publish a matching versioned test APK with signer/download identity verified.
+- Finalize the same PR #6 as ready for review under the user's latest instruction. No merge or native-device pass is claimed; exact commands, evidence and remaining acceptance live in `06_CURRENT_STATE.md`.
+
+## 2026-10-16 — 0.10.0 PR #6 inline UX and Note organization
+
+- Record D-026 from the supplied refinement; supersede D-025 UI/independent completion while preserving its provenance/history boundaries.
+- Add v9 Note folders, separate Note pins, atomic bulk organization/removal/recovery and synchronized parent/child completion.
+- Replace Edit/Resume with contextual draft recovery and inline autosave; add anchored overlays, compact sheets, Enter-driven child creation and grouped Tasks.
+- Update the same draft PR #6 with new verification/APK evidence; native/device acceptance remains blocking. Exact results/identity are maintained in `06_CURRENT_STATE.md`.
+
+## 2026-10-16 — 0.9.0 PR #6 Notes/Task-sheet redesign
+
+- Record D-025 from the user's supplied redesign: full-screen writing-first Notes, compact Task/Subtask sheets, Note→Note/Note→Task creation only from Note detail, and read-only Task-source provenance.
+- Add schema v8 one-level task ownership, independent state/removal/Undo and subtask-aware search. Preserve all legacy v6/v7 source data and keep pre-existing Tasks as roots.
+- Retain drafts across safe dismissal/restart with serialized local persistence; isolate modal accessibility and sequence database initialization.
+- Update existing draft PR #6 and its current product/architecture/acceptance records. TypeScript, SQLite, browser, exports and fresh 0.9.0/code 16 ARM64 build/static checks pass; new APK download bytes match the verified checksum. Delivery identity and device gaps live in `06_CURRENT_STATE.md`; earlier APKs remain historical.
+
+## 2026-10-16 — 0.8.0 minimal Notes/Tasks implementation
+
+- Implement D-024 with two searchable tabs, shared entry details/editor, intentional links, edit/remove/Undo and Complete/Reopen. Remove Today/Review/pin/classification/Settings surfaces; use system theme.
+- Add schema v7 generic source snapshots, preserve populated v6 data, park schedules and stop due-pin effects. Keep legacy notification cleanup.
+- Record automated verification and delivery limits in `06_CURRENT_STATE.md`; no AI, accounts, sync or export/restore added.
+- Following explicit publication approval, open draft PR #6 and upload the verified 0.8.0/code 15 ARM64 APK on a separate download branch; fetched bytes match the verified checksum. Main remains unchanged.
+
 ## 2026-10-16 — D-024 minimalist Notes/Tasks refactor direction
 
 - Approve future M1 target of Notes and Tasks tabs with per-tab search/+ and dedicated entry detail; link a new Note or Task exclusively from an entry-detail screen.

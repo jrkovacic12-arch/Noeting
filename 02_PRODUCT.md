@@ -4,9 +4,35 @@
 >
 > **Source of truth for:** user needs, product objects, features, UX behavior, and MVP boundaries.
 
-## Target M1 product contract — D-024 (approved direction, not yet implemented)
+## Current contract — D-027 folders with D-026 Notes and Tasks (0.10.2)
 
-**Priority:** This current-facing contract supersedes conflicting historical 0.7.1 UX descriptions below. The existing shipped/tested source remains 0.7.1. Here “M1” means the *new minimalist refactor baseline*, not the original 2026-10-13 M1 milestone.
+D-026 supersedes D-025's interaction design and independent hierarchy completion. Exactly two primary tabs remain; Xiaomi Notes is a visual/behavioral reference only. Verification belongs to `06_CURRENT_STATE.md`.
+
+- Notes use a compact responsive card list, literal current-text search scoped to All/Uncategorized/the selected folder, and a single horizontal folder strip. Folder creation/rename enforces trimmed case-insensitive unique names; removing a folder moves Notes to Uncategorized. List context persists across tabs/restart. New Notes capture the selected folder and linked Notes inherit the source folder; assignment is atomic with capture. Retried requests resolve the original entry without moving it. A retained creation draft whose folder was removed saves into Uncategorized with its words and request identity intact.
+- The quick folder bar remains on Notes, ordered All → user folders (pinned first, then normalized name) → Uncategorized. A folder icon beside Notes’ More opens a dedicated Folders screen with rounded rows, active-note counts independent of search, current-folder checkmark, and a New folder card. Tap chooses a folder and returns to Notes.
+- Long-press a custom folder enters multi-selection; further taps toggle folders. Pin/Unpin applies to the selection, Delete confirms before removing folders and moving their active/removed Notes to Uncategorized, and Edit renames exactly one selected folder. All/Uncategorized are protected. The top-right trash icon enters the same selection mode; Back first exits selection, then returns to Notes. Folder pinning is separate from Note pinning and persists across restart. Creation and management live on the Folders screen; quick chips only switch scope.
+- A 300 ms hold selects Notes without opening them; scroll cancels selection gestures. The contextual bar overlays the header without moving cards and offers explicit Pin, Unpin, Move, Remove and Close. Mixed selections receive the same requested state atomically. Note pin metadata is independent of legacy Task pins; pinned Notes sort first by most recent pin, then ID. Unpinned Notes sort by last edit/creation, then ID. Move/edit preserves pins. Bulk removal is soft and Undo/recent recovery preserves words, folder and pins. Recently deleted is secondary to Notes More; no permanent deletion.
+- Existing Note bodies, Task titles and child text edit directly, with no Edit actions. Notes open for reading without autofocus; new Note creation focuses writing. Existing edits debounce at 500 ms and flush on blur/background/navigation/unmount, retaining contextual drafts until repository confirmation. Failed/empty edits stay recoverable with Unsaved/Retry. New captures use explicit Save/Cancel; dismiss retains the same context and stable request. Cancel dismisses only after durable context deletion; failures keep the words visible. Reverting an edit to committed words clears Unsaved, including matching recovered drafts. Resume is removed.
+- Note More/Link are anchored, dimmed overlays that leave content in place. Copy, relevant original capture, Connections and Remove are contextual. Connections alone shows source/children; Note-only link creation and frozen provenance remain unchanged. Task-source Notes remain read-only.
+- Task sheets initially size to content (minimum 190 dp, maximum 82% usable viewport), expand/scroll and adapt to keyboard/safe areas. Scrim appears immediately; only the sheet animates. Circular + is 60×60/radius 30. Existing Tasks do not autofocus. Enter in a nonempty Task title saves/focuses Next step; Enter in a nonempty pending child commits it once and focuses the next blank. Empty Enter creates nothing. Pending child blur saves, with scoped recovery on failure. One level only.
+- Tasks list groups indented children under roots with count and session collapse, then a collapsible Completed section. Child-only search retains its parent and matching rows; removed-parent children retain fallback access. Parent completion/reopen propagates atomically to active children; last-child completion completes parent, reopening/adding pending children reopens parent. Child removal/restore recomputes from remaining active children; zero-child parents retain manual state. Removed parents are unchanged by child actions and reconciled on restore.
+- System theme, offline storage, original words, historical source links and notification cleanup remain. No scheduling, Task pin UI, AI/accounts/sync/backend or Xiaomi dependency. SQLite/drafts remain unencrypted and export/restore deferred (D-018).
+
+## Historical contract — D-025, focused Notes and Task/Subtask sheets (0.9.0 source)
+
+This supersedes the all-four-links and full-screen Task UI of 0.8.0/D-024. Verification and device acceptance are maintained only in `06_CURRENT_STATE.md`.
+
+- **Notes:** searchable list and standalone +; full-screen writing-first detail/editor. Compact Back/Edit/Link/More controls, explicit Save/Cancel, Copy/Remove/Undo, and original capture access in More. Only Note detail offers New linked note / New linked task. Linked notes/tasks and source previews remain subdued and navigable.
+- **Link direction:** only Note→Note and Note→Task may be newly created. Each child is independent, with a frozen Note source snapshot. Note-linked Tasks remain top-level Tasks, not Subtasks. Task-originated generic links are rejected by the repository, including deprecated new-write paths; historical Task-origin links remain stored and readable without reinterpretation.
+- **Tasks:** searchable top-level list with independent checkboxes and subtask progress. Text opens an expandable bottom sheet; + opens a Task sheet composer. A source Note appears as read-only provenance/navigation, never an editable source or link-creation action. Source navigation from a Task opens a read-only Note page.
+- **Subtasks:** one level under a Task, with independent text, immutable original, completion and soft-removal/Undo. No cascade in either direction. Subtasks cannot create Subtasks. Search includes child text and identifies/opens the parent with the matching row visible. Surviving children of a removed parent appear as `Parent removed` fallback rows; the stored parent remains intact and Undo regroups them.
+- **Draft safety:** Save/Cancel are explicit. Outside tap, handle swipe and Back may dismiss the composer after the keyboard, but retain the draft and request ID for Resume draft. Drafts persist locally across restart; errors retain text. Explicit Cancel discards the draft. A retained draft is resumed before starting another to prevent accidental overwrite.
+- **Scope:** exactly Notes/Tasks primary tabs; system theme, no Today/Review/Settings, pins/schedules, writing classifications, AI/accounts/sync or Xiaomi integration. Existing notification cleanup remains. Local SQLite and drafts are unencrypted; export/restore stays deferred under D-018.
+
+## Historical 0.8.0 product contract — D-024 (superseded by D-025)
+
+
+**Historical priority:** This was the 0.8.0 contract; D-025 above now supersedes it. The local 0.8.0 implementation follows this contract; native and phone acceptance are tracked in `06_CURRENT_STATE.md`. Here “M1” means the *new minimalist refactor baseline*, not the original 2026-10-13 M1 milestone.
 
 | Screen | Behavior |
 | --- | --- |
@@ -161,7 +187,7 @@ The status below is for a working product, not the interactive research wirefram
 
 ### Minimalist interface constraints (D-023)
 
-Prefer a small Capture/Today/Library/Review interface and voluntary linked thinking to editor formatting, nested taxonomies, graphs or new screens without demonstrated need. Keep Xiaomi Notes a UX reference rather than an assumed integration. [D-023](05_DECISIONS.md) owns the decision; [04_ROADMAP.md](04_ROADMAP.md) owns unapproved later AI experiments. No agent feature is part of V1.
+Use the Notes/Tasks contract above; avoid editor formatting, nested taxonomies, graphs or new screens without demonstrated need. Keep Xiaomi Notes a UX reference rather than an assumed integration. [D-023](05_DECISIONS.md) owns the decision; [04_ROADMAP.md](04_ROADMAP.md) owns unapproved later AI experiments. No agent feature is part of V1.
 
 ## 8. UX and safety constraints
 

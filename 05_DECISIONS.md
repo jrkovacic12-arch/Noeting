@@ -199,15 +199,49 @@
 
 ## D-024 — Minimal Notes/Tasks-only M1 refactor; writing meaning belongs to the user (2026-10-16)
 
-- **Status:** Accepted direction for a later Codex refactor; documentation only in PR #5. Not implemented in current version 0.7.1/schema v6. This is a new minimal product baseline, not the original 2026-10-13 M1 build.
+- **Status:** Accepted in documentation-only PR #5; implemented locally in 0.8.0/schema v7 on 2026-10-16. Verification and remaining device acceptance live in `06_CURRENT_STATE.md`. This is a new minimal product baseline, not the original 2026-10-13 M1 build.
 - **Product:** Two primary destinations: **Notes** and **Tasks**. Each has its own searchable list and type-specific **+** to add a standalone Note or Task. Both types open their own entry-detail screens.
 - **Linking:** Only the entry-detail screen of an existing Note or Task may initiate the creation of a linked Note or Task. Permit Note→Note, Note→Task, Task→Note and Task→Task. Each new entry retains independent content, identity and task completion. Keep source links and original words; do not silently convert Notes into Tasks or cascade parent completion/deletion to children.
 - **Meaning:** **Reflection and Creation are philosophical outcomes, not app classifications.** Notes can represent reflections, creations, ideas, observations or anything the user decides. Remove Reflection/Creation buttons, filters, labels, prompts and separately modeled product workflows. Preserve historical type metadata and source relationships without presenting legacy entries as special categories.
 - **Scope to remove from future M1 UI:** Today, Review, Today-note selection, daily summary/count dashboard, manual and scheduled task pin controls, Reflection/Create actions, extra Capture destinations, separate Settings navigation, deadlines/priorities, agent/AI and advanced organization. Preserve basic Task Complete/Reopen, entry read/edit/remove, search and intentional linking; follow system theme by default.
-- **Data and historical boundaries:** No destructive reset of existing v6 records, migrations, original text, legacy Reflection/Creation content, links or Task history. Scheduling/notification effects must not continue invisibly once their controls are removed; legacy OS notification cleanup may be retained until safely retired. The unchanged current app remains 0.7.1 until a separately implemented and verified code change.
+- **Data and historical boundaries:** No destructive reset of existing v6 records, migrations, original text, legacy Reflection/Creation content, links or Task history. Scheduling/notification effects must not continue invisibly once their controls are removed; legacy OS notification cleanup may be retained until safely retired. The prior 0.7.1/schema v6 implementation remains historical evidence.
 - **Supersession:** Narrows earlier *forward-looking UI scope* from D-010, D-013–D-016 and D-020–D-023; it does not falsify earlier implementation records or undo proven provenance/retry guarantees. Retains D-011 stack, D-010 **no AI in V1**, D-018 **account-phase backup/export/restore deferral**, and D-023 standalone/agent separation.
 - **Reason:** Noeting should support capturing, searching, connecting and acting, not force the user to say whether a note counts as Reflection or Creation.
 - **Document owners:** [02_PRODUCT.md](02_PRODUCT.md) defines UI behavior; [03_ARCHITECTURE.md](03_ARCHITECTURE.md) defines migration constraints; [04_ROADMAP.md](04_ROADMAP.md) defines the Codex sequence; [07_V1_WORKFLOW_DRAFT.md](07_V1_WORKFLOW_DRAFT.md) defines tests; [06_CURRENT_STATE.md](06_CURRENT_STATE.md) keeps implementation status and the sole next action.
+
+## D-025 — Focused Notes, Note-only links and one-level Task/Subtask sheets (2026-10-16)
+
+- **Status:** Accepted by the user's instruction to read and proceed with `CODEX_PR6_XIAOMI_NOTES_TASKS_REDESIGN.md`. Implement on the existing draft PR #6 branch, not main or a replacement PR. Current implementation/verification is maintained in `06_CURRENT_STATE.md`.
+- **Decision:** Notes use full-screen writing-first detail/editing; Tasks and their composers use compact expandable bottom sheets. Only Note detail may initiate Note→Note or Note→Task creation. Task UI offers read-only source provenance and one-level Subtasks, never generic linking or relinking.
+- **Hierarchy:** Task→Subtask is ownership through `parent_task_id`, separate from source Note links. Parent/child completion, edits and soft-removal are independent. Surviving children remain discoverable if the parent is removed and regroup on Undo. No sub-subtasks or implicit conversion of legacy links.
+- **Preservation:** Additive v8; preserve v6/v7 words, edits, timestamps, completion, source pointers/snapshots and legacy Task-origin links. Keep old tasks as roots. Enforce new-write restrictions in repository logic, retain safe retry semantics, and keep schedule retirement/notification cleanup intact.
+- **Draft safety and scope:** Explicit Save/Cancel, locally retained drafts through safe dismissal/restart; accessible Back/keyboard behavior. Exactly Notes/Tasks, system theme, no AI/account/sync/Xiaomi integration or expanded organization. D-018 export/restore deferral remains.
+- **Supersession:** Supersedes D-024's all-four-combination linking and shared full-screen Task detail, not its historical evidence, minimal scope or data-preservation guarantees. Product behavior: `02_PRODUCT.md`; architecture: `03_ARCHITECTURE.md`; acceptance: `07_V1_WORKFLOW_DRAFT.md`.
+
+## D-026 — Inline Xiaomi-inspired organization and synchronized hierarchy (2026-10-16)
+
+**Accepted direction:** The user supplied `CODEX_PR6_XIAOMI_UIUX_REFINEMENT.md` and instructed “read the file and proceed.” The attachment specifies implementation requirements; it is not test evidence. This decision supersedes D-025's explicit existing-entry edit/Resume UI, always-visible connections, fixed sheet sizing and independent parent/child completion. D-025's provenance/data preservation and one-level boundaries continue.
+
+- Adopt inline existing-entry editing with debounce/lifecycle flushing, contextual durable draft migration/recovery, Unsaved/Retry, anchored dimmed menus, contextual Connections, compact Task sheets and circular FAB. New captures remain empty-safe and use stable idempotency identities.
+- Add Note-only folders, deterministic persistent Note pins, long-press multiselect, atomic bulk pin/unpin/move/soft-remove/restore and secondary Recently deleted. Folder removal unfiles Notes; Note pins never reuse Task metadata.
+- Adopt Enter-driven single-line Task/child creation, grouped/indented/collapsible children and Completed groups with parent-aware search/orphan fallback.
+- Synchronize completion transactionally over active children: parent toggles propagate; child toggles/add/remove/restore reconcile parent, with zero-child manual state and removed-parent reconciliation only on restore. Preserve unrelated historical completion timestamps and legacy cleanup.
+- Additive schema v9 preserves old data/links; Note-linked Tasks stay roots. No cascade deletion, source relinking, Task-origin generic writes, scheduling, extra tabs, AI/accounts/sync or Xiaomi integration. Keep same draft PR #6; use a fresh versioned test APK and document native acceptance as blocking if unavailable.
+
+**Finalization addendum (2026-10-16):** The user subsequently instructed “Check and finalize the draft PR #6.” Finalize the existing PR as ready for review after checking the latest fixes and publishing a matching test APK. This supersedes the earlier draft-status instruction for review readiness only; native/device acceptance remains a gate before merge/release. No merge instruction, phone test approval or native pass is inferred.
+
+Product, design and acceptance details: `02_PRODUCT.md`, `03_ARCHITECTURE.md`, `07_V1_WORKFLOW_DRAFT.md`. Verification and sole next action: `06_CURRENT_STATE.md`. Historical decisions remain unchanged.
+
+## D-027 — Dedicated Folders screen and retained quick bar (2026-10-17)
+
+**Accepted:** The user approved the screenshot-based Folders screen, clarified that long-press enters multi-folder selection with Pin/Delete/Edit, and explicitly retained the main Notes quick bar: All first, user folders next, Uncategorized last. “Proceed all above” and “resume” authorize implementation and the previously requested PR/APK delivery.
+
+- Folder icon beside Notes’ More opens a full screen with Back, Folders title, rounded rows, active-note counts, current-folder checkmark, top-right trash entry to selection, and New folder card.
+- Tap selects scope and returns to Notes. Long-press selects the held custom folder; subsequent taps toggle additional folders. Pin/Unpin applies to all selected folders, Delete confirms and preserves Notes in Uncategorized, and Edit renames exactly one selection. System buckets are protected; Back exits selection before leaving the screen.
+- Keep the quick bar as All → user folders (pinned first) → Uncategorized. Remove creation/management controls from that bar. Use Uncategorized as the display name while preserving the existing internal scope key.
+- Add persistent folder pins independently of Note pins via additive schema v10; bulk actions must roll back together. Preserve existing data, source boundaries and D-026 completion/draft behavior. Update existing ready-for-review PR #6 and publish a matching versioned test APK. Native acceptance and explicit merge authorization remain required.
+
+Behavior and design belong to `02_PRODUCT.md` and `03_ARCHITECTURE.md`; acceptance to `07_V1_WORKFLOW_DRAFT.md`; actual verification and next action to `06_CURRENT_STATE.md`.
 
 ## Proposal register — accepted items reference decision records
 
