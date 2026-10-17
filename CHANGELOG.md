@@ -1,5 +1,11 @@
 # Noeting — Documentation Change Log (started 2026-10-11)
 
+## 2026-10-17 — Post-merge documentation alignment (documentation only)
+
+- Record PR #6 merge into `main` (`519c16cf75c5fa9d43a8f96244ca1ae7ef30d5c2`). The previously documented native-before-merge gate is not shown as passed or explicitly waived; current native/device acceptance remains pending. Merge does not prove release readiness.
+- Clarify 0.10.2/schema v10 as the current Notes/Tasks contract; label earlier 0.7.1 Today/Review/scheduled-pin behavior and prototype examples historical, preserving old migration and test records.
+- Document the post-merge phone acceptance gate in the roadmap and keep `06_CURRENT_STATE.md` the sole owner of status, outcomes and next action. Local SQLite/drafts remain unencrypted; export/restore remains deferred under D-018. No source code or runtime tests were changed or executed by these documentation edits.
+
 ## 2026-10-17 — Folder screen and retained quick bar
 
 - D-027 records the user-approved folder screen, multi-selection, persistent folder pins and All/user folders/Uncategorized quick-bar order. Additive schema v10 preserves existing Notes. Implementation is 0.10.2/code 19; verification and APK identity belong to `06_CURRENT_STATE.md`.
