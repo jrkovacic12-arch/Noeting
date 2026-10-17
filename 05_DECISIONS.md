@@ -243,6 +243,8 @@ Product, design and acceptance details: `02_PRODUCT.md`, `03_ARCHITECTURE.md`, `
 
 Behavior and design belong to `02_PRODUCT.md` and `03_ARCHITECTURE.md`; acceptance to `07_V1_WORKFLOW_DRAFT.md`; actual verification and next action to `06_CURRENT_STATE.md`.
 
+**Post-merge factual note (2026-10-17; not a new scope decision):** [PR #6](https://github.com/jrkovacic12-arch/Noeting/pull/6) merged into `main` at commit `519c16cf75c5fa9d43a8f96244ca1ae7ef30d5c2`. D-026/D-027 called for native acceptance before merge, but the recorded 0.10.2 evidence still shows physical-device acceptance pending; no explicit waiver or device approval is documented. Source integration is not native validation, security acceptance or release authorization. `06_CURRENT_STATE.md` owns the sole current next action.
+
 ## Proposal register — accepted items reference decision records
 
 ### P-001 — Bounded background AI
