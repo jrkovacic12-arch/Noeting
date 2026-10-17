@@ -1,6 +1,6 @@
 # Noeting — Start Here
 
-> **Documentation refresh:** 2026-10-12
+> **Documentation refreshed:** 2026-10-17 (post-PR #6 merge)
 >
 > **Motto:** *Notice. Note. Think. Originate from nothing.*
 
@@ -9,6 +9,8 @@
 **Noeting** is a proposed privacy-first, local-first personal thinking and action system. It aims to make capturing, clarifying, prioritizing, reflecting, and creating easier without becoming an attention-consuming feed. A permission-controlled personal AI agent is a longer-term direction, not an MVP requirement.
 
 For founding principles and the two thinking/action loops, read [01_VISION.md](01_VISION.md). For observed Obsidian usage and product needs, read [02_PRODUCT.md](02_PRODUCT.md). **Only [06_CURRENT_STATE.md](06_CURRENT_STATE.md) maintains the current status, blockers, and exact next action.**
+
+> **Current baseline:** Version 0.10.2/schema v10 is merged into `main`, with physical-device acceptance still pending. Current Notes/Tasks behavior is defined at the start of `02_PRODUCT.md`; earlier Today/Review/scheduled-pin descriptions are historical, not current UI requirements. Only `06_CURRENT_STATE.md` maintains the current next action.
 
 ## 2. Document index — one owner per topic
 
