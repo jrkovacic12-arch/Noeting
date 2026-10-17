@@ -1,7 +1,7 @@
 # Noeting — V1 Workflow Specification (Draft)
 
-> Created: 2026-10-11. Updated: 2026-10-12 (V1.2 wireframe revision). Status: proposed workflow with a small interactive wireframe and limited automated checks; not an approved implementation specification.
-> Milestone: design and validate Capture → Today. The examples below are illustrative, not observations from real usage.
+> Created: 2026-10-11. Current acceptance refreshed: 2026-10-17 (0.10.2/schema v10; PR #6 merged). D-027/D-026 sections describe the active Notes/Tasks build; native-device acceptance is pending.
+> Historical boundary: D-025 and earlier Capture → Today examples are superseded research/validation history, not current UI requirements. Execution results belong to `06_CURRENT_STATE.md`.
 
 ## Current D-027 folder acceptance — 0.10.2
 
@@ -19,7 +19,7 @@
 - Existing text edits directly with no Edit/Resume; exact-context recovery survives repository/storage failure and restart; originals/frozen provenance remain readable. Overlay menus preserve content bounds, dim immediately and isolate accessibility. Connections is contextual only.
 - New Task autofocus/Enter moves to Next step; blank Enter creates nothing, composition does not submit prematurely, repeated Enter deduplicates, pending child blur/failure/restart preserves text and request. Existing Tasks do not autofocus.
 - Inline grouped/indented child lists, count/collapse, Completed grouping, parent/child search and orphan access remain coherent from committed snapshots. For one/two/three children verify every D-026 completion transition plus halfway rollback and retry.
-- Compact/expanded sheets, circular FAB, system themes, narrow/large text, source read-only navigation, offline content and large fixture tab switching. Native keyboard/Back/IME, touch-scroll cancellation and in-place upgrade require separate device evidence before merge/release; review readiness follows the user’s subsequent finalization instruction.
+- Compact/expanded sheets, circular FAB, system themes, narrow/large text, source read-only navigation, offline content and large fixture tab switching. Native keyboard/Back/IME, touch-scroll cancellation and in-place upgrade still require separate device evidence **after merge**, before any release-readiness claim. The original premerge gate and review instruction remain historical.
 
 Actual commands, counts, evidence and unresolved limits live only in `06_CURRENT_STATE.md`. Older acceptance sections below are historical.
 
@@ -51,7 +51,7 @@ Actual commands, counts, evidence and unresolved limits live only in `06_CURRENT
 
 **Scope status:** D-025 above supersedes these 0.8.0 criteria; the following is historical evidence. The remaining sections below preserve the pre-D-024 historical prototype and 0.7.1 testing record.
 
-## Goal and boundary
+## Historical pre-D-024 prototype research — goal and boundary
 
 Help a person preserve thoughts and manage accepted commitments with little organizational overhead. The first testable loop is **Capture → Clarify → Today → Reminder (when explicitly set) → Review → Stop**. Preserve an intentional path through reflection, experiments, and creation without requiring a separate Create screen. **Save closes Capture immediately** and returns the user to the prior activity; clarification or AI suggestions, if used, happen later through a deliberate action, not as a save-time prompt. No default AI conversation, feeds, or silently created commitments.
 
