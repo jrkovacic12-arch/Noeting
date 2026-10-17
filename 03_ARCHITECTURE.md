@@ -1,6 +1,6 @@
 # Noeting — Architecture, Privacy and Agent Design
 
-> **Status:** React Native + Expo + TypeScript + SQLite selected for mobile V1 (D-011). M1 source and schema v1 implemented on 2026-10-13; real-SQLite automated checks passed. Native runtime/device behavior and security acceptance remain unverified.
+> **Current baseline:** React Native + Expo + TypeScript + SQLite, version 0.10.2/schema v10 (D-024–D-027), merged through PR #6 on 2026-10-17. Existing automated and APK evidence is recorded in `06_CURRENT_STATE.md`; current native-device and security acceptance remain unverified.
 >
 > **Principle:** Local-first and user-controlled; verify privacy properties rather than assuming them.
 
@@ -21,6 +21,8 @@ A snapshot includes joined organization/source/parent data and folders, without 
 `noeting.editor-drafts.v2` stores entry/context-keyed drafts: edit entry ID, standalone kind, linked source+kind or child parent ID. Serialized writes retain stable capture identities; v1 is copied into its matching context before removing the legacy key. Successful edits remove only the matching saved value; storage failure retains memory and blocks risky dismissal. DB initialization still precedes KV initialization. Existing editors debounce and flush lifecycle changes; new captures remain explicit. List context has a separate serialized KV key. No encryption/remote storage is introduced.
 
 Popover uses a separate no-animation Modal, immediate scrim, bounded trigger-relative placement and background accessibility isolation. Nested popover Back resolves before keyboard/sheet. Sheet's Modal/scrim does not animate; Animated.View translates only content. Initial height estimates visible content and font scale, caps to usable/keyboard bounds and supports handle expansion/internal scroll. Native IME, Back, keyboard overlap and actual upgrade remain blocking acceptance items until independently executed.
+
+The v10 contract above governs the merged source. Earlier version-specific implementation notes below are historical and do not override the current behavior.
 
 ## Historical architecture — D-025, 0.9.0/schema v8
 
@@ -313,7 +315,7 @@ The authoritative **decision register and status** lives in [05_DECISIONS.md](05
 
 The V1 interaction examples and tests are in [07_V1_WORKFLOW_DRAFT.md](07_V1_WORKFLOW_DRAFT.md). The mobile stack is accepted under D-011; these unresolved design investigations do not prove an implementation or finalize package versions and detailed schema.
 
-### Session navigation and draft handling — 0.3.1 (D-015)
+### Historical session navigation and draft handling — 0.3.1 (superseded by D-026)
 
 No schema migration is needed. Capture drafts are keyed by note/task type, linked drafts by source/type, and edit drafts by entry ID, in process memory only. Reopening restores text and stable capture request identity; successful Save clears that draft. Removing an entry clears its edit draft. Restarting the app process discards unsaved drafts; backgrounding can retain them. Back and backdrop dismissal share the write lock. Android modal Back is handled by `onRequestClose`; screen Back restores the recorded visit and scroll offset after the destination ScrollView reports its content layout. Today alone arms a two-second exit window; navigation and dialog activation/dismissal reset it. An OS toast carries the first-Back hint separately from the Undo control. Swipe/timeout dismissal only removes the Undo UI, leaving the soft-removal receipt semantics unchanged.
 
