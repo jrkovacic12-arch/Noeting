@@ -1,14 +1,19 @@
 # Noeting — Current State and Session Handoff
 
-> **Updated:** 2026-10-17 (D-027 folder screen, PR #6 ready for review, 0.10.2/schema v10)
+> **Updated:** 2026-10-17 (PR #6 merged; 0.10.2/schema v10; native acceptance pending)
 >
-> **Phase:** Approved folder screen and persistent folder pins implemented alongside the retained quick folder bar. Existing PR #6 remains ready for review and unmerged.
+> **Phase:** PR #6 merged into `main`. The folder screen, pins and retained quick bar are in merged source. This does **not** establish physical-device acceptance or production-release readiness.
 >
-> **Current verification:** TypeScript and 45 real-SQLite tests pass. The full browser run passes 18/19; after correcting the remaining test’s wait for a nested menu, its focused rerun passes (all 19 scenarios covered across these runs). Android/iOS/web exports, fresh ARM64 build, static APK checks, bundled-source identity and fetched checksum pass. Native/device acceptance remains pending before merge/release.
+> **Current verification:** TypeScript and 45 real-SQLite tests pass. The full browser run passes 18/19; after correcting the remaining test’s wait for a nested menu, its focused rerun passes (all 19 scenarios covered across these runs). Android/iOS/web exports, fresh ARM64 build, static APK checks, bundled-source identity and fetched checksum pass. Native/device acceptance remains pending after merge and before any release-readiness claim.
 
 ## 1. Verified progress
 
-### 2026-10-17 — Dedicated Folders screen and quick bar (current)
+### 2026-10-17 — PR #6 merge (current status)
+
+- GitHub records [PR #6](https://github.com/jrkovacic12-arch/Noeting/pull/6) merged at **2026-10-17 13:52:15 UTC**, merge commit `519c16cf75c5fa9d43a8f96244ca1ae7ef30d5c2`. The 0.10.2/code 19 APK and verification details below are **premerge evidence**, not tests run on the merge commit.
+- The documented plan required native acceptance *before* merge. No current physical-device pass or explicit gate waiver is documented in the available repository evidence. Merge is not a native-device or release sign-off. Preserve previous dated checkpoints as historical; follow the post-merge gate in `04_ROADMAP.md`.
+
+### 2026-10-17 — Dedicated Folders screen and quick bar (premerge verification record)
 
 - Implemented the user-approved D-027 after the earlier environment startup failure was resolved. Continued the unchanged PR #6 head `9dc3a8499fdd9e323d6d68ada9d4125ac6e0b660`; main stayed at `e04b51ba3ff87e4928ffe4a78f3a22507d55ded0`. App/source commit: `5bcf98c4a41ec8595bb86a1ac22063d3d5c8b833`. No replacement PR or merge.
 - Added the dedicated Folders screen, active counts, create/rename prompts, long-press multi-folder selection and Pin/Unpin/Delete/Edit, with confirmation preserving Notes. Retained the Notes quick bar in All → pinned/other user folders → Uncategorized order. Product details belong to `02_PRODUCT.md` and D-027 in `05_DECISIONS.md`.
@@ -309,7 +314,7 @@ The user chose Notes and Tasks as the only primary screens, each with search and
 
 ## 2. Exact next action — only maintained here
 
-**Next action:** review PR #6 and install the matching 0.10.2/code 19 ARM64 APK over the populated existing app without uninstalling or clearing data. Test D-027 folder creation, long-press multi-selection, pin/unpin, single-folder Edit, protected system buckets, deletion confirmation/Note preservation and quick-bar ordering; also retain D-026 native keyboard/IME/Back, child focus, draft recovery, offline restart/reboot and notification cleanup acceptance. Record device/OS and individual outcomes here. Native acceptance remains required before merge/release. Await an explicit merge instruction; accounts/sync and export/restore remain deferred.
+**Next action:** Perform and record physical-device acceptance of the merged 0.10.2/code 19 source using its matching ARM64 test APK linked above. Install **over an existing populated compatible installation without uninstalling/clearing data**. Record phone, Android version, package/signer, migration result and preservation of existing/removed Notes. Test D-027 folder creation, selection, pin/unpin, Edit, deletion, counts and quick-bar order; D-026 keyboard/IME/Back, long-press versus scrolling, Enter/child focus, inline autosave, draft recovery, offline force-stop/reboot, notification cleanup and populated upgrade. Record each as pass/fail/not run with evidence here. Browser/SQLite/static APK checks and source merge do not satisfy the native gate. SQLite/drafts are unencrypted; export/restore remains deferred by D-018. Do not claim production-release readiness without documented native acceptance and explicit release authorization.
 
 **Handoff context:** The user agreed to the first-app feature set (D-010), to React Native + Expo + TypeScript + SQLite (D-011), and to implement using Codex. The user said the updated prototype was tested and **“worked as intended”**; the test device and per-scenario results were not specified. Do not claim full S1–S4 validation or verified native runtime from that prototype report or the static APK checks.
 
@@ -325,4 +330,4 @@ The user chose Notes and Tasks as the only primary screens, each with search and
 
 ## 4. Next-session update rule
 
-After M1 implementation, record the actual created project, run commands, test evidence, and known failures here; change `02_PRODUCT.md` / `03_ARCHITECTURE.md` only when requirements/design change; record accepted decisions in `05_DECISIONS.md`; update milestone status in `04_ROADMAP.md`. Keep `00_START_HERE.md` as navigation, not a competing next-action list.
+After each meaningful implementation or validation change, record build identity, run commands, test evidence, and known failures here; change `02_PRODUCT.md` / `03_ARCHITECTURE.md` only when requirements/design change; record accepted decisions in `05_DECISIONS.md`; update milestone status in `04_ROADMAP.md`. Keep `00_START_HERE.md` as navigation, not a competing next-action list.
