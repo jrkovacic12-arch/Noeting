@@ -1,5 +1,11 @@
 # Noeting — Documentation Change Log (started 2026-10-11)
 
+## 2026-10-18 — Scoped AI retrieval foundation (proposed integration)
+
+- User requested AI help reading, retrieving, categorizing and making recommendations. Document staged opt-in, local-first integration and evidence/consent controls without asserting AI is shipped.
+- Introduce a pure allowlisted local context selector and exact-source citation validation, plus targeted tests. No hosted provider, model, network calls, account, schema, app UI or API key.
+- Baseline main CI had an unresolved draft-storage browser timeout; do not confuse new feature tests with baseline green evidence.
+
 ## 2026-10-18 — Post-PR #9 status, native acceptance and test-data scope (documentation only)
 
 - Align current source and CI with merged PR #9 (`dfdb642`), successful main run `39099547696`; retire stale pending-merge/failed-CI instructions without deleting dated historical evidence.
