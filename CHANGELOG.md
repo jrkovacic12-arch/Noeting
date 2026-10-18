@@ -348,3 +348,7 @@ Reproduced the draft-restoration CI failure with delayed real KV writes and corr
 Local validation and actual draft-PR CI pass on the stabilization changes; run identity and remaining native/data-security gates are recorded only in `06_CURRENT_STATE.md`.
 
 Recorded the passing CI install’s existing, untriaged dependency advisory counts in `06_CURRENT_STATE.md`; no dependency/security fix or acceptance claim is implied.
+
+### 2026-10-18 — User-reported 0.10.3 APK test success
+
+Recorded the user's successful APK test report in `06_CURRENT_STATE.md`, keeping unspecified native subcases and security/data limitations explicit. Rechecked PR #9 mergeability and passing source-head CI; no runtime, APK or release change.
