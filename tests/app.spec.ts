@@ -1100,3 +1100,65 @@ test("folder screen long-press selection, pin ordering, rename and safe bulk del
   await expect(page.getByRole("button", { name: "New folder", exact: true })).toBeVisible();
   await page.screenshot({ path: "work/folders-small.png" });
 });
+
+
+test.describe("optional list preferences", () => {
+  test.use({ observeSQLite: true });
+  test("one-time preference read failure opens stored notes with safe defaults", async ({ session }) => {
+    const { page } = session;
+    await capture(page, "note", "Stored before preference failure");
+    await tab(page, "task");
+    await page.getByRole("textbox", { name: "Search tasks" }).fill("old filter");
+    await page.addInitScript(() => {
+      const original = Worker.prototype.postMessage;
+      const reads = new Set<number>();
+      Worker.prototype.postMessage = function (message: any, options?: any) {
+        if (message.type === "prepare" && message.data.source === "SELECT value FROM storage WHERE key = ?;")
+          reads.add(message.data.nativeStatementId);
+        if (message.type === "run" && reads.has(message.data.nativeStatementId) &&
+          Object.values(message.data.bindParams).includes("noeting.list-context.v1") &&
+          !sessionStorage.getItem("preference-read-failed")) {
+          sessionStorage.setItem("preference-read-failed", "yes");
+          throw new Error("Injected preference read failure");
+        }
+        return original.call(this, message, options);
+      };
+    });
+    await page.reload();
+    await expect(page.getByRole("textbox", { name: "Search notes" })).toHaveValue("");
+    await expect(page.getByRole("button", { name: "Open note: Stored before preference failure" })).toBeVisible();
+    await expect(page.getByText("Could not restore list preferences. Using defaults.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole("textbox", { name: "Search notes" })).toHaveValue("");
+    await expect(page.getByRole("button", { name: "Open note: Stored before preference failure" })).toBeVisible();
+  });
+  test("malformed or invalid preference shapes fall back without blocking capture", async ({ session }) => {
+    const { page } = session;
+    await capture(page, "note", "Existing words");
+    for (const raw of ["{broken", "null", '[]', '{"tab":"task","folder":42,"queries":{"note":false,"task":"stale"}}']) {
+      await databaseSQL(page, `UPDATE storage SET value='${raw}' WHERE key='noeting.list-context.v1'`, true);
+      await page.reload();
+      await expect(page.getByRole("textbox", { name: "Search notes" })).toHaveValue("");
+      await expect(page.getByRole("button", { name: "Open note: Existing words" })).toBeVisible();
+    }
+    await capture(page, "note", "Created after bad preferences");
+  });
+  test("valid preferences restore and failed writes allow later changes", async ({ session }) => {
+    let { page } = session;
+    await capture(page, "note", "Still here");
+    await databaseSQL(page, "CREATE TRIGGER fail_preferences BEFORE UPDATE ON storage WHEN NEW.key='noeting.list-context.v1' BEGIN SELECT RAISE(ABORT,'preference write failed'); END", true);
+    await tab(page, "task");
+    await expect(page.getByText("Could not keep list preferences.")).toBeVisible();
+    await databaseSQL(page, "DROP TRIGGER fail_preferences", true);
+    await page.getByRole("textbox", { name: "Search tasks" }).fill("remember tasks");
+    await expect(page.getByText("Could not keep list preferences.")).toHaveCount(0);
+    page = await session.restart();
+    await expect(page.getByRole("textbox", { name: "Search tasks" })).toHaveValue("remember tasks");
+    await tab(page, "note");
+    await expect(page.getByRole("textbox", { name: "Search notes" })).toHaveValue("");
+    await expect(page.getByRole("button", { name: "Open note: Still here" })).toBeVisible();
+  });
+});
+
+

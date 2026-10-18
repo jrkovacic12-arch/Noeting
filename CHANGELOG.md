@@ -300,3 +300,7 @@ No changes were needed to `02_PRODUCT.md`, `03_ARCHITECTURE.md`, or `04_ROADMAP.
 - Both ABI builds/static verifiers and 23 Android 9 native assertions passed: preserved v2→v3 upgrade, clipboard, edit/remove/Undo, source/legacy data and offline relaunch. Native harness uses settled field-value waits and measured transient Undo touches; details/artifacts live in `06_CURRENT_STATE.md`.
 
 - Published only the verified 0.3.0 phone APK on a separate approved public download branch; fetched SHA-256 matches the local ARM64 artifact. Main remains unchanged.
+
+### 2026-10-18 — Startup preference recovery
+
+Optional list preferences fall back safely after read/parse/shape failures; nonblocking warnings replace the stranded startup path. Failure-injection and restart coverage added; evidence belongs to `06_CURRENT_STATE.md`. No native version/schema change.

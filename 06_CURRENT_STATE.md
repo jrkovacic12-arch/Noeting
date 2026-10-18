@@ -8,6 +8,13 @@
 
 ## 1. Verified progress
 
+### 2026-10-18 — Reliability work in progress
+
+- The user instructed reading and proceeding with `CODEX_NOETING_RELIABILITY_IMPROVEMENTS.md`. Its five phases authorize implementation, not device/release sign-off. Clean starting branch `work`, base/main `2f0d64cd8eecd0994c94c15d30fac7f048443bdb`; working branch `codex/reliability-20261018`. Version 0.10.2/code 19/schema v10 remain unchanged.
+- Baseline Node 24.19.0: `npm ci` and `npm run check` pass (45 real-SQLite tests). All 19 existing browser scenarios passed in the baseline run; the additional measurement scenario initially had a harness setup error, corrected before collecting results. No complete 20/20 baseline run is claimed. The new one-time preference-read injection reproduces the original startup hang.
+- Startup preferences now validate shape and fall back to Notes/All/empty searches with a nonblocking warning; stale effect completions are ignored. Preference write failures remain usable and later changes can persist. Draft/database failure handling is preserved. Focused preference scenarios pass 3/3, including malformed JSON/null/arrays/invalid shapes, stored-note visibility, capture, valid restart restoration and failed-write recovery. `npm run check` passes; `npm run export` passes Android/iOS/web (exports are not native compilation). Evidence: `work/reliability-{baseline-install,baseline-check,baseline-ui,startup-red,startup-check,startup-ui,startup-export}.log`. Full regression and subsequent phases are in progress.
+
+
 ### 2026-10-17 — PR #6 merge (current status)
 
 - GitHub records [PR #6](https://github.com/jrkovacic12-arch/Noeting/pull/6) merged at **2026-10-17 13:52:15 UTC**, merge commit `519c16cf75c5fa9d43a8f96244ca1ae7ef30d5c2`. The 0.10.2/code 19 APK and verification details below are **premerge evidence**, not tests run on the merge commit.
