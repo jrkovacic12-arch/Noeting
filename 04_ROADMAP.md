@@ -4,6 +4,16 @@
 >
 > **Current phase:** Version 0.10.3/code 20/schema v10 is merged through PRs #8 and #9. The user reports successful completion of all nine native N1–N9 checks, while detailed case/device records were not provided. Exact status and next action belong to `06_CURRENT_STATE.md`.
 
+## Proposed development checkpoint after 0.10.3 — 2026-10-18
+
+**Evidence review, not a new feature commitment:** The current 0.10.3 baseline offers quick Notes/Tasks capture, scoped retrieval, folders, Note links, inline edits, child completion and contextual recovery. Existing real-SQLite/browser coverage tests these interactions. This source review did **not** include new users or longitudinal usability observations; real-life friction remains unmeasured.
+
+**Small reliability candidate:** If obsolete `noeting.editor-draft.v1` contains malformed JSON, `useDraft` currently fails the entire draft startup process even when the authoritative v2 dictionary is valid. Preserve v2 recovery independently, keep invalid v1 bytes for inspection, and exercise the case with a real browser SQLite regression. Do not weaken failed-v2 or failed-migration recovery.
+
+**Dependency stage:** CI previously reported 22 advisories (15 high, 7 moderate). A nonblocking per-package `npm audit --json` inventory is a suitable first step, but severity totals do not establish exploitability. Classify direct/transitive, runtime/build-only, reachability, and compatible remediation before changing any package. If audit service is unavailable, report it instead of declaring the dependency set safe.
+
+**Next milestone proposal:** Validate targeted reliability fix and audit visibility in a dedicated PR; review real-workflow observations on disposable data next; then choose one user-evidenced UX improvement. The report is not permission to introduce AI/accounts/sync, reinstate superseded navigation, publish a new APK, or claim production readiness. This section is a proposal; the exact current action belongs to `06_CURRENT_STATE.md`.
+
 ## Reliability maintenance and acceptance gates
 
 - [x] Optional startup preferences, serialized/coalesced draft persistence, historical SQL extraction and reproducible performance procedure (PR #8).

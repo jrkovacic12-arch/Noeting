@@ -24,6 +24,37 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      # Audit output is evidence, not a release or exploitability assessment.
+      # Non-blocking until each finding is classified and a policy is accepted.
+      - name: Inventory npm dependency advisories
+        run: |
+          npm audit --json > "$RUNNER_TEMP/noeting-audit.json" || true
+          node --input-type=module - "$RUNNER_TEMP/noeting-audit.json" <<'NODE'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          const report = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+          const issues = Object.entries(report.vulnerabilities ?? {});
+          const rows = issues.map(([name, v]) => ({
+            name,
+            severity: v.severity,
+            direct: v.isDirect ? 'direct' : 'transitive',
+            range: v.range,
+            fix: v.fixAvailable === false ? 'none reported'
+              : typeof v.fixAvailable === 'object'
+                ? `${v.fixAvailable.name}@${v.fixAvailable.version}${v.fixAvailable.isSemVerMajor ? ' (major)' : ''}`
+                : 'available',
+          }));
+          const totals = report.metadata?.vulnerabilities;
+          const lines = ['### npm dependency advisory inventory', '',
+            `Audit: ${totals?.total ?? 'unavailable'} reported; high ${totals?.high ?? '?'}, moderate ${totals?.moderate ?? '?'}.`,
+            '', '| Package | Severity | Relationship | Affected range | npm fix |',
+            '| --- | --- | --- | --- | --- |',
+            ...rows.map(r => `| ${r.name} | ${r.severity} | ${r.direct} | ${r.range} | ${r.fix} |`),
+            '', 'Inventory only: determine runtime exposure and Expo compatibility before applying fixes.'];
+          if (report.error) lines.push('', `Audit unavailable: ${report.error.summary ?? report.error.code ?? 'unknown error'}`);
+          const summary = lines.join('\n') + '\n';
+          console.log(summary);
+          if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
+          NODE
       - run: npm run check
       - run: npx playwright install --with-deps chromium
       - name: Build and start real SQLite web harness

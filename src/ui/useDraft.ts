@@ -29,9 +29,16 @@ export function useDraft(enabled: boolean) {
       const raw = await Storage.getItem(key);
       const next = raw ? JSON.parse(raw) : {};
       const old = await Storage.getItem("noeting.editor-draft.v1");
+      let validOld = false;
       if (old) {
-        const d = JSON.parse(old) as EditorDraft;
-        if (d.kind && typeof d.text === "string" && d.requestId) {
+        // v2 is authoritative. A corrupt obsolete v1 key must not prevent
+        // recovery of otherwise valid current-context drafts.
+        let d: EditorDraft | null = null;
+        try { d = JSON.parse(old) as EditorDraft; } catch { /* Keep unreadable legacy bytes for inspection. */ }
+        if (d && (d.kind === "note" || d.kind === "task") &&
+            typeof d.text === "string" && typeof d.requestId === "string" &&
+            d.requestId) {
+          validOld = true;
           const context = draftContext(d);
           if (!next[context]) next[context] = d;
         }
@@ -39,7 +46,7 @@ export function useDraft(enabled: boolean) {
       if (!active) return;
       store.values = next;
       await Storage.setItem(key, JSON.stringify(next)); // old key retained as migration backup; v2 is authoritative
-      if (old) await Storage.removeItem("noeting.editor-draft.v1");
+      if (validOld) await Storage.removeItem("noeting.editor-draft.v1");
       if (!active) return;
       bump((v) => v + 1);
       setError(null);
