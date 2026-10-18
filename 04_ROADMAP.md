@@ -4,6 +4,14 @@
 >
 > **Current phase:** Version 0.10.3/code 20/schema v10 is merged through PRs #8 and #9. The user reports successful completion of all nine native N1–N9 checks, while detailed case/device records were not provided. Exact status and next action belong to `06_CURRENT_STATE.md`.
 
+## PC–phone synchronization before AI — 2026-10-18
+
+The user explicitly prioritizes sync ahead of AI. **Stage S0 (first reviewable slice)** is a manual phone-to-PC **read-only mirror**, implemented without schema upgrades, automatic background traffic or hidden state mutation. The phone remains authoritative; the PC receiver and credentials are configured manually and are not publicly exposed. This is not a second writable client or a lossless backup. No Ollama/AI work is in this slice.
+
+**Further required stages (not yet implemented):** S1—complete data model/versioned sync journal, tombstones, rollback and deterministic reconciliation tests; S2—paired PC–phone bidirectional transport with strict identity, authentication, TLS, retry/outbox and explicit conflict review; S3—actual PC editor and sustained offline-concurrent-edit testing; S4—optional local AI reading the properly synchronized PC library. Revisit D-018 durability/account policy before relying on valuable data. The model/provider and PC storage/security choices are separate decisions.
+
+**Gate:** Verify S0 TypeScript/SQLite/unit/browser checks, a real phone-to-localhost-over-HTTPS test, receiver authentication, malformed/stale/oversized payload rejection and no automatic uploads. Current main CI has an existing browser-draft timeout and is not a green baseline. No Android binary or merged release is implied.
+
 ## Proposed development checkpoint after 0.10.3 — 2026-10-18
 
 **Evidence review, not a new feature commitment:** The current 0.10.3 baseline offers quick Notes/Tasks capture, scoped retrieval, folders, Note links, inline edits, child completion and contextual recovery. Existing real-SQLite/browser coverage tests these interactions. This source review did **not** include new users or longitudinal usability observations; real-life friction remains unmeasured.
