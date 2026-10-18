@@ -4,6 +4,10 @@
 >
 > **Source of truth for:** user needs, product objects, features, UX behavior, and MVP boundaries.
 
+## AI assistant — requested next capability, not yet shipped (2026-10-18)
+
+The user requests assistance with **reading, retrieving, categorizing and recommendations**. Preserve Notes and Tasks as the only primary destinations, capture as a quiet manual act, and original words as the authority. Initial AI work is explicitly user-invoked, uses only selected records, shows note/task provenance, and produces reversible *suggestions* rather than silently changing folders, creating Tasks or assigning priorities. An "Ask notes" surface is a proposed affordance, not an implemented control. Provider, on-device/cloud mode, persistence schema, budget and permissions remain to be decided before live AI is connected.
+
 ## Current contract — D-027 folders with D-026 Notes and Tasks (0.10.3)
 
 D-026 supersedes D-025's interaction design and independent hierarchy completion. Exactly two primary tabs remain; Xiaomi Notes is a visual/behavioral reference only. Verification belongs to `06_CURRENT_STATE.md`.
