@@ -7,6 +7,7 @@ import {
   type Locator,
 } from "@playwright/test";
 import { mkdtemp, rm, readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -16,13 +17,14 @@ type BrowserSession = {
 };
 
 type SQLiteTestWindow = Window & {
+  __noetingDraftWrites?: number;
   __noetingSQLite?: { worker: Worker; nativeDatabaseId: number };
   __noetingAppearance?: { worker: Worker; nativeDatabaseId: number };
 };
 
 const test = base.extend<{ session: BrowserSession; observeSQLite: boolean }>({
   observeSQLite: [false, { option: true }],
-  session: async ({ baseURL, observeSQLite }, use) => {
+  session: async ({ baseURL, observeSQLite }, use, testInfo) => {
     const profile = await mkdtemp(join(tmpdir(), "noeting-ui-"));
     let context: BrowserContext | undefined;
     const shutdown = async () => {
@@ -34,7 +36,7 @@ const test = base.extend<{ session: BrowserSession; observeSQLite: boolean }>({
     };
     const launch = async () => {
       context = await chromium.launchPersistentContext(profile, {
-        executablePath: process.env.CHROMIUM_PATH ?? "/usr/bin/chromium",
+        executablePath: process.env.CHROMIUM_PATH ?? (!process.env.CI && existsSync("/usr/bin/chromium") ? "/usr/bin/chromium" : undefined),
         headless: true,
         args: ["--no-sandbox"],
         baseURL,
@@ -46,6 +48,8 @@ const test = base.extend<{ session: BrowserSession; observeSQLite: boolean }>({
         // A test can add an actual SQLite constraint without a product test API.
         const original = Worker.prototype.postMessage;
         const seen = new WeakSet<Worker>();
+        const writes = new Set<number>();
+        (window as SQLiteTestWindow).__noetingDraftWrites = 0;
         Worker.prototype.postMessage = function (
           message: unknown,
           options?: StructuredSerializeOptions | Transferable[],
@@ -81,6 +85,12 @@ const test = base.extend<{ session: BrowserSession; observeSQLite: boolean }>({
               nativeDatabaseId: packet.data.nativeDatabaseId,
             };
           }
+          const observed = message as any;
+          if (observed.type === "prepare" && observed.data.source.startsWith("INSERT INTO storage"))
+            writes.add(observed.data.nativeStatementId);
+          if (observed.type === "run" && writes.has(observed.data.nativeStatementId) &&
+            Object.values(observed.data.bindParams).includes("noeting.editor-drafts.v2"))
+            (window as SQLiteTestWindow).__noetingDraftWrites!++;
           const forward = original.bind(this);
           if (Array.isArray(options)) forward(message, options);
           else forward(message, options);
@@ -107,6 +117,10 @@ const test = base.extend<{ session: BrowserSession; observeSQLite: boolean }>({
         },
       });
     } finally {
+      if (testInfo.status !== testInfo.expectedStatus) {
+        const page = context?.pages()[0];
+        if (page && !page.isClosed()) await page.screenshot({ path: testInfo.outputPath("failure.png"), fullPage: true }).catch(() => {});
+      }
       await shutdown();
       await rm(profile, { recursive: true, force: true });
     }
@@ -140,6 +154,36 @@ async function databaseSQL(page: Page, sql: string, appearance = false) {
     },
     { source: sql, appearance },
   );
+}
+
+// Read the actual KV SQLite value to distinguish a committed preference from
+// React's already-rendered input before a graceful process restart.
+async function storedValue(page: Page, key: string): Promise<string | null> {
+  return page.evaluate(async (key) => {
+    const database = (window as SQLiteTestWindow).__noetingAppearance;
+    if (!database) throw Error("KV SQLite worker was not observed");
+    const statement = -Math.floor(Math.random() * 1_000_000) - 1;
+    async function rpc(type: string, data: Record<string, unknown>): Promise<any> {
+      const id = -Math.floor(Math.random() * 1_000_000) - 1;
+      return new Promise((resolve, reject) => {
+        const listener = (event: MessageEvent) => {
+          if (event.data.id !== id) return;
+          database!.worker.removeEventListener("message", listener);
+          if (event.data.error) reject(Error(String(event.data.error)));
+          else resolve(event.data.result);
+        };
+        database!.worker.addEventListener("message", listener);
+        database!.worker.postMessage({ type, id, isSync: false, data: {
+          nativeDatabaseId: database!.nativeDatabaseId, nativeStatementId: statement, ...data,
+        } });
+      });
+    }
+    await rpc("prepare", { source: "SELECT value FROM storage WHERE key = ?;" });
+    try {
+      const result = await rpc("run", { bindParams: { 0: key }, bindBlobParams: {}, shouldPassAsArray: true });
+      return result.firstRowValues?.[0] ?? null;
+    } finally { await rpc("finalize", {}); }
+  }, key);
 }
 
 async function tab(page: Page, kind: "note" | "task") {
@@ -625,6 +669,7 @@ test.describe("preservation and failure recovery against real SQLite", () => {
     await databaseSQL(page, "DROP TRIGGER fail_edit");
     await page.getByRole("button", { name: "Retry save" }).click();
     await expect(page.getByText("Unsaved", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Saving…", { exact: true })).toHaveCount(0);
     await close(page, "note");
     await expect(
       page.getByRole("button", { name: "Open note: One unsaved 🌿\n  words" }),
@@ -670,6 +715,8 @@ test.describe("preservation and failure recovery against real SQLite", () => {
   });
 });
 
+test.describe("folder context persistence", () => {
+  test.use({ observeSQLite: true });
 test("folders, long-press multi-select, mixed Pin/Unpin, move, search restart and recovery", async ({
   session,
 }) => {
@@ -696,6 +743,7 @@ test("folders, long-press multi-select, mixed Pin/Unpin, move, search restart an
     page.getByRole("button", { name: "Open note: Gamma" }),
   ).toHaveCount(0);
   await page.getByRole("textbox", { name: "Search notes" }).fill("Alpha");
+  await expect.poll(async () => JSON.parse((await storedValue(page, "noeting.list-context.v1")) ?? "{}").queries?.note).toBe("Alpha");
   page = await session.restart();
   await expect(page.getByRole("textbox", { name: "Search notes" })).toHaveValue(
     "Alpha",
@@ -740,6 +788,8 @@ test("folders, long-press multi-select, mixed Pin/Unpin, move, search restart an
   await expect(
     page.getByRole("button", { name: "Open note: Alpha" }),
   ).toBeVisible();
+});
+
 });
 
 test("Notes captured or linked within a folder remain there after restart", async ({
@@ -1099,4 +1149,175 @@ test("folder screen long-press selection, pin ordering, rename and safe bulk del
   await page.getByRole("button", { name: "Folders", exact: true }).click();
   await expect(page.getByRole("button", { name: "New folder", exact: true })).toBeVisible();
   await page.screenshot({ path: "work/folders-small.png" });
+});
+
+
+test.describe("optional list preferences", () => {
+  test.use({ observeSQLite: true });
+  test("one-time preference read failure opens stored notes with safe defaults", async ({ session }) => {
+    const { page } = session;
+    await capture(page, "note", "Stored before preference failure");
+    await tab(page, "task");
+    await page.getByRole("textbox", { name: "Search tasks" }).fill("old filter");
+    await page.addInitScript(() => {
+      const original = Worker.prototype.postMessage;
+      const reads = new Set<number>();
+      Worker.prototype.postMessage = function (message: any, options?: any) {
+        if (message.type === "prepare" && message.data.source === "SELECT value FROM storage WHERE key = ?;")
+          reads.add(message.data.nativeStatementId);
+        if (message.type === "run" && reads.has(message.data.nativeStatementId) &&
+          Object.values(message.data.bindParams).includes("noeting.list-context.v1") &&
+          !sessionStorage.getItem("preference-read-failed")) {
+          sessionStorage.setItem("preference-read-failed", "yes");
+          throw new Error("Injected preference read failure");
+        }
+        return original.call(this, message, options);
+      };
+    });
+    await page.reload();
+    await expect(page.getByRole("textbox", { name: "Search notes" })).toHaveValue("");
+    await expect(page.getByRole("button", { name: "Open note: Stored before preference failure" })).toBeVisible();
+    await expect(page.getByText("Could not restore list preferences. Using defaults.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole("textbox", { name: "Search notes" })).toHaveValue("");
+    await expect(page.getByRole("button", { name: "Open note: Stored before preference failure" })).toBeVisible();
+  });
+  test("malformed or invalid preference shapes fall back without blocking capture", async ({ session }) => {
+    const { page } = session;
+    await capture(page, "note", "Existing words");
+    for (const raw of ["{broken", "null", '[]', '{"tab":"task","folder":42,"queries":{"note":false,"task":"stale"}}']) {
+      await databaseSQL(page, `UPDATE storage SET value='${raw}' WHERE key='noeting.list-context.v1'`, true);
+      await page.reload();
+      await expect(page.getByRole("textbox", { name: "Search notes" })).toHaveValue("");
+      await expect(page.getByRole("button", { name: "Open note: Existing words" })).toBeVisible();
+    }
+    await capture(page, "note", "Created after bad preferences");
+  });
+  test("valid preferences restore and failed writes allow later changes", async ({ session }) => {
+    let { page } = session;
+    await capture(page, "note", "Still here");
+    await databaseSQL(page, "CREATE TRIGGER fail_preferences BEFORE UPDATE ON storage WHEN NEW.key='noeting.list-context.v1' BEGIN SELECT RAISE(ABORT,'preference write failed'); END", true);
+    await tab(page, "task");
+    await expect(page.getByText("Could not keep list preferences.")).toBeVisible();
+    await databaseSQL(page, "DROP TRIGGER fail_preferences", true);
+    await page.getByRole("textbox", { name: "Search tasks" }).fill("remember tasks");
+    await expect(page.getByText("Could not keep list preferences.")).toHaveCount(0);
+    page = await session.restart();
+    await expect(page.getByRole("textbox", { name: "Search tasks" })).toHaveValue("remember tasks");
+    await tab(page, "note");
+    await expect(page.getByRole("textbox", { name: "Search notes" })).toHaveValue("");
+    await expect(page.getByRole("button", { name: "Open note: Still here" })).toBeVisible();
+  });
+});
+
+
+test("draft write measurement: typing, context switch, save and reload", async ({ session }) => {
+  let { page } = session;
+  const writes = () => page.evaluate(() => (window as SQLiteTestWindow).__noetingDraftWrites ?? 0);
+  const initial = await writes();
+  await page.getByRole("button", { name: "Add note" }).click();
+  const input = page.getByRole("textbox", { name: "Note text", exact: true });
+  await input.pressSequentially("Representative typing burst", { delay: 0 });
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(input).toHaveCount(0);
+  const typed = (await writes()) - initial;
+  await tab(page, "task");
+  await page.getByRole("button", { name: "Add task", exact: true }).click();
+  await page.getByRole("textbox", { name: "Task text", exact: true }).fill("Separate task draft");
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  // Dismissal completes only after the real KV flush barrier. Restarting before
+  // this callback finishes would test abrupt termination rather than safe leave.
+  await expect(page.getByRole("textbox", { name: "Task text", exact: true })).toHaveCount(0);
+  const switched = (await writes()) - initial;
+  expect(typed).toBeLessThan(15);
+  expect(switched).toBeLessThan(18);
+  page = await session.restart();
+  await tab(page, "note");
+  await page.getByRole("button", { name: "Add note" }).click();
+  await expect(page.getByRole("textbox", { name: "Note text", exact: true })).toHaveValue("Representative typing burst");
+  await saveText(page, "Note", "Representative typing burst");
+  await close(page, "note");
+  await tab(page, "task");
+  await page.getByRole("button", { name: "Add task", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "Task text", exact: true })).toHaveValue("Separate task draft");
+  console.log("DRAFT_WRITE_MEASUREMENT", JSON.stringify({ typingAndLeave: typed, throughContextSwitch: switched, afterReloadAndSave: await writes() }));
+});
+
+
+test.describe("performance evidence", () => {
+  test.use({ observeSQLite: true });
+  test("benchmark 3000 notes and 1000 task groups in real browser SQLite", async ({ session }) => {
+    const { page } = session;
+    await databaseSQL(page, await readFile(join(process.cwd(), "scripts/benchmark-fixture.sql"), "utf8"));
+    const results: Record<string, number> = {};
+    async function measure(name: string, action: () => Promise<void>) {
+      const start = performance.now(); await action(); results[name] = Math.round(performance.now() - start);
+    }
+    await measure("startupMs", async () => {
+      await page.reload();
+      await expect(page.getByRole("button", { name: "Open note: Note 0", exact: true })).toBeVisible();
+    });
+    await measure("noteSearchMs", async () => {
+      await page.getByRole("textbox", { name: "Search notes" }).fill("Note 2999");
+      await expect(page.getByRole("button", { name: "Open note: Note 2999", exact: true })).toBeVisible();
+    });
+    await measure("openDetailMs", async () => {
+      await open(page, "note", "Note 2999");
+      await expect(page.getByRole("textbox", { name: "Note body" })).toHaveValue("Note 2999");
+    });
+    await measure("oneCharacterSaveMs", async () => {
+      await page.getByRole("textbox", { name: "Note body" }).fill("Note 2999x");
+      await page.getByRole("textbox", { name: "Note body" }).blur();
+      await expect(page.getByText("Unsaved", { exact: true })).toHaveCount(0);
+      await expect(page.getByText("Saving…", { exact: true })).toHaveCount(0);
+    });
+    await close(page, "note");
+    await measure("tabAndChildSearchMs", async () => {
+      await tab(page, "task");
+      await page.getByRole("textbox", { name: "Search tasks" }).fill("needle 999");
+      await expect(page.getByRole("button", { name: "Open task: Parent 999", exact: true })).toBeVisible();
+    });
+    await measure("folderFilterMs", async () => {
+      await tab(page, "note");
+      await page.getByRole("button", { name: "Clear search" }).click();
+      await page.getByRole("button", { name: "Folder: Uncategorized", exact: true }).click();
+      await expect(page.getByRole("button", { name: "Open note: Note 2999x", exact: true })).toBeVisible();
+    });
+    await measure("largeListScrollMs", async () => {
+      const scroller = page.getByTestId("entry-list");
+      await scroller.evaluate(async (node) => {
+        for (let i = 0; i < 10; i++) {
+          node.scrollTop += 600;
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        }
+      });
+      await expect.poll(() => scroller.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+    });
+    console.log("BROWSER_PERFORMANCE", JSON.stringify(results));
+    // Virtualization keeps the rendered row count bounded at this fixture scale.
+    expect(await page.getByRole("button", { name: /^Open note:/ }).count()).toBeLessThan(200);
+  });
+});
+
+test.describe('draft migration recovery', () => {
+  test.use({ observeSQLite: true });
+  test('failed v1 draft migration retries without deleting the original words', async ({ session }) => {
+    const { page } = session;
+    await databaseSQL(page, `INSERT INTO storage(key,value) VALUES ('noeting.editor-draft.v1','{"kind":"note","text":"Migration retained words","requestId":"migration-retry"}'); CREATE TRIGGER fail_migration BEFORE UPDATE ON storage WHEN NEW.key='noeting.editor-drafts.v2' BEGIN SELECT RAISE(ABORT,'migration write failed'); END;`,true);
+    await page.reload();
+    await expect(page.getByText('Could not load drafts. Retry opening the app.')).toBeVisible();
+    await databaseSQL(page,'DROP TRIGGER fail_migration',true);
+    await page.getByRole('button',{name:'Retry',exact:true}).click();
+    await expect(page.getByRole('textbox',{name:'Search notes'})).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveCount(0);
+    await page.getByRole('button',{name:'Add note'}).click();
+    await expect(page.getByRole('textbox',{name:'Note text',exact:true})).toHaveValue('Migration retained words');
+    await saveText(page,'Note','Migration retained words');
+    await close(page,'note');
+    await page.reload();
+    await expect(page.getByRole('button',{name:'Open note: Migration retained words'})).toBeVisible();
+  });
 });

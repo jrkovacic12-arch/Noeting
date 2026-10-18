@@ -300,3 +300,43 @@ No changes were needed to `02_PRODUCT.md`, `03_ARCHITECTURE.md`, or `04_ROADMAP.
 - Both ABI builds/static verifiers and 23 Android 9 native assertions passed: preserved v2→v3 upgrade, clipboard, edit/remove/Undo, source/legacy data and offline relaunch. Native harness uses settled field-value waits and measured transient Undo touches; details/artifacts live in `06_CURRENT_STATE.md`.
 
 - Published only the verified 0.3.0 phone APK on a separate approved public download branch; fetched SHA-256 matches the local ARM64 artifact. Main remains unchanged.
+
+### 2026-10-18 — Startup preference recovery
+
+Optional list preferences fall back safely after read/parse/shape failures; nonblocking warnings replace the stranded startup path. Failure-injection and restart coverage added; evidence belongs to `06_CURRENT_STATE.md`. No native version/schema change.
+
+### 2026-10-18 — CI and draft persistence
+
+Added PR/main quality gates and portable browser harness. Measured and reduced redundant draft KV writes with a bounded leading/trailing schedule and immediate flush barrier; fixed concurrent-edit discard loss and cleared recovered migration errors. Execution evidence and publication blocker: `06_CURRENT_STATE.md`.
+
+### 2026-10-18 — Performance evidence
+
+Added reproducible synthetic real-SQLite/browser benchmarks at 3,000 Notes and 1,000 task groups. Measurements do not justify repository/selector infrastructure changes on this host; Android performance remains unverified.
+
+### 2026-10-18 — Incremental module cleanup
+
+Extracted optional saved navigation preferences from App and all ten historical SQL definitions from repository operations. SQL text/order, schema v10, native version and Back/modal behavior are unchanged; regression evidence belongs to `06_CURRENT_STATE.md`.
+
+### 2026-10-18 — Final local reliability validation
+
+Fresh install, TypeScript, 52 SQLite/draft tests, all 25 browser scenarios and Android/iOS/web exports pass on source `2af8873`. Public publication/Actions execution and native-device acceptance remain unverified; exact evidence and next action are in `06_CURRENT_STATE.md`.
+
+### 2026-10-18 — Requested Android test build
+
+The user requested a downloadable APK after authorizing public branch publication. Bump release metadata to 0.10.3/code 20 to distinguish the reliability build from the earlier 0.10.2 APK; no dependency or schema change. Preserve the existing signing key when regenerating ignored native configuration. Verification and download status belong to `06_CURRENT_STATE.md`.
+
+### 2026-10-18 — First Actions run feedback
+
+The first real CI run passed 52 tests and 24/25 browser scenarios. Corrected the write-count harness to await Task composer dismissal (and thus its KV flush barrier) before restarting Chromium; the prior race could interrupt pending persistence. Runtime/source behavior is unchanged.
+
+### 2026-10-18 — CI persistence assertions
+
+The second Actions run passed the corrected write-count case and exposed two older harness races. Autosave recovery now waits through Saving before leaving; preference-restart coverage waits for the real SQLite KV value before closing Chromium. Assertions and product persistence guarantees are retained; no runtime code changes.
+
+### 2026-10-18 — Confirmed CI and verified 0.10.3 ARM64 build
+
+Published draft PR #8, corrected three CI test wait races, and confirmed passing Actions. ARM64 0.10.3/code 20 compilation/static signature/source checks pass. Public APK upload remains blocked pending explicit binary-publication approval. Native acceptance remains pending; evidence and next action: `06_CURRENT_STATE.md`.
+
+### 2026-10-18 — Approved APK publication completed
+
+The user explicitly approved the public APK-only branch. Published the verified 0.10.3 ARM64 test APK and independently fetched its size/SHA-256, matching the verified local binary. Download/evidence and remaining native gate: `06_CURRENT_STATE.md`.

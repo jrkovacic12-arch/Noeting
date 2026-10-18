@@ -2,7 +2,7 @@
   "name": "noeting",
   "description": "Minimal offline Notes and Tasks with intentional links",
   "license": "0BSD",
-  "version": "0.10.2",
+  "version": "0.10.3",
   "main": "index.ts",
   "dependencies": {
     "expo": "~57.0.28",
@@ -31,7 +31,7 @@
     "ios": "expo run:ios",
     "web": "npm run export:web && npm run serve:web",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test tests/repository.test.ts",
+    "test": "node --import tsx --test --test-reporter=tap tests/repository.test.ts tests/draftPersistence.test.ts",
     "test:ui": "playwright test",
     "export": "expo export --platform all --max-workers 2",
     "check": "npm run typecheck && npm test",
