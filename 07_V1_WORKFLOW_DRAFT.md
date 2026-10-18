@@ -5,7 +5,9 @@
 
 ## Android physical-device acceptance protocol — 0.10.3/code 20
 
-This is a procedure, not evidence of execution. Use the existing matching APK identity/download in `06_CURRENT_STATE.md`; do not build/publish another APK or treat a source merge as device sign-off. Read current behavior in `02_PRODUCT.md`. Record actual results only in `06_CURRENT_STATE.md`.
+**Outcome recorded 2026-10-18:** The user explicitly confirms **all cases N1–N9 were fully completed successfully** on the 0.10.3 test APK. Treat as **USER-REPORTED PASS for every case**. The device model, Android/IME, installation method, per-substep observations and independently inspectable evidence were not supplied and must not be inferred. The protocol below remains the expected-behavior reference for future regression tests; it does not reopen completed user-reported acceptance. Current evidence ownership: `06_CURRENT_STATE.md`.
+
+This is a procedure, not evidence of execution by the agent. Use the existing matching APK identity/download in `06_CURRENT_STATE.md`; do not build/publish another APK or treat a source merge as device sign-off. Read current behavior in `02_PRODUCT.md`. Record actual results only in `06_CURRENT_STATE.md`.
 
 **Before testing:** Record phone/model, Android version, keyboard/IME, installed and candidate version/code/package/signer, APK checksum/source identity, available storage, connectivity/battery restrictions and test date. Use innocuous canary text rather than private note text in logs/screenshots. Inventory representative existing original/current words, counts, folders/pins, completed/pending parents/children, Note links, frozen/removed sources and soft-deleted Notes. Prefer a populated compatible test installation; do not clear data or uninstall to make an upgrade succeed. Stop on signer/package mismatch. There is no implemented backup/export/restore safety net (D-018); do not intentionally corrupt the only library.
 

@@ -156,7 +156,7 @@
 - **Status:** Accepted sequencing change; partially supersedes D-010's export/backup timing.
 - **Decision:** Defer backup/export and restore to the later account implementation, alongside optional hosted storage and PC-web/Android sync. Do not make backup/export/restore the next local-development slice. Core local/offline use remains available without an account.
 - **Boundary:** No account, hosting provider, sync protocol or recovery architecture is approved for implementation. Accounts and sync remain outside the present V1 work; account-phase recovery design is still required.
-- **2026-10-18 review:** Deferral remains accepted; no export/restore or security feature is authorized by this documentation cleanup. The remaining local-data risk and candidate technical boundary are documented in `03_ARCHITECTURE.md`; P-008 is an unaccepted offline alternative for a future decision.
+- **2026-10-18 test-data confirmation:** The user explicitly states that **all current Noeting data are disposable test data** and their loss is **not a problem in this development phase**. Accept the present loss exposure for testing, rather than making offline backup/export/restore the next work item. D-018's deferral remains unchanged; this is not a claim that SQLite is encrypted, export/restore exists, or valuable/production data may safely rely on a single local copy. Revisit before the data becomes important or the deployment scope changes. P-008 remains an unaccepted alternative, not implementation authorization.
 
 ## D-019 — Approve linked Tasks and the local development course (2026-10-15)
 
@@ -302,7 +302,7 @@ Behavior and design belong to `02_PRODUCT.md` and `03_ARCHITECTURE.md`; acceptan
 
 ### P-008 — Minimal offline recovery independent of accounts (2026-10-18)
 
-- **Status:** Proposed for a future decision; not accepted, implemented or tested. D-018 remains in force.
+- **Status:** Proposed for a future decision; not accepted, implemented or tested. D-018 remains in force. After the 2026-10-18 test-data-only clarification, **not a current priority**; revisit only when real data durability/portability becomes relevant.
 - **Candidate:** A deliberate local file export and validated offline restore, without accounts, hosted storage, sync or automatic scheduling. Its technical scope and data-safety requirements are owned by `03_ARCHITECTURE.md` under “Data-loss exposure and future offline recovery.”
 - **Reason to revisit:** A lost/damaged device, uninstall, cleared app storage or corruption can make the only local copy unrecoverable. Soft deletion/Undo and retained drafts share the same failure domain.
 - **Decision/evidence needed:** A new accepted decision must change D-018's sequencing, define included records/drafts, restoration/conflict policy and file protection, then require round-trip, malformed-file, referential-integrity and interrupted-restore tests on disposable data. This proposal grants no implementation permission.

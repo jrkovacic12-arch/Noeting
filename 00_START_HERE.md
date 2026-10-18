@@ -1,6 +1,6 @@
 # Noeting — Start Here
 
-> **Documentation refreshed:** 2026-10-18 (post-PR #8 merge)
+> **Documentation refreshed:** 2026-10-18 (post-PR #9 merge and user-confirmed test-phase scope)
 >
 > **Motto:** *Notice. Note. Think. Originate from nothing.*
 
@@ -10,7 +10,7 @@
 
 For founding principles and the two thinking/action loops, read [01_VISION.md](01_VISION.md). For observed Obsidian usage and product needs, read [02_PRODUCT.md](02_PRODUCT.md). **Only [06_CURRENT_STATE.md](06_CURRENT_STATE.md) maintains the current status, blockers, and exact next action.**
 
-> **Current baseline:** Version 0.10.3/code 20/schema v10 is merged through PR #8. Verified CI and physical-device status belong only to `06_CURRENT_STATE.md`. Current Notes/Tasks behavior is defined at the start of `02_PRODUCT.md`; earlier Today/Review/scheduled-pin descriptions are historical, not current UI requirements. Only `06_CURRENT_STATE.md` maintains the current next action.
+> **Current baseline:** Version 0.10.3/code 20/schema v10 is merged through PRs #8 and #9. Main CI passed; the user reports all N1–N9 Android checks completed successfully, and all present data are disposable tests. Detailed physical-device evidence and exact status belong only to `06_CURRENT_STATE.md`. Current Notes/Tasks behavior is defined at the start of `02_PRODUCT.md`; earlier Today/Review/scheduled-pin descriptions are historical, not current UI requirements. Only `06_CURRENT_STATE.md` maintains the current next action.
 
 ## 2. Document index — one owner per topic
 
