@@ -8,7 +8,7 @@
 
 - [x] Optional startup preferences, serialized/coalesced draft persistence, historical SQL extraction and reproducible performance procedure (PR #8).
 - [x] PR/main CI workflow and local equivalent. Actual executions, failures and corrections are recorded only in `06_CURRENT_STATE.md`; an earlier public-push blocker is no longer active.
-- [ ] Stabilize the demonstrated restart/dismissal test race without relaxing persistence assertions; verify repeated focused runs and the full suite.
+- [x] Stabilize the demonstrated restart/dismissal test race without relaxing persistence assertions; verify repeated focused runs and the full suite.
 - [ ] Complete physical-device acceptance using the protocol in `07_V1_WORKFLOW_DRAFT.md`. Source integration, browser tests and static APK checks are distinct from native acceptance.
 - [ ] Review P-008's offline recovery alternative through a new decision if portability sequencing changes. D-018's deferral still applies; this is not implementation authorization.
 
