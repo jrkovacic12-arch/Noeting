@@ -4,6 +4,17 @@
 >
 > **Current phase:** Version 0.10.3/code 20/schema v10 is merged through PRs #8 and #9. The user reports successful completion of all nine native N1–N9 checks, while detailed case/device records were not provided. Exact status and next action belong to `06_CURRENT_STATE.md`.
 
+## AI assistant integration — staged research and implementation (2026-10-18)
+
+1. **Foundation in review:** exact, bounded, opt-in scoped local retrieval with source identity and tests. This does **not** yet put an AI assistant in the application.
+2. **Reading and retrieval:** propose a quiet user-invoked "Ask notes" affordance in the existing Notes view, with local results, explicit evidence links and no new primary tab. Keep default capture/reading unchanged; verify human usability.
+3. **Categorization:** AI suggests one or more user-overridable labels for selected Notes; no automatic filing, source edits or new required taxonomy. Persist only approved results after a separate schema/decision review.
+4. **Recommendations:** offer a small bounded list of potential links, follow-ups or Task candidates from selected Notes/Tasks, each with reasons/citations and Accept/Dismiss; preserve user ownership of priorities/commitments.
+5. **Model and hosting decision:** compare on-device vs optional hosted reasoning, quality/latency/cost, security, consent and offline fallback. No embedded API secret, blanket library upload, background agent or account requirement.
+6. **Acceptance:** scope denial, removed-record exclusion, exact citations, prompt-injection resilience, request errors, offline operation, no silent writes and real-device UX. Production release is a separate gate.
+
+**Current evidence caveat:** the latest merged `main` CI (run 39109000383) failed on the existing draft-storage browser test timeout, despite earlier green PR-head CI. Investigate independently before calling the base fully green.
+
 ## Proposed development checkpoint after 0.10.3 — 2026-10-18
 
 **Evidence review, not a new feature commitment:** The current 0.10.3 baseline offers quick Notes/Tasks capture, scoped retrieval, folders, Note links, inline edits, child completion and contextual recovery. Existing real-SQLite/browser coverage tests these interactions. This source review did **not** include new users or longitudinal usability observations; real-life friction remains unmeasured.
