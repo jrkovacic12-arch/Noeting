@@ -1,18 +1,28 @@
 # Noeting — Roadmap and Work Plan
 
-> **Status:** Working plan, not a committed schedule. Checked work items identify source implementation; device acceptance remains a separate gate.
+> **Status:** Working plan, not a committed schedule. Checked work items distinguish implemented changes, user-reported acceptance and independently verified evidence.
 >
-> **Current phase:** Version 0.10.3/code 20/schema v10 is merged through PR #8. Execution status, blockers and the sole exact next action belong to `06_CURRENT_STATE.md`.
+> **Current phase:** Version 0.10.3/code 20/schema v10 is merged through PRs #8 and #9. The user reports successful completion of all nine native N1–N9 checks, while detailed case/device records were not provided. Exact status and next action belong to `06_CURRENT_STATE.md`.
 
 ## Reliability maintenance and acceptance gates
 
 - [x] Optional startup preferences, serialized/coalesced draft persistence, historical SQL extraction and reproducible performance procedure (PR #8).
 - [x] PR/main CI workflow and local equivalent. Actual executions, failures and corrections are recorded only in `06_CURRENT_STATE.md`; an earlier public-push blocker is no longer active.
 - [x] Stabilize the demonstrated restart/dismissal test race without relaxing persistence assertions; verify repeated focused runs and the full suite.
-- [ ] Complete physical-device acceptance using the protocol in `07_V1_WORKFLOW_DRAFT.md`. Source integration, browser tests and static APK checks are distinct from native acceptance.
-- [ ] Review P-008's offline recovery alternative through a new decision if portability sequencing changes. D-018's deferral still applies; this is not implementation authorization.
+- [x] **User-reported Android acceptance completed:** all N1–N9 cases successfully completed on 0.10.3 per explicit user confirmation (2026-10-18). Device-specific logs, OS/IME and per-subcase measurements were not supplied; the completion is self-reported rather than independently verified.
+- [x] **Test-data loss posture clarified:** all present contents are disposable test data and possible loss is acceptable for this phase. D-018 continues to defer backup/export/restore; P-008 is not the next work item and remains unaccepted.
+- [ ] **Release-specific evidence (only if release is pursued):** evaluate production signing, dependency risk, supported device targets and appropriate regression scope separately; the test APK and test-phase acceptance are not a production-release authorization.
 
 Do not merge, release or publish a new APK from this maintenance task without explicit authorization. Current artifact identity and evidence remain in `06_CURRENT_STATE.md`.
+
+## Suggested next development flow — proposal only (2026-10-18)
+
+This is **not an accepted implementation decision**. No feature, package upgrade, release, account, agent or backup work is authorized by documenting the sequence.
+
+1. **Security/dependency triage:** Investigate the 22 advisories already reported in CI (7 moderate, 15 high). Classify direct/transitive and development/runtime dependencies, evaluate production reachability and fixes compatible with Expo/React Native. Make targeted updates only if warranted, then rerun established automated checks.
+2. **Real-workflow evaluation with disposable data:** Exercise capture → retrieve/edit → link → act/complete, search/folders and interrupted drafts on the accepted 0.10.3 test build. Record actual usability friction, omissions and failures rather than adding assumed capabilities. N1–N9 user-reported completion need not be repeated merely to satisfy this documentation update.
+3. **One evidence-based, narrow improvement:** Choose the most consequential observed usability/reliability problem, write a measurable acceptance case, implement one small PR preserving historical records/relationships and no-AI/two-tab boundaries, and verify with existing TypeScript/SQLite/browser/export tests plus native regression appropriate to the changed behavior.
+4. **Reassess the next milestone:** Keep using disposable data until durability, threat model and release requirements are deliberately decided. Treat production signing/release readiness separately. Evaluate narrowly permissioned agent assistance only after core UX evidence; AI, accounts, cloud sync and P-008 offline recovery remain outside the authorized present scope.
 
 ## Historical PR #6 post-merge validation gate — 0.10.2
 
