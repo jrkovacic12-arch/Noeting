@@ -156,6 +156,36 @@ async function databaseSQL(page: Page, sql: string, appearance = false) {
   );
 }
 
+// Read the actual KV SQLite value to distinguish a committed preference from
+// React's already-rendered input before a graceful process restart.
+async function storedValue(page: Page, key: string): Promise<string | null> {
+  return page.evaluate(async (key) => {
+    const database = (window as SQLiteTestWindow).__noetingAppearance;
+    if (!database) throw Error("KV SQLite worker was not observed");
+    const statement = -Math.floor(Math.random() * 1_000_000) - 1;
+    async function rpc(type: string, data: Record<string, unknown>): Promise<any> {
+      const id = -Math.floor(Math.random() * 1_000_000) - 1;
+      return new Promise((resolve, reject) => {
+        const listener = (event: MessageEvent) => {
+          if (event.data.id !== id) return;
+          database!.worker.removeEventListener("message", listener);
+          if (event.data.error) reject(Error(String(event.data.error)));
+          else resolve(event.data.result);
+        };
+        database!.worker.addEventListener("message", listener);
+        database!.worker.postMessage({ type, id, isSync: false, data: {
+          nativeDatabaseId: database!.nativeDatabaseId, nativeStatementId: statement, ...data,
+        } });
+      });
+    }
+    await rpc("prepare", { source: "SELECT value FROM storage WHERE key = ?;" });
+    try {
+      const result = await rpc("run", { bindParams: { 0: key }, bindBlobParams: {}, shouldPassAsArray: true });
+      return result.firstRowValues?.[0] ?? null;
+    } finally { await rpc("finalize", {}); }
+  }, key);
+}
+
 async function tab(page: Page, kind: "note" | "task") {
   await page
     .getByRole("tab", {
@@ -639,6 +669,7 @@ test.describe("preservation and failure recovery against real SQLite", () => {
     await databaseSQL(page, "DROP TRIGGER fail_edit");
     await page.getByRole("button", { name: "Retry save" }).click();
     await expect(page.getByText("Unsaved", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Saving…", { exact: true })).toHaveCount(0);
     await close(page, "note");
     await expect(
       page.getByRole("button", { name: "Open note: One unsaved 🌿\n  words" }),
@@ -684,6 +715,8 @@ test.describe("preservation and failure recovery against real SQLite", () => {
   });
 });
 
+test.describe("folder context persistence", () => {
+  test.use({ observeSQLite: true });
 test("folders, long-press multi-select, mixed Pin/Unpin, move, search restart and recovery", async ({
   session,
 }) => {
@@ -710,6 +743,7 @@ test("folders, long-press multi-select, mixed Pin/Unpin, move, search restart an
     page.getByRole("button", { name: "Open note: Gamma" }),
   ).toHaveCount(0);
   await page.getByRole("textbox", { name: "Search notes" }).fill("Alpha");
+  await expect.poll(async () => JSON.parse((await storedValue(page, "noeting.list-context.v1")) ?? "{}").queries?.note).toBe("Alpha");
   page = await session.restart();
   await expect(page.getByRole("textbox", { name: "Search notes" })).toHaveValue(
     "Alpha",
@@ -754,6 +788,8 @@ test("folders, long-press multi-select, mixed Pin/Unpin, move, search restart an
   await expect(
     page.getByRole("button", { name: "Open note: Alpha" }),
   ).toBeVisible();
+});
+
 });
 
 test("Notes captured or linked within a folder remain there after restart", async ({

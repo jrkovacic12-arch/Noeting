@@ -328,3 +328,7 @@ The user requested a downloadable APK after authorizing public branch publicatio
 ### 2026-10-18 — First Actions run feedback
 
 The first real CI run passed 52 tests and 24/25 browser scenarios. Corrected the write-count harness to await Task composer dismissal (and thus its KV flush barrier) before restarting Chromium; the prior race could interrupt pending persistence. Runtime/source behavior is unchanged.
+
+### 2026-10-18 — CI persistence assertions
+
+The second Actions run passed the corrected write-count case and exposed two older harness races. Autosave recovery now waits through Saving before leaving; preference-restart coverage waits for the real SQLite KV value before closing Chromium. Assertions and product persistence guarantees are retained; no runtime code changes.
