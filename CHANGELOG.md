@@ -320,3 +320,7 @@ Extracted optional saved navigation preferences from App and all ten historical 
 ### 2026-10-18 — Final local reliability validation
 
 Fresh install, TypeScript, 52 SQLite/draft tests, all 25 browser scenarios and Android/iOS/web exports pass on source `2af8873`. Public publication/Actions execution and native-device acceptance remain unverified; exact evidence and next action are in `06_CURRENT_STATE.md`.
+
+### 2026-10-18 — Requested Android test build
+
+The user requested a downloadable APK after authorizing public branch publication. Bump release metadata to 0.10.3/code 20 to distinguish the reliability build from the earlier 0.10.2 APK; no dependency or schema change. Preserve the existing signing key when regenerating ignored native configuration. Verification and download status belong to `06_CURRENT_STATE.md`.
