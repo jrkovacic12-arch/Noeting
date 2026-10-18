@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import Storage from "expo-sqlite/kv-store";
+import { DraftPersistence } from "./draftPersistence";
 import type { EditorDraft } from "./EntryEditor";
 export const draftContext = (d: EditorDraft) =>
   d.editEntryId
@@ -11,26 +12,16 @@ export const draftContext = (d: EditorDraft) =>
         : `new:${d.kind}`;
 const key = "noeting.editor-drafts.v2";
 export function useDraft(enabled: boolean) {
-  const values = useRef<Record<string, EditorDraft>>({});
   const [revision, bump] = useState(0);
   const [ready, setReady] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const queue = useRef(Promise.resolve());
-  const stored = useRef(true);
-  const persist = () => {
-    const raw = JSON.stringify(values.current);
-    queue.current = queue.current
-      .then(async () => {
-        await Storage.setItem(key, raw);
-        stored.current = true;
-        setError(null);
-      })
-      .catch(() => {
-        stored.current = false;
-        setError("Unsaved draft. Retry before leaving.");
-      });
-  };
+  const persistence = useRef<DraftPersistence | null>(null);
+  if (!persistence.current) persistence.current = new DraftPersistence(
+    (raw) => Storage.setItem(key, raw),
+    () => { bump((v) => v + 1); setError(persistence.current!.error); },
+  );
+  const store = persistence.current;
   useEffect(() => {
     if (!enabled) return;
     let active = true;
@@ -46,10 +37,12 @@ export function useDraft(enabled: boolean) {
         }
       }
       if (!active) return;
-      values.current = next;
+      store.values = next;
       await Storage.setItem(key, JSON.stringify(next)); // old key retained as migration backup; v2 is authoritative
       if (old) await Storage.removeItem("noeting.editor-draft.v1");
+      if (!active) return;
       bump((v) => v + 1);
+      setError(null);
       setReady(true);
     })().catch(() => {
       if (active) setError("Could not load drafts. Retry opening the app.");
@@ -58,47 +51,10 @@ export function useDraft(enabled: boolean) {
       active = false;
     };
   }, [enabled, loadAttempt]);
-  function get(context: string) {
-    return values.current[context] ?? null;
-  }
-  function put(context: string, next: EditorDraft | null) {
-    if (next) values.current = { ...values.current, [context]: next };
-    else {
-      const copy = { ...values.current };
-      delete copy[context];
-      values.current = copy;
-    }
-    bump((v) => v + 1);
-    persist();
-  }
-  async function flush() {
-    await queue.current;
-    if (!stored.current) {
-      persist();
-      await queue.current;
-    }
-    return stored.current;
-  }
-  // Keep the draft visible until its deletion is durably confirmed.
-  function discard(context: string): Promise<boolean> {
-    let success = false;
-    queue.current = queue.current
-      .then(async () => {
-        const next = { ...values.current };
-        delete next[context];
-        await Storage.setItem(key, JSON.stringify(next));
-        values.current = next;
-        bump((v) => v + 1);
-        stored.current = true;
-        setError(null);
-        success = true;
-      })
-      .catch(() => {
-        stored.current = false;
-        setError("Could not discard draft. Retry before leaving.");
-      });
-    return queue.current.then(() => success);
-  }
+  function get(context: string) { return store.values[context] ?? null; }
+  function put(context: string, next: EditorDraft | null) { store.put(context, next); }
+  function flush() { return store.flush(); }
+  function discard(context: string) { return store.discard(context); }
   return {
     get,
     put,

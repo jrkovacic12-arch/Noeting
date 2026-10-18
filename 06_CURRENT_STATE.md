@@ -8,6 +8,12 @@
 
 ## 1. Verified progress
 
+### 2026-10-18 — CI and measured draft persistence
+
+- CI commit `01c1653` adds PR/main gates with read-only contents permission, Node 24, `npm ci`, actual SQLite tests, Playwright Chromium/dependencies, bounded web-server readiness, all-platform exports, concurrency cancellation and seven-day failure artifacts. Browser selection is portable; failure screenshots capture the actual session. Local commands/required-check settings/manual Android gate are documented in `README.md`. **GitHub execution NOT RUN:** automatic approval review rejected the public push because code publication needs explicit user authorization. No remote branch/PR/settings were changed; no green Actions run is claimed.
+- Real SQLite KV measurement: 27-character typing plus safe leave produced **28 → 6 writes**, through a second context **30 → 8**; reload/save remained 2 writes (`work/reliability-measurement-before.log`, `work/reliability-drafts-ui.log`). `DraftPersistence` uses a leading write plus a bounded 50 ms coalescing window; `flush()` bypasses it, serializes writes and waits for the latest revision. Failed writes retain memory/error state. Discard only clears confirmed unchanged contexts and preserves concurrent changes. Reproducing the old captured-snapshot assignment fails the race regression (`work/reliability-discard-race-red.log`); corrected tests pass.
+- `npm run check` passes **52 tests** (45 real-SQLite + 7 draft timing/failure/race tests), with individual TAP results captured in `work/reliability-drafts-check.log`. `npm run export` passes all platforms. Browser checks cover contextual restart recovery, failed writes/discard, legacy migration/retry, original IME/Enter/save/Undo workflows and write counts. A small successful-load error-clear guard and explicit write-count assertions are included for final revalidation. Browser recovery does not establish Android force-stop durability; no physical device was available.
+
 ### 2026-10-18 — Reliability work in progress
 
 - The user instructed reading and proceeding with `CODEX_NOETING_RELIABILITY_IMPROVEMENTS.md`. Its five phases authorize implementation, not device/release sign-off. Clean starting branch `work`, base/main `2f0d64cd8eecd0994c94c15d30fac7f048443bdb`; working branch `codex/reliability-20261018`. Version 0.10.2/code 19/schema v10 remain unchanged.

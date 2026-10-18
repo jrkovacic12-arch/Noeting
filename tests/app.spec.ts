@@ -17,6 +17,7 @@ type BrowserSession = {
 };
 
 type SQLiteTestWindow = Window & {
+  __noetingDraftWrites?: number;
   __noetingSQLite?: { worker: Worker; nativeDatabaseId: number };
   __noetingAppearance?: { worker: Worker; nativeDatabaseId: number };
 };
@@ -47,6 +48,8 @@ const test = base.extend<{ session: BrowserSession; observeSQLite: boolean }>({
         // A test can add an actual SQLite constraint without a product test API.
         const original = Worker.prototype.postMessage;
         const seen = new WeakSet<Worker>();
+        const writes = new Set<number>();
+        (window as SQLiteTestWindow).__noetingDraftWrites = 0;
         Worker.prototype.postMessage = function (
           message: unknown,
           options?: StructuredSerializeOptions | Transferable[],
@@ -82,6 +85,12 @@ const test = base.extend<{ session: BrowserSession; observeSQLite: boolean }>({
               nativeDatabaseId: packet.data.nativeDatabaseId,
             };
           }
+          const observed = message as any;
+          if (observed.type === "prepare" && observed.data.source.startsWith("INSERT INTO storage"))
+            writes.add(observed.data.nativeStatementId);
+          if (observed.type === "run" && writes.has(observed.data.nativeStatementId) &&
+            Object.values(observed.data.bindParams).includes("noeting.editor-drafts.v2"))
+            (window as SQLiteTestWindow).__noetingDraftWrites!++;
           const forward = original.bind(this);
           if (Array.isArray(options)) forward(message, options);
           else forward(message, options);
@@ -1167,3 +1176,54 @@ test.describe("optional list preferences", () => {
 });
 
 
+test("draft write measurement: typing, context switch, save and reload", async ({ session }) => {
+  let { page } = session;
+  const writes = () => page.evaluate(() => (window as SQLiteTestWindow).__noetingDraftWrites ?? 0);
+  const initial = await writes();
+  await page.getByRole("button", { name: "Add note" }).click();
+  const input = page.getByRole("textbox", { name: "Note text", exact: true });
+  await input.pressSequentially("Representative typing burst", { delay: 0 });
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(input).toHaveCount(0);
+  const typed = (await writes()) - initial;
+  await tab(page, "task");
+  await page.getByRole("button", { name: "Add task", exact: true }).click();
+  await page.getByRole("textbox", { name: "Task text", exact: true }).fill("Separate task draft");
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  const switched = (await writes()) - initial;
+  expect(typed).toBeLessThan(15);
+  expect(switched).toBeLessThan(18);
+  page = await session.restart();
+  await tab(page, "note");
+  await page.getByRole("button", { name: "Add note" }).click();
+  await expect(page.getByRole("textbox", { name: "Note text", exact: true })).toHaveValue("Representative typing burst");
+  await saveText(page, "Note", "Representative typing burst");
+  await close(page, "note");
+  await tab(page, "task");
+  await page.getByRole("button", { name: "Add task", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "Task text", exact: true })).toHaveValue("Separate task draft");
+  console.log("DRAFT_WRITE_MEASUREMENT", JSON.stringify({ typingAndLeave: typed, throughContextSwitch: switched, afterReloadAndSave: await writes() }));
+});
+
+
+test.describe('draft migration recovery', () => {
+  test.use({ observeSQLite: true });
+  test('failed v1 draft migration retries without deleting the original words', async ({ session }) => {
+    const { page } = session;
+    await databaseSQL(page, `INSERT INTO storage(key,value) VALUES ('noeting.editor-draft.v1','{"kind":"note","text":"Migration retained words","requestId":"migration-retry"}'); CREATE TRIGGER fail_migration BEFORE UPDATE ON storage WHEN NEW.key='noeting.editor-drafts.v2' BEGIN SELECT RAISE(ABORT,'migration write failed'); END;`,true);
+    await page.reload();
+    await expect(page.getByText('Could not load drafts. Retry opening the app.')).toBeVisible();
+    await databaseSQL(page,'DROP TRIGGER fail_migration',true);
+    await page.getByRole('button',{name:'Retry',exact:true}).click();
+    await expect(page.getByRole('textbox',{name:'Search notes'})).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveCount(0);
+    await page.getByRole('button',{name:'Add note'}).click();
+    await expect(page.getByRole('textbox',{name:'Note text',exact:true})).toHaveValue('Migration retained words');
+    await saveText(page,'Note','Migration retained words');
+    await close(page,'note');
+    await page.reload();
+    await expect(page.getByRole('button',{name:'Open note: Migration retained words'})).toBeVisible();
+  });
+});

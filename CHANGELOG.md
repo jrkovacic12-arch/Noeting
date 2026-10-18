@@ -304,3 +304,7 @@ No changes were needed to `02_PRODUCT.md`, `03_ARCHITECTURE.md`, or `04_ROADMAP.
 ### 2026-10-18 — Startup preference recovery
 
 Optional list preferences fall back safely after read/parse/shape failures; nonblocking warnings replace the stranded startup path. Failure-injection and restart coverage added; evidence belongs to `06_CURRENT_STATE.md`. No native version/schema change.
+
+### 2026-10-18 — CI and draft persistence
+
+Added PR/main quality gates and portable browser harness. Measured and reduced redundant draft KV writes with a bounded leading/trailing schedule and immediate flush barrier; fixed concurrent-edit discard loss and cleared recovered migration errors. Execution evidence and publication blocker: `06_CURRENT_STATE.md`.
