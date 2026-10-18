@@ -336,3 +336,7 @@ The second Actions run passed the corrected write-count case and exposed two old
 ### 2026-10-18 — Confirmed CI and verified 0.10.3 ARM64 build
 
 Published draft PR #8, corrected three CI test wait races, and confirmed passing Actions. ARM64 0.10.3/code 20 compilation/static signature/source checks pass. Public APK upload remains blocked pending explicit binary-publication approval. Native acceptance remains pending; evidence and next action: `06_CURRENT_STATE.md`.
+
+### 2026-10-18 — Approved APK publication completed
+
+The user explicitly approved the public APK-only branch. Published the verified 0.10.3 ARM64 test APK and independently fetched its size/SHA-256, matching the verified local binary. Download/evidence and remaining native gate: `06_CURRENT_STATE.md`.
