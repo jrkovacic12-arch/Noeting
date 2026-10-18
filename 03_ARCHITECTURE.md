@@ -4,6 +4,20 @@
 >
 > **Principle:** Local-first and user-controlled; verify privacy properties rather than assuming them.
 
+## PC sync — read-only mirror first (2026-10-18)
+
+`src/sync/mirror.ts` builds a deliberately **one-way** opt-in snapshot from a committed repository read, excluding removed entries and bounding the size. It sends current Notes/Tasks/folder metadata, immutable original text and source IDs to the PC over HTTPS using a per-session bearer token; the local draft persistence is flushed first, but unsaved drafts are not mirrored. No source SQLite file is copied. The app does not run background sync, receive remote mutations or embed credentials.
+
+`scripts/pc-mirror-server.mjs` runs only on the PC's `127.0.0.1:8787`, protected by `NOETING_SYNC_TOKEN` (32+ characters). Use a separately configured trusted **HTTPS** access layer such as Tailscale Serve that forwards exclusively to this localhost port. Do not open port 8787 to LAN/public internet. The receiver accepts one device identity, checks request size/schema, rejects older snapshots, and atomically replaces a **read-only preview JSON** in a private work directory. Its raw JSON contains sensitive personal information: secure the PC disk, access token, HTTPS proxy and backups before real data use. The receiver does **not** implement sync reconciliation, complete data backup, or a PC editing interface.
+
+Manual setup for a test-only deployment:
+1. On PC run `NOETING_SYNC_TOKEN=<random-32+-char-secret> node scripts/pc-mirror-server.mjs` (quote actual secret safely; avoid sharing it).
+2. Configure trusted HTTPS access (e.g. Tailscale Serve to `http://127.0.0.1:8787`); verify the Android device can resolve and trust that HTTPS endpoint.
+3. In Notes → More → Sync preview to PC, enter the HTTPS **origin** (trailing slash, no path/username/password) and the pairing token. Tap **Send to PC**. No token is persisted. Optionally retrieve the mirror with an authenticated `GET /api/sync/mirror` via the same HTTPS endpoint.
+4. The PC JSON is a preview, **not a restore file**. Do not claim identical records, data durability or conflict handling.
+
+Before two-way sync: immutable device ID and credentials with OS protected storage, DB transaction/outbox for changes, stable per-entity versioned events, deletions/tombstones, conflict preview and offline retry, multiple-client pairing/revocation, encryption/backup decision, real PC editor, and native/CI acceptance tests. The current server is for disposable test data only.
+
 ## Current architecture — D-027/D-026, 0.10.3/schema v10
 
 Reliability maintenance (2026-10-18) preserves the same schema and public repository API. Historical migration SQL definitions live in `src/data/migrations.ts`; initialization, version ordering and transaction boundaries remain in `repository.ts`. Saved tab/search/folder context is isolated in `useListPreferences`: optional, shape-checked, cancellable during load and nonblocking on failure. Database/draft startup failures retain their separate retry paths; Back/modal handling remains in App.
