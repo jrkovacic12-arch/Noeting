@@ -332,3 +332,7 @@ The first real CI run passed 52 tests and 24/25 browser scenarios. Corrected the
 ### 2026-10-18 — CI persistence assertions
 
 The second Actions run passed the corrected write-count case and exposed two older harness races. Autosave recovery now waits through Saving before leaving; preference-restart coverage waits for the real SQLite KV value before closing Chromium. Assertions and product persistence guarantees are retained; no runtime code changes.
+
+### 2026-10-18 — Confirmed CI and verified 0.10.3 ARM64 build
+
+Published draft PR #8, corrected three CI test wait races, and confirmed passing Actions. ARM64 0.10.3/code 20 compilation/static signature/source checks pass. Public APK upload remains blocked pending explicit binary-publication approval. Native acceptance remains pending; evidence and next action: `06_CURRENT_STATE.md`.
