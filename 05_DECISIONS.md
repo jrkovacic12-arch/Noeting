@@ -2,6 +2,8 @@
 
 > **Purpose:** Preserve what was decided and why; distinguish foundational direction from unaccepted technical/product proposals.
 >
+> **Historical reading:** D-records preserve decisions and PR instructions as of their date. Current product behavior is in `02_PRODUCT.md`; merged PR status, blockers and actions are owned only by `06_CURRENT_STATE.md`. Do not treat an older draft-PR instruction as current.
+>
 > **Status vocabulary:** `Accepted direction` · `Proposed` · `Open` · `Superseded`. An accepted direction does not mean implementation is complete.
 
 ## D-001 — Attention and original thought remain foundational
@@ -154,6 +156,7 @@
 - **Status:** Accepted sequencing change; partially supersedes D-010's export/backup timing.
 - **Decision:** Defer backup/export and restore to the later account implementation, alongside optional hosted storage and PC-web/Android sync. Do not make backup/export/restore the next local-development slice. Core local/offline use remains available without an account.
 - **Boundary:** No account, hosting provider, sync protocol or recovery architecture is approved for implementation. Accounts and sync remain outside the present V1 work; account-phase recovery design is still required.
+- **2026-10-18 review:** Deferral remains accepted; no export/restore or security feature is authorized by this documentation cleanup. The remaining local-data risk and candidate technical boundary are documented in `03_ARCHITECTURE.md`; P-008 is an unaccepted offline alternative for a future decision.
 
 ## D-019 — Approve linked Tasks and the local development course (2026-10-15)
 
@@ -296,6 +299,13 @@ Behavior and design belong to `02_PRODUCT.md` and `03_ARCHITECTURE.md`; acceptan
 - **Removal:** Removing a Note never removes its Tasks; removing a Task never removes its Note. A removed Note remains inspectable as source material with a removed label. No automatic restoration or cascading changes.
 - **Reliability:** Atomic Task/Entry/link creation and stable-request retry deduplication; repeated Save taps produce one Task, while separate deliberate creations may produce multiple. Additive migration must preserve old captures, tasks and thinking links; failed writes/migrations roll back. Test restart durability, edits/removal independence and source navigation.
 - **Status:** Accepted by the user’s “proceed”; D-019 records approval. Implemented with schema v4; actual verification is recorded in `06_CURRENT_STATE.md`.
+
+### P-008 — Minimal offline recovery independent of accounts (2026-10-18)
+
+- **Status:** Proposed for a future decision; not accepted, implemented or tested. D-018 remains in force.
+- **Candidate:** A deliberate local file export and validated offline restore, without accounts, hosted storage, sync or automatic scheduling. Its technical scope and data-safety requirements are owned by `03_ARCHITECTURE.md` under “Data-loss exposure and future offline recovery.”
+- **Reason to revisit:** A lost/damaged device, uninstall, cleared app storage or corruption can make the only local copy unrecoverable. Soft deletion/Undo and retained drafts share the same failure domain.
+- **Decision/evidence needed:** A new accepted decision must change D-018's sequencing, define included records/drafts, restoration/conflict policy and file protection, then require round-trip, malformed-file, referential-integrity and interrupted-restore tests on disposable data. This proposal grants no implementation permission.
 
 ## Open decisions
 

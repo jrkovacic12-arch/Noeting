@@ -1,10 +1,10 @@
 # Noeting — Product Requirements and Workflows
 
-> **Current baseline:** 0.10.2/schema v10 (D-024–D-027), merged via PR #6 on 2026-10-17. Physical-device acceptance is pending. The current contract below supersedes the 0.7.1 Today/Review/scheduled-pin UI; those descriptions remain historical evidence, not active requirements.
+> **Current baseline:** 0.10.3/code 20/schema v10 (D-024–D-027; reliability work merged through PR #8). Verified status and device/release gates belong to `06_CURRENT_STATE.md`. The current contract below supersedes the 0.7.1 Today/Review/scheduled-pin UI; those descriptions remain historical evidence, not active requirements.
 >
 > **Source of truth for:** user needs, product objects, features, UX behavior, and MVP boundaries.
 
-## Current contract — D-027 folders with D-026 Notes and Tasks (0.10.2)
+## Current contract — D-027 folders with D-026 Notes and Tasks (0.10.3)
 
 D-026 supersedes D-025's interaction design and independent hierarchy completion. Exactly two primary tabs remain; Xiaomi Notes is a visual/behavioral reference only. Verification belongs to `06_CURRENT_STATE.md`.
 

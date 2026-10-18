@@ -1,6 +1,6 @@
 # Noeting — Start Here
 
-> **Documentation refreshed:** 2026-10-17 (post-PR #6 merge)
+> **Documentation refreshed:** 2026-10-18 (post-PR #8 merge)
 >
 > **Motto:** *Notice. Note. Think. Originate from nothing.*
 
@@ -10,7 +10,7 @@
 
 For founding principles and the two thinking/action loops, read [01_VISION.md](01_VISION.md). For observed Obsidian usage and product needs, read [02_PRODUCT.md](02_PRODUCT.md). **Only [06_CURRENT_STATE.md](06_CURRENT_STATE.md) maintains the current status, blockers, and exact next action.**
 
-> **Current baseline:** Version 0.10.2/schema v10 is merged into `main`, with physical-device acceptance still pending. Current Notes/Tasks behavior is defined at the start of `02_PRODUCT.md`; earlier Today/Review/scheduled-pin descriptions are historical, not current UI requirements. Only `06_CURRENT_STATE.md` maintains the current next action.
+> **Current baseline:** Version 0.10.3/code 20/schema v10 is merged through PR #8. Verified CI and physical-device status belong only to `06_CURRENT_STATE.md`. Current Notes/Tasks behavior is defined at the start of `02_PRODUCT.md`; earlier Today/Review/scheduled-pin descriptions are historical, not current UI requirements. Only `06_CURRENT_STATE.md` maintains the current next action.
 
 ## 2. Document index — one owner per topic
 
@@ -32,7 +32,7 @@ The authentic [original Noeting note](archive/noeting-original.md) is packaged v
 ## 3. Read order for the next session
 
 1. When resuming from a handoff ZIP, upload it and read this entry point and [06_CURRENT_STATE.md](06_CURRENT_STATE.md) first.
-2. For the Codex build, read [04_ROADMAP.md](04_ROADMAP.md) M1, [05_DECISIONS.md](05_DECISIONS.md) D-010/D-011, and [03_ARCHITECTURE.md](03_ARCHITECTURE.md); use [07_V1_WORKFLOW_DRAFT.md](07_V1_WORKFLOW_DRAFT.md) and the HTML prototype as behavior references.
+2. Read the current contracts at the start of [02_PRODUCT.md](02_PRODUCT.md) and [03_ARCHITECTURE.md](03_ARCHITECTURE.md), D-018/D-024–D-027 in [05_DECISIONS.md](05_DECISIONS.md), and the current gates in [04_ROADMAP.md](04_ROADMAP.md). [07_V1_WORKFLOW_DRAFT.md](07_V1_WORKFLOW_DRAFT.md) owns acceptance procedures; its historical prototype/Today sections and the HTML prototype are not current UI requirements.
 3. Consult [05_DECISIONS.md](05_DECISIONS.md) before treating a proposal as accepted; open other files only as relevant to the task.
 4. Consult [archive/noeting-original.md](archive/noeting-original.md) directly when interpreting or preserving the founding concept.
 

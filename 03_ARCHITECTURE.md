@@ -1,10 +1,10 @@
 # Noeting — Architecture, Privacy and Agent Design
 
-> **Current baseline:** React Native + Expo + TypeScript + SQLite, version 0.10.2/schema v10 (D-024–D-027), merged through PR #6 on 2026-10-17. Existing automated and APK evidence is recorded in `06_CURRENT_STATE.md`; current native-device and security acceptance remain unverified.
+> **Current baseline:** React Native + Expo + TypeScript + SQLite, version 0.10.3/code 20/schema v10 (D-024–D-027; PR #8 merged). Verified automated/APK/device evidence and release gates are owned by `06_CURRENT_STATE.md`.
 >
 > **Principle:** Local-first and user-controlled; verify privacy properties rather than assuming them.
 
-## Current architecture — D-027/D-026, 0.10.2/schema v10
+## Current architecture — D-027/D-026, 0.10.3/schema v10
 
 Reliability maintenance (2026-10-18) preserves the same schema and public repository API. Historical migration SQL definitions live in `src/data/migrations.ts`; initialization, version ordering and transaction boundaries remain in `repository.ts`. Saved tab/search/folder context is isolated in `useListPreferences`: optional, shape-checked, cancellable during load and nonblocking on failure. Database/draft startup failures retain their separate retry paths; Back/modal handling remains in App.
 
@@ -27,6 +27,12 @@ A snapshot includes joined organization/source/parent data and folders, without 
 Popover uses a separate no-animation Modal, immediate scrim, bounded trigger-relative placement and background accessibility isolation. Nested popover Back resolves before keyboard/sheet. Sheet's Modal/scrim does not animate; Animated.View translates only content. Initial height estimates visible content and font scale, caps to usable/keyboard bounds and supports handle expansion/internal scroll. Native IME, Back, keyboard overlap and actual upgrade remain blocking acceptance items until independently executed.
 
 The v10 contract above governs the merged source. Earlier version-specific implementation notes below are historical and do not override the current behavior.
+
+### Data-loss exposure and future offline recovery
+
+D-018 still defers backup/export/restore. There is no supported independent recovery copy: Notes/Tasks, folders, links, removed records and drafts live locally; SQLite/KV storage is unencrypted. Android automatic backup is disabled in configuration/static manifest, with device enforcement unverified. Device loss, uninstall/clear-storage or corruption can therefore lose the only copy. Undo, original captures and draft recovery do not protect against loss of that storage. Test data does not waive preservation/rollback rules.
+
+P-008 proposes the smallest offline alternative for a future decision: a user-selected versioned local file containing a consistent application-level snapshot, preserving stable IDs, original/current text, provenance snapshots, folders/pins, task relationships/completion and soft-deletion metadata. Whether recovery drafts/request IDs are included must be explicit. A future design must coordinate pending draft writes and repository reads; blindly copying live main/KV database files is not a consistent backup protocol. Validate format/version/checksums and references before any writes, demonstrate recovery in a separate disposable library, and preserve existing data on validation/interruption failures. Restore replacement/merge policy and protection of the sensitive file remain undecided; do not silently add encryption, accounts, sync, new storage architecture or export UI. No implementation occurs without a new accepted decision superseding D-018's timing.
 
 ## Historical architecture — D-025, 0.9.0/schema v8
 
@@ -78,7 +84,7 @@ These goals follow the original document and the later conversation about a priv
 - **Validation:** prove persistence after full restart, offline operation, transaction rollback on failure, and database migration behavior on actual target devices. A local SQLite database does not itself guarantee encryption at rest or a successful backup.
 - **HTML prototype:** reference for behavior/copy, **not native React Native components**; never claim it has been migrated.
 
-### Implemented M1 persistence contract — 2026-10-13; device evaluation pending
+### Historical M1 persistence contract — 2026-10-13 (superseded by current Notes/Tasks contract)
 
 - Use versioned SQLite migrations with initial `entries` and `tasks` tables. Store immutable `entries.original_text`; a Task references its source Entry. Start with `pending` / `completed` status and durable pin state. Reminders and richer lifecycle fields are outside this first schema.
 - Allocate a stable capture request ID once per draft; derive stable Entry and Task IDs from it. Retain the request ID for retries. A uniqueness constraint on capture identity and a single linked Task per direct Task capture make retry idempotent. Retrying an already committed capture returns its existing records rather than creating new ones; changed content under that same request ID is rejected.
@@ -88,9 +94,9 @@ These goals follow the original document and the later conversation about a priv
 
 The user-facing choices are in [02_PRODUCT.md](02_PRODUCT.md). This contract is implemented in source and exercised by real-SQLite repository tests; it does not claim passed device tests or new historical product approval. Actual run/test evidence belongs in [06_CURRENT_STATE.md](06_CURRENT_STATE.md).
 
-**Current security/delivery limits:** SQLite is plain and unencrypted. `app.json` sets Android `allowBackup: false` as a protective M1 default; the merged APK manifest now verifies this value, but backup exclusion on a device remains untested. iOS OS-backup behavior, encryption, export/restore, and broader local threat-model checks remain unresolved. App icons use the user-supplied Noeting symbol in `assets/brand/source/`; `com.noeting.app` remains a development identifier requiring review before distribution.
+**Historical M1 security/delivery notes (current risk is described above):** SQLite is plain and unencrypted. `app.json` sets Android `allowBackup: false` as a protective M1 default; the merged APK manifest now verifies this value, but backup exclusion on a device remains untested. iOS OS-backup behavior, encryption, export/restore, and broader local threat-model checks remain unresolved. App icons use the user-supplied Noeting symbol in `assets/brand/source/`; `com.noeting.app` remains a development identifier requiring review before distribution.
 
-### Android test build — 2026-10-13; static verification passed
+### Historical Android test build — 2026-10-13
 
 - Expo Continuous Native Generation created the local `android/` project from `app.json` and the locked packages. `android/` and `ios/` stay ignored; preserve local native edits and deliberately regenerate when configuration changes. `npm run android` / `npm run ios` now use Expo native run commands rather than merely opening the development server.
 - Prepared Linux tools outside the checkout: Microsoft OpenJDK **17.0.20.1**, Android command-line tools **23.0**, platform-tools **37.0.1**, Android API **36 revision 2**, build-tools **36.0.0** (plus **35.0.0** installed by Android Gradle Plugin), NDK **27.1.12297006**, and CMake **3.22.1 / 3.30.5**. The build uses Gradle **9.3.1**, two workers, ARM64, and CMake 3.22.1. An emulator was subsequently installed and exercised; no physical phone is attached.
@@ -102,7 +108,7 @@ The user-facing choices are in [02_PRODUCT.md](02_PRODUCT.md). This contract is 
 
 Actual build evidence, artifact identity, and executable build/verification commands are maintained in [06_CURRENT_STATE.md](06_CURRENT_STATE.md). The wrapper and verifier completed successfully end to end. GPG public-key verification uses `--no-autostart` to avoid a private-key agent in managed sandboxes; Gradle and the test runner still require local socket/process access.
 
-**Web validation:** The same UI and repository use Expo SQLite's browser-local WASM storage on web. `scripts/serve-web.mjs` serves the export with cross-origin isolation headers required by that runtime. Use one app tab at a time: Expo SQLite holds exclusive browser file handles. A competing tab shows a startup error; close the owning tab and retry to reload the failed worker without deleting data. Nine real-storage browser tests passed, including exact whitespace/Unicode retrieval, offline filtering, Today selection, linked thinking, Review, restart durability and injected linked-write failure. Explicit stopping was removed under D-012. This is a development-validation target, not evidence of native offline reliability or an independently approved web product.
+**Historical web validation (original M1):** The same UI and repository use Expo SQLite's browser-local WASM storage on web. `scripts/serve-web.mjs` serves the export with cross-origin isolation headers required by that runtime. Use one app tab at a time: Expo SQLite holds exclusive browser file handles. A competing tab shows a startup error; close the owning tab and retry to reload the failed worker without deleting data. Nine real-storage browser tests passed, including exact whitespace/Unicode retrieval, offline filtering, Today selection, linked thinking, Review, restart durability and injected linked-write failure. Explicit stopping was removed under D-012. This is a development-validation target, not evidence of native offline reliability or an independently approved web product.
 
 
 ### Version 0.3.0 edit/removal and selection contract — D-014
@@ -308,11 +314,11 @@ The **original source** sketched this platform order: phone-only → desktop usi
 
 These are **two different axes** (platform rollout vs. intelligence/capability maturity), not a single agreed version numbering scheme. Exact versions and ordering remain open. Portability is a goal from the start even if a full import/export UI comes later.
 
-## 9. Architecture investigations (unresolved)
+## 9. Historical architecture investigations (unresolved proposals; not current authorization)
 
 The authoritative **decision register and status** lives in [05_DECISIONS.md](05_DECISIONS.md), particularly O-001, O-002, O-004, O-005, O-006, and O-008. The technical work needed to inform those decisions includes:
 
-- Stack selected (D-011); implement and test migration strategy, platform notification APIs, offline search and local export.
+- Historical investigation list: stack selected (D-011), migrations, platform notifications, offline search and local export. Current scope excludes new notifications and D-018 defers export; consult the active contract and P-008 before any new work.
 - Define local threat scenarios, key protection, backup/log leakage, and meaningful export formats.
 - For later AI experiments, determine mode (on-device/cloud/hybrid), data exposure/consent, and optional background processing; these do not block the no-AI V1.
 - For later agent actions, specify least-privilege permissions, approval records, and audit/rollback behavior.

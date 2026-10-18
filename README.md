@@ -4,7 +4,7 @@
 
 Noeting is a minimal, local-first Notes and Tasks app built with React Native, Expo, TypeScript and SQLite. Xiaomi Notes is an interface reference: quiet lists, quick capture and focused writing.
 
-## Current source — 0.10.2 (PR #6 merged; native acceptance pending)
+## Current source — 0.10.3/code 20/schema v10 (PR #8 merged)
 
 - **Folders:** header icon opens the dedicated management screen. Long-press selects folders for Pin/Unpin, Delete or single-folder Edit; deleting folders preserves their notes. Quick bar remains All → pinned/other user folders → Uncategorized.
 - **Notes:** compact responsive cards, scoped folder search, folders, long-press selection and atomic Pin/Unpin/Move/Remove with Undo and Recently deleted recovery.
@@ -15,7 +15,7 @@ Noeting is a minimal, local-first Notes and Tasks app built with React Native, E
 
 Additive schemas v9/v10 separate Note organization from historical Task pins and preserve v6/v7/v8/v9 captures, edits, links, hierarchy and removal history. SQLite/drafts remain unencrypted; export/restore is deferred. No AI, accounts, sync, scheduling or Xiaomi dependency.
 
-Current checks, fresh APK identity and **blocking unverified native/device acceptance** live in [06_CURRENT_STATE.md](06_CURRENT_STATE.md). Older APKs do not validate the current source. PR #6 merged into `main` on 2026-10-17. That merge does **not** establish physical-device acceptance or production-release readiness; both remain unverified in the recorded evidence.
+Current checks, fresh APK identity and **blocking unverified native/device acceptance** live in [06_CURRENT_STATE.md](06_CURRENT_STATE.md). Older APKs do not validate the current source. PR #8 merged into `main` on 2026-10-18. That merge does **not** establish physical-device acceptance or production-release readiness; current acceptance and release gates are recorded only there.
 
 ## Run and verify
 

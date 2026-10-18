@@ -340,3 +340,15 @@ Published draft PR #8, corrected three CI test wait races, and confirmed passing
 ### 2026-10-18 — Approved APK publication completed
 
 The user explicitly approved the public APK-only branch. Published the verified 0.10.3 ARM64 test APK and independently fetched its size/SHA-256, matching the verified local binary. Download/evidence and remaining native gate: `06_CURRENT_STATE.md`.
+
+### 2026-10-18 — Merged-main CI and documentation stabilization
+
+Reproduced the draft-restoration CI failure with delayed real KV writes and corrected the test to await flush-confirmed sheet dismissal before restarting; retained exact restoration assertions and runtime behavior. Aligned PR #8/version/history references, refined native acceptance procedures and added a NOT RUN evidence register. D-018 remains accepted; P-008 documents an unaccepted offline recovery alternative. Validation, risks and next action are owned by `06_CURRENT_STATE.md`; no new APK or release.
+
+Local validation and actual draft-PR CI pass on the stabilization changes; run identity and remaining native/data-security gates are recorded only in `06_CURRENT_STATE.md`.
+
+Recorded the passing CI install’s existing, untriaged dependency advisory counts in `06_CURRENT_STATE.md`; no dependency/security fix or acceptance claim is implied.
+
+### 2026-10-18 — User-reported 0.10.3 APK test success
+
+Recorded the user's successful APK test report in `06_CURRENT_STATE.md`, keeping unspecified native subcases and security/data limitations explicit. Rechecked PR #9 mergeability and passing source-head CI; no runtime, APK or release change.

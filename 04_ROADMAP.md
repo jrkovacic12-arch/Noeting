@@ -2,19 +2,21 @@
 
 > **Status:** Working plan, not a committed schedule. Checked work items identify source implementation; device acceptance remains a separate gate.
 >
-> **Current phase:** PR #6 merged 0.10.2/schema v10 (D-024–D-027) into `main` on 2026-10-17. Physical-device acceptance remains pending; older Android 9 emulator checks concern historical builds.
+> **Current phase:** Version 0.10.3/code 20/schema v10 is merged through PR #8. Execution status, blockers and the sole exact next action belong to `06_CURRENT_STATE.md`.
 
-## Reliability maintenance — 2026-10-18
+## Reliability maintenance and acceptance gates
 
-- [x] Optional startup preference recovery with injected read/parse/write failures.
-- [x] PR/main CI workflow and local equivalent; remote execution is blocked pending public-push authorization, with no green-run claim.
-- [x] Measure draft KV writes, coalesce safely, and cover failure/retry/discard races.
-- [x] Reproduce 3,000-Note/1,000-group performance measurements; no speculative repository optimization.
-- [x] Extract saved navigation preferences and unchanged migration SQL; retain Back/modal ordering and schema v10.
+- [x] Optional startup preferences, serialized/coalesced draft persistence, historical SQL extraction and reproducible performance procedure (PR #8).
+- [x] PR/main CI workflow and local equivalent. Actual executions, failures and corrections are recorded only in `06_CURRENT_STATE.md`; an earlier public-push blocker is no longer active.
+- [x] Stabilize the demonstrated restart/dismissal test race without relaxing persistence assertions; verify repeated focused runs and the full suite.
+- [ ] Complete physical-device acceptance using the protocol in `07_V1_WORKFLOW_DRAFT.md`. Source integration, browser tests and static APK checks are distinct from native acceptance.
+- [ ] Review P-008's offline recovery alternative through a new decision if portability sequencing changes. D-018's deferral still applies; this is not implementation authorization.
 
-Verification details, remaining remote/native gates and the sole exact next action are maintained in `06_CURRENT_STATE.md`. No release or merge is authorized by these checkboxes.
+Do not merge, release or publish a new APK from this maintenance task without explicit authorization. Current artifact identity and evidence remain in `06_CURRENT_STATE.md`.
 
-## Immediate post-merge validation gate — 0.10.2
+## Historical PR #6 post-merge validation gate — 0.10.2
+
+The following preserves PR #6-era instructions; use `07_V1_WORKFLOW_DRAFT.md` for the current protocol and `06_CURRENT_STATE.md` for status/action.
 
 1. Install the matching 0.10.2/code 19 ARM64 test APK **over a compatible populated installation without uninstalling**; record device, Android version, signer and whether prior entries/migrations remain intact.
 2. Verify folder creation, selection, Edit, Pin/Unpin, deletion confirmation, Notes preservation, quick-bar ordering, scoped search and recovery of drafts whose folder was removed.
@@ -22,7 +24,7 @@ Verification details, remaining remote/native gates and the sole exact next acti
 4. Record pass/fail/not-run outcomes and device/build evidence in `06_CURRENT_STATE.md`. Browser, SQLite and static APK checks are not substitutes for phone acceptance. Merge does not establish release readiness.
 5. Keep local-data risk explicit: SQLite/drafts are unencrypted and export/restore is deferred under D-018. Revisit portability only through a separate accepted decision.
 
-## Merged folder implementation — D-027
+## Historical merged folder implementation — D-027
 
 1. Keep the quick bar All → pinned/other user folders → Uncategorized and add the header folder icon.
 2. Add the dedicated Folders screen, selection-mode Pin/Unpin/Delete/Edit, protected system buckets, counts and confirmation.
