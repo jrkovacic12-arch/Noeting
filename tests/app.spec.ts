@@ -1323,6 +1323,28 @@ test.describe("performance evidence", () => {
 
 test.describe('draft migration recovery', () => {
   test.use({ observeSQLite: true });
+  test('malformed legacy v1 data does not block an already saved v2 draft', async ({ session }) => {
+    let { page } = session;
+    await page.getByRole('button', { name: 'Add note' }).click();
+    await page.getByRole('textbox', { name: 'Note text', exact: true }).fill('Current v2 draft remains');
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('textbox', { name: 'Note text', exact: true })).toHaveCount(0);
+    await expect.poll(async () => {
+      const raw = await storedValue(page, 'noeting.editor-drafts.v2');
+      return raw ? JSON.parse(raw)['new:note']?.text : null;
+    }).toBe('Current v2 draft remains');
+    await databaseSQL(page,
+      "INSERT OR REPLACE INTO storage(key,value) VALUES ('noeting.editor-draft.v1','{malformed legacy data');",
+      true,
+    );
+    page = await session.restart();
+    await expect(page.getByText('Could not load drafts. Retry opening the app.')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Add note' }).click();
+    await expect(page.getByRole('textbox', { name: 'Note text', exact: true }))
+      .toHaveValue('Current v2 draft remains');
+    expect(await storedValue(page, 'noeting.editor-draft.v1'))
+      .toBe('{malformed legacy data');
+  });
   test('failed v1 draft migration retries without deleting the original words', async ({ session }) => {
     const { page } = session;
     await databaseSQL(page, `INSERT INTO storage(key,value) VALUES ('noeting.editor-draft.v1','{"kind":"note","text":"Migration retained words","requestId":"migration-retry"}'); CREATE TRIGGER fail_migration BEFORE UPDATE ON storage WHEN NEW.key='noeting.editor-drafts.v2' BEGIN SELECT RAISE(ABORT,'migration write failed'); END;`,true);
