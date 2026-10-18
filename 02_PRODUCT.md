@@ -4,6 +4,12 @@
 >
 > **Source of truth for:** user needs, product objects, features, UX behavior, and MVP boundaries.
 
+## PC mirror sync — first staged feature (2026-10-18)
+
+The user has prioritized PC–phone sync ahead of AI. The first **opt-in manual transfer** mirrors active Notes, Tasks and folders from the phone to a PC for read-only inspection. It does not permit PC-to-phone edits, background sync or deletion reconciliation, and it does not mirror unsaved drafts or removed records. "Sync preview to PC" is placed under Notes More, not as an extra primary tab. A compatible TLS front end and pairing token are required; app usage remains offline when the PC is unreachable. Test data remains disposable.
+
+**This is a preview, not lossless backup:** current-entry-only snapshots omit tombstones, historical task details and KV drafts and are not an import/restore format. Upgrade to genuine two-way sync only after designing a durable mutation journal, tombstones, conflict policy, snapshot versioning, PC authentication and detailed atomic import tests. PC data must never silently overwrite phone records.
+
 ## Current contract — D-027 folders with D-026 Notes and Tasks (0.10.3)
 
 D-026 supersedes D-025's interaction design and independent hierarchy completion. Exactly two primary tabs remain; Xiaomi Notes is a visual/behavioral reference only. Verification belongs to `06_CURRENT_STATE.md`.
