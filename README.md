@@ -4,7 +4,7 @@
 
 Noeting is a minimal, local-first Notes and Tasks app built with React Native, Expo, TypeScript and SQLite. Xiaomi Notes is an interface reference: quiet lists, quick capture and focused writing.
 
-## Current source — 0.10.3/code 20/schema v10 (PR #8 merged)
+## Current source — 0.10.3/code 20/schema v10 (PRs #8 and #9 merged)
 
 - **Folders:** header icon opens the dedicated management screen. Long-press selects folders for Pin/Unpin, Delete or single-folder Edit; deleting folders preserves their notes. Quick bar remains All → pinned/other user folders → Uncategorized.
 - **Notes:** compact responsive cards, scoped folder search, folders, long-press selection and atomic Pin/Unpin/Move/Remove with Undo and Recently deleted recovery.
@@ -15,7 +15,7 @@ Noeting is a minimal, local-first Notes and Tasks app built with React Native, E
 
 Additive schemas v9/v10 separate Note organization from historical Task pins and preserve v6/v7/v8/v9 captures, edits, links, hierarchy and removal history. SQLite/drafts remain unencrypted; export/restore is deferred. No AI, accounts, sync, scheduling or Xiaomi dependency.
 
-Current checks, fresh APK identity and **blocking unverified native/device acceptance** live in [06_CURRENT_STATE.md](06_CURRENT_STATE.md). Older APKs do not validate the current source. PR #8 merged into `main` on 2026-10-18. That merge does **not** establish physical-device acceptance or production-release readiness; current acceptance and release gates are recorded only there.
+Current CI, matching APK identity and Android acceptance status live in [06_CURRENT_STATE.md](06_CURRENT_STATE.md). PRs #8 and #9 merged into `main` on 2026-10-18 and the latest main CI passed. The user subsequently confirmed **all N1–N9 physical-device checks fully completed successfully** on the 0.10.3 test APK. This is a user-reported PASS across all nine cases; individual device/test artifacts were not supplied, and it is **not production-release sign-off**.
 
 ## Run and verify
 
@@ -35,7 +35,7 @@ The Android wrapper builds and statically verifies an ARM64 development-signed t
 
 ## Privacy and durability
 
-SQLite is local and **unencrypted**. Android automatic backup is disabled in configuration; device enforcement and iOS backup behavior remain unverified. Backup/export/restore is deferred to the later account phase (D-018). Do not use this early build as the sole durable copy of irreplaceable notes.
+SQLite is local and **unencrypted**. Android automatic backup is disabled in configuration; device enforcement and iOS backup behavior remain unverified. Backup/export/restore is deferred to the later account phase (D-018). **Current user-confirmed scope: disposable test data only; its loss is acceptable during this phase, so backup is not the next development priority.** This does not make the app suitable as the sole durable copy of irreplaceable notes.
 
 ## Project documents
 
