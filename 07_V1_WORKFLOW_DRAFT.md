@@ -1,16 +1,38 @@
 # Noeting — V1 Workflow Specification (Draft)
 
-> Created: 2026-10-11. Current acceptance refreshed: 2026-10-17 (0.10.2/schema v10; PR #6 merged). D-027/D-026 sections describe the active Notes/Tasks build; native-device acceptance is pending.
+> Created: 2026-10-11. Current acceptance refreshed: 2026-10-18 (0.10.3/code 20/schema v10; PR #8 merged). D-027/D-026 define active Notes/Tasks behavior. Actual outcomes and device/release gates belong only to `06_CURRENT_STATE.md`.
 > Historical boundary: D-025 and earlier Capture → Today examples are superseded research/validation history, not current UI requirements. Execution results belong to `06_CURRENT_STATE.md`.
 
-## Current D-027 folder acceptance — 0.10.2
+## Android physical-device acceptance protocol — 0.10.3/code 20
+
+This is a procedure, not evidence of execution. Use the existing matching APK identity/download in `06_CURRENT_STATE.md`; do not build/publish another APK or treat a source merge as device sign-off. Read current behavior in `02_PRODUCT.md`. Record actual results only in `06_CURRENT_STATE.md`.
+
+**Before testing:** Record phone/model, Android version, keyboard/IME, installed and candidate version/code/package/signer, APK checksum/source identity, available storage, connectivity/battery restrictions and test date. Use innocuous canary text rather than private note text in logs/screenshots. Inventory representative existing original/current words, counts, folders/pins, completed/pending parents/children, Note links, frozen/removed sources and soft-deleted Notes. Prefer a populated compatible test installation; do not clear data or uninstall to make an upgrade succeed. Stop on signer/package mismatch. There is no implemented backup/export/restore safety net (D-018); do not intentionally corrupt the only library.
+
+| Case | Actions and expected observation |
+| --- | --- |
+| N1 — Populated in-place upgrade | Install over the existing compatible app without uninstall/clear-storage. Record previous code/schema and installer result. Verify the inventory and absence of a reset. Reinstalling code 20/schema v10 is not an older-schema migration pass; record migration as not exercised if no older fixture is available. Never downgrade/erase the only populated phone to manufacture coverage. |
+| N2 — Existing records and provenance | Search/open Notes and Tasks, compare exact Unicode/whitespace and original vs edited words, folders/pins and list scope. Traverse Note-linked Notes/Tasks and frozen source previews, including removed sources; verify independent records remain. Exercise folder rename/pin/delete, preserved Notes, soft removal and Undo with disposable canaries. |
+| N3 — Keyboard, IME, Enter and Back | Check existing-entry no-autofocus and new-entry autofocus, multiline Note newline, Task/child Enter and next-child focus, blank Enter, composition/candidate selection and repeated Enter without duplicates. Check keyboard-first Back, then menu/sheet/entry/selection ordering and read-only Task-source Notes. Record keyboard/IME and each outcome. |
+| N4 — Drafts and interrupted saves | For standalone Note/Task, linked and child contexts, type distinct canaries, dismiss via outside tap/swipe/Back, wait for actual dismissal, reopen and compare exact words. Repeat after restart and verify context isolation/stable retry without duplicate captures. Test Cancel then reopen (empty), inline-edit autosave and reversion. Interrupt a save where safely reproducible: after acknowledged Save/dismissal require committed text; before acknowledgement record whether none or one complete record/recovery draft survives, with exact timing. Never call partial/lost acknowledged content a pass. |
+| N5 — Long-press versus scrolling | Hold selects without opening/accidental actions; drag/scroll cancels selection. Verify selection overlays, Back clears selection, mixed folder/Note bulk actions, disabled actions and no unintended pin/delete. Repeat with long lists and larger system text. |
+| N6 — Parent/child completion | For one/two/three children, toggle root and child, reopen/add a pending child, remove/Undo the last active child, and remove/restore the parent. Compare committed group status, zero-child manual state and orphan fallback with `02_PRODUCT.md`. Generic source links remain independent and words/provenance are unchanged. |
+| N7 — Offline, force-stop and reboot | Enable airplane mode, make acknowledged saves and safely dismissed drafts, then force-stop through OS settings (swiping recents is a different action), reopen and compare inventory. Repeat after reboot while offline. Separately record backgrounding or force-stop during typing/before save/dismissal acknowledgement; the 50 ms coalescing window and OS lifecycle scheduling are not a guaranteed abrupt-termination durability bound. Report any lost words/timing; do not extrapolate from graceful browser shutdown. |
+| N8 — Legacy notification cleanup | On a compatible historical installation with known old Noeting notification requests, upgrade/launch and verify cancellation and retry on foreground if a supported failure is reproducible. Confirm no new scheduling/permission prompts or hidden scheduled-pin effects. If no legacy fixture/request exists, mark this case NOT RUN or not applicable with the reason; absence of a current alert alone does not prove upgrade cleanup. |
+| N9 — Write failure and Retry | Use only a safe supported fault-injection setup on disposable data to test database/KV failures, visible retained words, blocked unsafe dismissal/Cancel, successful Retry and no duplicates. Do not fill/corrupt/clear a real phone's only storage to trigger failures. If native fault injection is unavailable, record NOT RUN; browser/SQLite injection results stay separate. |
+
+**Evidence format:** For every N1–N9 subcase record PASS / FAIL / NOT RUN / BLOCKED / NOT APPLICABLE, expected vs observed result, device/build identity, exact interruption/acknowledgement point, non-sensitive screenshot/log reference and limitation. A case with unexecuted substeps is partial, not an all-pass. Use the native evidence register in `06_CURRENT_STATE.md`; browser and static APK results never fill native rows.
+
+Keep emulator troubleshooting bounded: one focused retry for a tooling/timing failure, then record the blocker and continue unaffected checks. Investigate demonstrated app/data defects; do not erase state or add features to obtain a pass. Device testing does not itself authorize a merge, release or new APK publication.
+
+## Current D-027 folder acceptance — 0.10.3
 
 - Verify quick bar ordering All → user folders (pinned first) → Uncategorized, and identical ordering on the Folders screen; counts exclude deleted Notes and ignore active search.
 - Verify tap chooses scope, long-press selects without navigating, additional taps toggle selection, multi-selection disables Edit, and system buckets cannot be selected. Verify the trash icon enters selection with zero selected; Back exits mode before leaving.
 - Verify folder pin/unpin, rename retaining pin order, collision/empty-name errors, restart persistence and preserved scoped search. Confirm/cancel bulk deletion, preserve active/removed Notes and their pins, and recover a creation draft whose folder was removed.
 - Interrupt populated v9→v10 migration, prove rollback and retry. Inject halfway pin/delete failures and prove all selected folders/Note references remain unchanged; retry successfully. Preserve existing D-026 boundaries and accepted native-device gate below.
 
-## Continuing D-026 acceptance — 0.10.1 refinement
+## Continuing D-026 acceptance — active behavior inherited from 0.10.1
 
 - Preserve populated v6/v7/v8 originals, edits, links, legacy pins, soft removals and timestamps; interrupt v9 migration, prove rollback, retry. Keep new generic links Note-origin only.
 - Create/rename/delete folders with case-insensitive collision handling, scoped search, persisted list context, deterministic pins across restart/offline, mixed bulk pin/unpin/move and atomic failure. Bulk soft removal/Undo and Recently deleted recover organization.
@@ -193,7 +215,7 @@ D-012 removes explicit stop cards/screens/buttons; users close the app themselve
 
 Actual assertions, artifact identity and venue are maintained only in `06_CURRENT_STATE.md`. Physical-phone acceptance and native injected-write-failure checks remain open.
 
-## M1 native-device smoke checklist — pending, 2026-10-13
+## Historical M1 native-device smoke checklist — 2026-10-13 (superseded)
 
 Record device model, Android version, ABI, APK/build identity, connection state, and each result in `06_CURRENT_STATE.md`. The user confirmed Android as the initial target; no device run is claimed. The expected standalone test APK is ARM64 (`arm64-v8a`) for Android **7.0+ / API 24**, with its bundle embedded; the artifact and declared architecture/SDK support are statically verified, while installation and native runtime remain **unvalidated**. The current Android build status and build/verification commands are maintained only in `06_CURRENT_STATE.md`.
 

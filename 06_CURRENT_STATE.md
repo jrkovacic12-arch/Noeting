@@ -1,12 +1,45 @@
 # Noeting — Current State and Session Handoff
 
-> **Updated:** 2026-10-18 (draft PR #8 published; Actions pass; 0.10.3/code 20 APK verified)
+> **Updated:** 2026-10-18 (PR #8 merged; CI stabilization and device-acceptance preparation)
 >
-> **Phase:** Reliability branch `codex/reliability-20261018` is published in draft PR #8. ARM64 APK compilation/static verification pass; public download and fetched checksum verified below. Schema remains v10 and main is unchanged.
+> **Current source:** `main` merge `abb43cdd458a47cb3691d8d8053e83ee6528c3d2`, 0.10.3/code 20/schema v10. PR #8 is merged, not draft. Maintenance branch: `codex/ci-docs-stabilization-20261018`; no new APK, product/runtime, dependency or migration change.
 >
-> **Current verification:** Actual GitHub Actions passes 52 repository/draft tests, all 25 browser workflows and all-platform exports. APK signature, package/version/ABI/alignment/source identity pass. Native-device acceptance and merge/release authorization remain pending.
+> **Latest completed main CI:** Run 39093298075 fails the draft-restoration browser case (52 tests pass, 24/25 browser scenarios pass; all-platform export is skipped). Earlier PR-head passes do not supersede this failure. New branch verification is recorded below as it completes.
+>
+> **Device/release gate:** Physical-device acceptance remains unverified; production-release readiness is not established. Use the N1–N9 protocol in `07_V1_WORKFLOW_DRAFT.md` and the evidence register below.
 
 ## 1. Verified progress
+
+### 2026-10-18 — Merged-main CI investigation and documentation stabilization
+
+- GitHub confirms PR #8 merged at **2026-10-18 03:20:51 UTC**, merge `abb43cdd458a47cb3691d8d8053e83ee6528c3d2`. Started this maintenance branch directly from fetched latest `origin/main`, preserving the clean working tree and main/history.
+- Compared actual [passing final PR-head run 39093106954](https://github.com/jrkovacic12-arch/Noeting/actions/runs/39093106954) on head `fb5ad44` with [failed merged-main run 39093298075](https://github.com/jrkovacic12-arch/Noeting/actions/runs/39093298075). Runtime, `tests/app.spec.ts` and workflow have no diff between passing PR source and merged main (also no diff from earlier passing head `8772fac`). The failed case clicks the backdrop and restarts Chromium without waiting for asynchronous `safeNavigate` → `drafts.flush()` → sheet removal.
+- Deterministic reproduction forwards actual SQLite KV worker writes after 150 ms (no SQLite mock or app test API). Original sequencing reproduces the exact expected “Retained draft” / actual empty-string failure (`work/stabilization-draft-red.log`). Waiting for `task-sheet` disappearance before restart then passes **10/10 focused repeats** with the same delayed writes and all exact-text/context/Save assertions retained (`work/stabilization-draft-repeat.log`). This demonstrates an automation restart race, not a merge-induced runtime regression. The former sequence can terminate the worker before confirmation; it does not test acknowledged safe dismissal or prove Android force-stop behavior.
+- Fix is test-only: retain delayed-write coverage and await the existing flush-completion UI boundary. No timeouts increased, assertions weakened, storage mocked or generic “wait until idle” infrastructure introduced. Existing draft failure/Retry and migration behavior are unchanged. Full local validation passes on test/source commit `53f95d092abf81551c20302d25fa2aaf36fe21bc`; remote branch CI is pending publication of the new draft PR. Historical passes are not presented as this branch’s CI evidence.
+- Fresh `npm ci` and baseline `npm run check` pass **52 tests** (`work/stabilization-install.log`, `work/stabilization-baseline-check.log`). Post-fix `npm run check` passes **52/52**; `npm run test:ui` passes **25/25 in one run**; `npm run export` passes Android/iOS/web (`work/stabilization-check.log`, `work/stabilization-full-ui.log`, `work/stabilization-export.log`). `npm run web` served the real exported SQLite harness separately (`work/stabilization-web.log`). Initial server launch encountered the previous session’s listener; the old server was stopped and the harness restarted cleanly before focused repeats/full validation. Native execution/new APK compilation: **NOT RUN**, preparation-only scope and unchanged runtime.
+- Documentation owners aligned: 00/README navigation, 02 current product, 03 architecture/risk, 04 gates, 05 D-018/P-008 decision status, 07 native procedures. D-018 is unchanged; P-008 is an unaccepted offline recovery proposal, not permission to implement export/restore, encryption, accounts or sync.
+- Existing verified **0.10.3/code 20 ARM64 APK** identity/download remains in its historical delivery checkpoint below. Runtime/configuration/dependencies/migration files match merged main and that build source; no new native compilation, device run, APK publication, merge or release occurred in this task.
+
+### Native evidence register — current maintenance task
+
+Protocol/expected results: N1–N9 in `07_V1_WORKFLOW_DRAFT.md`. Device/model/Android/IME: **not recorded**; no physical-device session was executed. Each row is NOT RUN for that reason; prior static/browser evidence is not a native pass. Populate subcase outcomes and artifact references here during an actual phone session.
+
+| Case | Native outcome | Evidence/limitation |
+| --- | --- | --- |
+| N1 — Identity and populated in-place upgrade | NOT RUN | No on-device install/upgrade session |
+| N2 — Existing records, folders and provenance | NOT RUN | No on-device inventory comparison |
+| N3 — Keyboard/IME/Enter/Back | NOT RUN | Browser events do not prove native ordering |
+| N4 — Draft restoration and interrupted saves | NOT RUN | Delayed-worker browser regression is separate |
+| N5 — Long-press versus scroll | NOT RUN | Browser touch/layout coverage is separate |
+| N6 — Parent/child completion | NOT RUN | SQLite/browser semantics are separate |
+| N7 — Offline force-stop/reboot | NOT RUN | Graceful browser restart is not abrupt Android termination |
+| N8 — Legacy notification cleanup | NOT RUN | No historical notification fixture exercised on a phone |
+| N9 — Native failure/Retry | NOT RUN | No safe native injection setup exercised |
+
+### Historical verification checkpoints
+
+The following dated records preserve evidence and instructions **as of each checkpoint**. References to draft PR #8, unchanged main, blocked publication, older versions or then-pending CI are historical, not current blockers or actions. The header, new investigation entry and section 2 own current status and the sole exact next action.
+
 
 ### 2026-10-18 — Published draft PR, confirmed Actions and verified 0.10.3 APK
 
@@ -367,7 +400,7 @@ The user chose Notes and Tasks as the only primary screens, each with search and
 
 ## 2. Exact next action — only maintained here
 
-**Next action:** Keep PR #8 in draft for review and perform physical-device acceptance using the verified 0.10.3/code 20 APK linked above. Install over populated compatible data without uninstalling/clearing data; record phone/OS plus per-scenario folder/selection, IME/Back/Enter, inline/draft recovery, offline force-stop/reboot, legacy notification cleanup and populated-upgrade outcomes. Review current PR checks before any merge decision. Public source and APK publication permissions are resolved; explicit merge/release authorization and native acceptance remain required.
+**Next action:** Publish the dedicated maintenance branch/draft PR and confirm an actual passing CI execution on its submitted changes, then keep the PR in draft for review. Use the existing matching 0.10.3/code 20 APK for the prepared N1–N9 physical-device acceptance protocol without uninstalling/clearing populated data; record results in the native evidence register above. New merge/release/APK publication requires explicit authorization. D-018 remains in effect; decide separately whether to adopt P-008 before any portability implementation.
 
 **Handoff context:** The user agreed to the first-app feature set (D-010), to React Native + Expo + TypeScript + SQLite (D-011), and to implement using Codex. The user said the updated prototype was tested and **“worked as intended”**; the test device and per-scenario results were not specified. Do not claim full S1–S4 validation or verified native runtime from that prototype report or the static APK checks.
 
