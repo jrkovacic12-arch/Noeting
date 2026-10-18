@@ -1,0 +1,54 @@
+name: Noeting quality
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: noeting-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    name: TypeScript, SQLite and browser
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_OFFLINE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npx playwright install --with-deps chromium
+      - name: Build and start real SQLite web harness
+        run: |
+          mkdir -p work
+          npm run web > work/web.log 2>&1 &
+          echo $! > work/web.pid
+          for attempt in $(seq 1 180); do
+            if curl --fail --silent http://127.0.0.1:8081/ > /dev/null; then exit 0; fi
+            if ! kill -0 "$(cat work/web.pid)" 2>/dev/null; then cat work/web.log; exit 1; fi
+            sleep 1
+          done
+          cat work/web.log
+          exit 1
+      - run: npm run test:ui
+      - run: npm run export
+      - name: Retain synthetic-test failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-failure-${{ github.run_attempt }}
+          path: |
+            test-results/
+            work/web.log
+          retention-days: 7
+      - name: Stop web harness
+        if: always()
+        run: if [ -f work/web.pid ]; then kill "$(cat work/web.pid)" 2>/dev/null || true; fi

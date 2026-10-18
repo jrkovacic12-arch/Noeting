@@ -7,6 +7,7 @@ import {
   type Locator,
 } from "@playwright/test";
 import { mkdtemp, rm, readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -22,7 +23,7 @@ type SQLiteTestWindow = Window & {
 
 const test = base.extend<{ session: BrowserSession; observeSQLite: boolean }>({
   observeSQLite: [false, { option: true }],
-  session: async ({ baseURL, observeSQLite }, use) => {
+  session: async ({ baseURL, observeSQLite }, use, testInfo) => {
     const profile = await mkdtemp(join(tmpdir(), "noeting-ui-"));
     let context: BrowserContext | undefined;
     const shutdown = async () => {
@@ -34,7 +35,7 @@ const test = base.extend<{ session: BrowserSession; observeSQLite: boolean }>({
     };
     const launch = async () => {
       context = await chromium.launchPersistentContext(profile, {
-        executablePath: process.env.CHROMIUM_PATH ?? "/usr/bin/chromium",
+        executablePath: process.env.CHROMIUM_PATH ?? (!process.env.CI && existsSync("/usr/bin/chromium") ? "/usr/bin/chromium" : undefined),
         headless: true,
         args: ["--no-sandbox"],
         baseURL,
@@ -107,6 +108,10 @@ const test = base.extend<{ session: BrowserSession; observeSQLite: boolean }>({
         },
       });
     } finally {
+      if (testInfo.status !== testInfo.expectedStatus) {
+        const page = context?.pages()[0];
+        if (page && !page.isClosed()) await page.screenshot({ path: testInfo.outputPath("failure.png"), fullPage: true }).catch(() => {});
+      }
       await shutdown();
       await rm(profile, { recursive: true, force: true });
     }

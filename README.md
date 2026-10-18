@@ -42,3 +42,26 @@ SQLite is local and **unencrypted**. Android automatic backup is disabled in con
 Start with [00_START_HERE.md](00_START_HERE.md) and [06_CURRENT_STATE.md](06_CURRENT_STATE.md). Product behavior lives in [02_PRODUCT.md](02_PRODUCT.md), architecture/migration constraints in [03_ARCHITECTURE.md](03_ARCHITECTURE.md), implementation stages in [04_ROADMAP.md](04_ROADMAP.md), decisions in [05_DECISIONS.md](05_DECISIONS.md), and acceptance scenarios in [07_V1_WORKFLOW_DRAFT.md](07_V1_WORKFLOW_DRAFT.md). [01_VISION.md](01_VISION.md) and [archive/noeting-original.md](archive/noeting-original.md) preserve the founding principles.
 
 Brand originals remain unchanged in `assets/brand/source/`; generated launcher assets live in `assets/brand/generated/`. The HTML prototype and v12 screenshots are historical research artifacts.
+
+
+## Quality checks and CI
+
+`Noeting quality` runs on PRs and pushes to `main`: Node 24, `npm ci`, `npm run check`, real SQLite/WASM browser tests, then all-platform `npm run export`. Superseded runs cancel. Failure artifacts retain synthetic-test traces, screenshots and server logs for seven days. Tests use temporary isolated Chromium profiles, never a personal app database.
+
+Local equivalent (Node 24):
+
+```sh
+npm ci
+npm run check
+npx playwright install --with-deps chromium
+npm run web
+# Separate terminal, after http://127.0.0.1:8081 is reachable:
+npm run test:ui
+npm run export
+```
+
+`CHROMIUM_PATH=/path/to/chromium` selects an existing browser; CI uses Playwright's installed revision. The server supplies SQLite's COOP/COEP isolation headers. Exports are not native APK builds or device tests.
+
+An administrator can require **Noeting quality / TypeScript, SQLite and browser** on `main` in Settings → Rules → Rulesets (or branch protection), require PRs, and block pending/failed checks. Select the actual check after its first run. No repository settings are changed here; run status belongs to `06_CURRENT_STATE.md`.
+
+Android release-candidate compilation remains optional/manual: `npm run build:android:test`, then the existing `npm run verify:android:apk` script (consult its arguments). It requires the established SDK/JDK and local signing setup. CI neither uploads signing material nor builds an APK. Record static verification and per-scenario device acceptance separately.
