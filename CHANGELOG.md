@@ -346,3 +346,5 @@ The user explicitly approved the public APK-only branch. Published the verified 
 Reproduced the draft-restoration CI failure with delayed real KV writes and corrected the test to await flush-confirmed sheet dismissal before restarting; retained exact restoration assertions and runtime behavior. Aligned PR #8/version/history references, refined native acceptance procedures and added a NOT RUN evidence register. D-018 remains accepted; P-008 documents an unaccepted offline recovery alternative. Validation, risks and next action are owned by `06_CURRENT_STATE.md`; no new APK or release.
 
 Local validation and actual draft-PR CI pass on the stabilization changes; run identity and remaining native/data-security gates are recorded only in `06_CURRENT_STATE.md`.
+
+Recorded the passing CI install’s existing, untriaged dependency advisory counts in `06_CURRENT_STATE.md`; no dependency/security fix or acceptance claim is implied.
