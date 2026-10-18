@@ -1,5 +1,12 @@
 # Noeting — Documentation Change Log (started 2026-10-11)
 
+## 2026-10-18 — Manual read-only PC mirror sync foundation
+
+- User prioritized PC–phone synchronization ahead of PC-hosted Ollama/AI. Introduce explicit Notes-menu manual transfer of active Notes/Tasks/folders to a localhost-only paired PC receiver over a separately configured trusted HTTPS endpoint.
+- Add transport validation, size cap, per-device identity, temporary token input, protected PC mirror file and unit tests; no automatic push, PC editing, conflict resolution, remote-to-phone writes or migration.
+- Call out that the preview omits removed records/drafts and is not a backup/restore mechanism. True bidirectional sync, pairing/revocation, full tombstones and PC editor remain future stages.
+- Main's pre-existing draft-storage browser timeout is not declared fixed by this work.
+
 ## 2026-10-18 — Post-PR #9 status, native acceptance and test-data scope (documentation only)
 
 - Align current source and CI with merged PR #9 (`dfdb642`), successful main run `39099547696`; retire stale pending-merge/failed-CI instructions without deleting dated historical evidence.
