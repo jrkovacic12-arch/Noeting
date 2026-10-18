@@ -316,3 +316,7 @@ Added reproducible synthetic real-SQLite/browser benchmarks at 3,000 Notes and 1
 ### 2026-10-18 — Incremental module cleanup
 
 Extracted optional saved navigation preferences from App and all ten historical SQL definitions from repository operations. SQL text/order, schema v10, native version and Back/modal behavior are unchanged; regression evidence belongs to `06_CURRENT_STATE.md`.
+
+### 2026-10-18 — Final local reliability validation
+
+Fresh install, TypeScript, 52 SQLite/draft tests, all 25 browser scenarios and Android/iOS/web exports pass on source `2af8873`. Public publication/Actions execution and native-device acceptance remain unverified; exact evidence and next action are in `06_CURRENT_STATE.md`.

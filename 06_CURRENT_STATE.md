@@ -1,12 +1,36 @@
 # Noeting — Current State and Session Handoff
 
-> **Updated:** 2026-10-17 (PR #6 merged; 0.10.2/schema v10; native acceptance pending)
+> **Updated:** 2026-10-18 (local reliability work; source `2af8873`; remote CI/device gates pending)
 >
-> **Phase:** PR #6 merged into `main`. The folder screen, pins and retained quick bar are in merged source. This does **not** establish physical-device acceptance or production-release readiness.
+> **Phase:** Five reliability phases implemented locally on `codex/reliability-20261018`, based on main `2f0d64c`. App 0.10.2/code 19/schema v10 are unchanged. Publication was blocked by automatic approval review; no remote PR or green Actions run is claimed.
 >
-> **Current verification:** TypeScript and 45 real-SQLite tests pass. The full browser run passes 18/19; after correcting the remaining test’s wait for a nested menu, its focused rerun passes (all 19 scenarios covered across these runs). Android/iOS/web exports, fresh ARM64 build, static APK checks, bundled-source identity and fetched checksum pass. Native/device acceptance remains pending after merge and before any release-readiness claim.
+> **Current verification:** Fresh lockfile install, TypeScript, 52 repository/draft tests, all 25 browser workflows, all-platform exports and identical historical migration SQL/order pass. Browser/host evidence does not establish native acceptance or release readiness.
 
 ## 1. Verified progress
+
+### 2026-10-18 — Final local reliability verification
+
+- Branch `codex/reliability-20261018`; base `2f0d64cd8eecd0994c94c15d30fac7f048443bdb`; final tested runtime/source commit **`2af8873`**. Independent commits: startup `3b13be7` (App/tests), CI `01c1653` (workflow/config/fixture/docs), drafts `fb34941` (writer/hook/tests/package command), measurement `3974b1b` (fixture/benchmarks/docs), extraction `2af8873` (App preference hook/migration definitions/docs). Subsequent status-only commit changes no runtime/test source. Full changed-file list: `git diff --name-only 2f0d64c HEAD`.
+- Final `npm ci` PASS; `npm run check` PASS (**45 real-SQLite + 7 draft tests**, individual TAP cases retained); `npm run test:ui` PASS **25/25 in one run**; `npm run export` PASS Android/iOS/web. Commands and logs: `work/reliability-final-{install,check,ui,export}.log`. `npm run web` was started separately (`work/reliability-web.log`); it served each newly exported build throughout the phases. Final export and browser suite run after the fresh install and both extractions. Source/version/schema were unchanged during these checks.
+- Earlier phase verification: startup check/3 focused preference tests/all 24 then-current browser tests/all exports PASS; draft check/25 browser tests/all exports PASS before extraction, followed by the final suite including the successful-migration error-clear guard and write-count assertions. CI did not execute as a separate GitHub job. Measurement-only changes reused unchanged runtime compilation until final export; there was no separate dependency reinstall for every intermediate commit. Baseline and final `npm ci` are the actual clean installations. No intermediate evidence is presented as testing a later changed runtime.
+- `useListPreferences` removes saved-navigation loading/writes from App. All ten SQL definitions moved to `src/data/migrations.ts`; SHA-256 comparison and version execution-order comparison against the original base match exactly (`work/reliability-migration-sql-hashes.json`). App: **832 → 806 lines**; repository operations: **1299 → 1125 lines**. No navigation/keyboard/modal reordering, public repository API/schema or UX redesign.
+- Fixed regressions: optional preferences could strand startup; captured discard snapshots could erase concurrent edits; a successful draft-load retry could leave a stale error. Failure tests preserve stored Notes, visible unsaved words, context/request isolation, migration/rollback history, retry and Cancel semantics. No database reset or new product feature was introduced.
+
+Host benchmark, same environment and unchanged repository algorithm (20 runs; **median/p95 ms**):
+
+| Operation | Before extraction | Final | Reads/driver writes per run |
+| --- | ---: | ---: | ---: |
+| Fresh repository + snapshot | 26.536/67.081 | 22.721/39.187 | 6/5 |
+| Index + detail lookup | 1.816/6.697 | 0.59/1.306 | 0/0 |
+| Note search | 1.042/37.08 | 0.713/2.219 | 0/0 |
+| Child-aware Task search | 1.437/26.99 | 0.788/1.878 | 0/0 |
+| Tab + folder selectors | 2.316/13.08 | 1.598/8.384 | 0/0 |
+| Character edit + snapshot | 29.731/87.317 | 21.78/30.663 | 5/7 |
+
+Approximate GC-controlled retained snapshot heap: **1,935,816 → 1,941,136 bytes**; not native SQLite/Android memory. Timing differences reflect host/GC load and are not claimed as speedups. Raw final results: `work/reliability-performance-final.json`; browser before/after samples are recorded below. No measured storage/selector bottleneck justified a change to full-snapshot refresh, ordering, search or virtualization.
+
+**Not verified:** GitHub Actions execution (public push denied by automatic approval review pending explicit authorization); native Android compilation/static verification for this source; physical-device IME/Back/force-stop/reboot/populated upgrade/notification cleanup and midrange Android performance. No fresh APK was built or published. Existing 0.10.2 APKs predate these reliability changes. No release-readiness claim.
+
 
 ### 2026-10-18 — Reproducible performance finding (no repository optimization)
 
@@ -332,7 +356,7 @@ The user chose Notes and Tasks as the only primary screens, each with search and
 
 ## 2. Exact next action — only maintained here
 
-**Next action:** Perform and record physical-device acceptance of the merged 0.10.2/code 19 source using its matching ARM64 test APK linked above. Install **over an existing populated compatible installation without uninstalling/clearing data**. Record phone, Android version, package/signer, migration result and preservation of existing/removed Notes. Test D-027 folder creation, selection, pin/unpin, Edit, deletion, counts and quick-bar order; D-026 keyboard/IME/Back, long-press versus scrolling, Enter/child focus, inline autosave, draft recovery, offline force-stop/reboot, notification cleanup and populated upgrade. Record each as pass/fail/not run with evidence here. Browser/SQLite/static APK checks and source merge do not satisfy the native gate. SQLite/drafts are unencrypted; export/restore remains deferred by D-018. Do not claim production-release readiness without documented native acceptance and explicit release authorization.
+**Next action:** Obtain explicit authorization to push `codex/reliability-20261018` to the public `jrkovacic12-arch/Noeting` repository and open a draft PR. Then obtain an actual passing `Noeting quality` Actions execution before treating CI as verified or selecting its check in branch rules. Automatic approval review blocked publication because implementing changes did not explicitly authorize public code egress; do not bypass that rejection or merge automatically. Native acceptance remains a separate pre-release gate: build a matching APK, install over populated data, and record phone/OS plus per-scenario folder, IME/Back, draft/background/force-stop/reboot, legacy cleanup and upgrade outcomes. Previous user-reported APK testing does not prove these scenarios or this new source.
 
 **Handoff context:** The user agreed to the first-app feature set (D-010), to React Native + Expo + TypeScript + SQLite (D-011), and to implement using Codex. The user said the updated prototype was tested and **“worked as intended”**; the test device and per-scenario results were not specified. Do not claim full S1–S4 validation or verified native runtime from that prototype report or the static APK checks.
 
