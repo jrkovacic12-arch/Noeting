@@ -1192,6 +1192,9 @@ test("draft write measurement: typing, context switch, save and reload", async (
   await page.getByRole("textbox", { name: "Task text", exact: true }).fill("Separate task draft");
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
+  // Dismissal completes only after the real KV flush barrier. Restarting before
+  // this callback finishes would test abrupt termination rather than safe leave.
+  await expect(page.getByRole("textbox", { name: "Task text", exact: true })).toHaveCount(0);
   const switched = (await writes()) - initial;
   expect(typed).toBeLessThan(15);
   expect(switched).toBeLessThan(18);

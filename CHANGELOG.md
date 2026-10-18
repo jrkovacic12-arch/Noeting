@@ -324,3 +324,7 @@ Fresh install, TypeScript, 52 SQLite/draft tests, all 25 browser scenarios and A
 ### 2026-10-18 — Requested Android test build
 
 The user requested a downloadable APK after authorizing public branch publication. Bump release metadata to 0.10.3/code 20 to distinguish the reliability build from the earlier 0.10.2 APK; no dependency or schema change. Preserve the existing signing key when regenerating ignored native configuration. Verification and download status belong to `06_CURRENT_STATE.md`.
+
+### 2026-10-18 — First Actions run feedback
+
+The first real CI run passed 52 tests and 24/25 browser scenarios. Corrected the write-count harness to await Task composer dismissal (and thus its KV flush barrier) before restarting Chromium; the prior race could interrupt pending persistence. Runtime/source behavior is unchanged.
