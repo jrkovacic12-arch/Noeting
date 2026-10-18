@@ -4,6 +4,14 @@
 >
 > **Principle:** Local-first and user-controlled; verify privacy properties rather than assuming them.
 
+## AI foundation — proposed read-only assistant (2026-10-18)
+
+- New pure `src/ai/retrieval.ts` selects bounded, exact excerpts from a caller-supplied allowlist of active Note/Task IDs in a repository snapshot. Empty scope grants no read access; removed entries and nonmatches are excluded. Returned IDs/offsets are local source evidence, not model-authored citations. There is no network call, embedding database, AI provider, model output or UI in this first slice.
+- Suggested order: (1) deliberate user scope selection; (2) locally grounded retrieval and source-link navigation; (3) an optional model adapter for reading/synthesis, semantic query interpretation, categorization and recommendations; (4) separate accept/dismiss controls for each proposal. Never auto-save categories or tasks and never change original captures.
+- Category labels are *AI suggestions*, not a mandatory Reflection/Creation taxonomy. Recommendations must identify supporting entry IDs, distinguish observations from inferences and never invent due dates or commitments. Decline to answer when evidence is insufficient.
+- On-device versus cloud inference and provider choice remain open. Any hosted path requires clear record-level consent, an appropriate key-protecting backend, request minimization, deletion/retention rules and no raw API credentials in Expo/mobile bundles. Offline Notes/Tasks must remain independent of AI availability.
+- Evaluate safety against prompt injection in untrusted note bodies, leakage of unselected/removed records, unsupported citations, malformed model JSON, offline/timeouts and rejected-suggestion side effects. Do not automatically transmit the library or log sensitive excerpts.
+
 ## Current architecture — D-027/D-026, 0.10.3/schema v10
 
 Reliability maintenance (2026-10-18) preserves the same schema and public repository API. Historical migration SQL definitions live in `src/data/migrations.ts`; initialization, version ordering and transaction boundaries remain in `repository.ts`. Saved tab/search/folder context is isolated in `useListPreferences`: optional, shape-checked, cancellable during load and nonblocking on failure. Database/draft startup failures retain their separate retry paths; Back/modal handling remains in App.
