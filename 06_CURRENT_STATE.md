@@ -1,16 +1,28 @@
 # Noeting — Current State and Session Handoff
 
-> **Updated:** 2026-10-18 (PR #8 merged; CI stabilization and device-acceptance preparation)
+> **Updated:** 2026-10-18 (post-PR #9 merge; user-confirmed N1–N9 completion and test-data scope)
 >
-> **Current source:** `main` merge `abb43cdd458a47cb3691d8d8053e83ee6528c3d2`, 0.10.3/code 20/schema v10. PR #8 is merged, not draft. Maintenance branch: `codex/ci-docs-stabilization-20261018`; no new APK, product/runtime, dependency or migration change.
+> **Current source:** `main` merge `dfdb64286192e9508312a9f4a9d1b70e2d771298`, 0.10.3/code 20/schema v10. PRs #8 and #9 are merged. PR #9 changed tests/documentation, not application runtime, schema, dependencies or the published APK.
 >
-> **CI evidence:** Merged-main baseline run 39093298075 fails (52 tests pass, 24/25 browser scenarios pass; export skipped). [Draft PR #9](https://github.com/jrkovacic12-arch/Noeting/pull/9) now has [passing run 39095344012](https://github.com/jrkovacic12-arch/Noeting/actions/runs/39095344012) on `265bf966c31d11bbf08e104a0354b32e5d6c2fa7`: 52 tests, all 25 browser scenarios and all-platform exports. The fix is on the dedicated branch; main is not modified by this task. Later documentation-only runs do not change runtime/test source.
+> **CI evidence:** Post-merge [main run 39099547696](https://github.com/jrkovacic12-arch/Noeting/actions/runs/39099547696) **PASSED**: dependency installation, 52 TypeScript/SQLite/draft checks, 25 browser workflows and Android/iOS/web exports. The earlier failed main run 39093298075 is a resolved historical test-restart race, not the current CI result.
 >
-> **Device/release gate:** The user reports successfully testing the 0.10.3 APK (2026-10-18). This is user-reported device evidence; model/Android/IME, install method, checksum and individual N1–N9 outcomes were not supplied. Detailed acceptance coverage and production-release readiness are not established. See the evidence register below.
+> **Native acceptance:** On 2026-10-18 the user clarified that **all nine Android acceptance cases N1–N9 were fully completed successfully** on the 0.10.3 test APK. Record this as **USER-REPORTED PASS for all nine**, not independently witnessed or supported by case-level logs/device metadata. Details previously unspecified remain unspecified. This satisfies the user's current test-phase acceptance report; it does not imply a signed production release.
+>
+> **Data scope:** The user confirms the current app contents are **disposable test data** and accepts possible loss at this stage. Backup/export/restore therefore remains deferred under D-018; P-008 is not a present development priority. Storage remains unencrypted and lacks independent recovery, so the posture must be revisited before irreplaceable or production data is used.
 
 ## 1. Verified progress
 
-### 2026-10-18 — User-reported APK test success
+### 2026-10-18 — Latest user confirmations and PR #9 merged
+
+- [PR #9](https://github.com/jrkovacic12-arch/Noeting/pull/9) merged on 2026-10-18 at 05:08:53 UTC as `dfdb64286192e9508312a9f4a9d1b70e2d771298`. Its [post-merge main CI](https://github.com/jrkovacic12-arch/Noeting/actions/runs/39099547696) passed. Previous references to draft PR #9, the failed main baseline and a pending merge decision are historical, not active blockers.
+- Subsequent explicit user confirmation: **N1, N2, N3, N4, N5, N6, N7, N8 and N9 were all fully completed successfully** for the 0.10.3 APK. This is a first-person reported acceptance result, not agent/device-instrumented evidence. No device model, OS/IME, in-place installation method, per-substep logs or screenshots were supplied; do not invent them.
+- Subsequent explicit user confirmation: **all current data are test-only/disposable**, so its potential loss is acceptable for the present development phase. Do not treat local export/restore as urgent or silently adopt P-008. D-018's existing deferral stands; non-test/valuable data use needs a new durability/security decision.
+- No further native retest is required solely to repeat the successful user report for current test-phase development. A future production release, change of target device, or significant runtime update is a separate acceptance and release decision. Twenty-two dependency advisories (7 moderate, 15 high) remain untriaged.
+- The suggested next development flow is documented in `04_ROADMAP.md`; it is a proposal, not approval to alter application code or dependencies.
+
+### 2026-10-18 — Earlier APK success report (historical checkpoint)
+
+
 
 - User report: **“tested 0.10.3 APK successfully, proceed”**. Record successful testing as reported, without inferring a populated in-place upgrade, interruption/reboot coverage or a pass for every N1–N9 subcase. Device identity and detailed results were not supplied; no agent-executed native test is claimed.
 - Reviewed PR #9: open/draft, mergeable, with passing final-source CI [39095619390](https://github.com/jrkovacic12-arch/Noeting/actions/runs/39095619390) on `380195708a06c9c5fc0a66223f6f33cc030a8e90`. This follow-up changes documentation only. Runtime, version, dependencies, migrations and published APK remain unchanged.
@@ -27,21 +39,21 @@
 - Documentation owners aligned: 00/README navigation, 02 current product, 03 architecture/risk, 04 gates, 05 D-018/P-008 decision status, 07 native procedures. D-018 is unchanged; P-008 is an unaccepted offline recovery proposal, not permission to implement export/restore, encryption, accounts or sync.
 - Existing verified **0.10.3/code 20 ARM64 APK** identity/download remains in its historical delivery checkpoint below. Runtime/configuration/dependencies/migration files match merged main and that build source; no new native compilation, device run, APK publication, merge or release occurred in this task.
 
-### Native evidence register — current maintenance task
+### Native acceptance register — current user report
 
-Protocol/expected results: N1–N9 in `07_V1_WORKFLOW_DRAFT.md`. Overall outcome: **USER-REPORTED SUCCESS**, 2026-10-18, exact report above. Device/model/Android/IME, installation method and test-by-test evidence: **not supplied**. The agent did not execute a native session. Rows below describe unknown coverage, not observed failures or asserted non-execution by the user; browser/static checks do not fill them.
+Protocol/expected results: N1–N9 in `07_V1_WORKFLOW_DRAFT.md`. **Outcome: USER-REPORTED PASS for all N1–N9 (fully completed successfully), 2026-10-18.** The user has explicitly clarified complete coverage since the earlier general APK test report. Device/model/Android/IME, installation method, detailed subcase results and supporting artifacts have **not been supplied**; do not imply independent verification or invent specifics. The previous gaps below now describe missing *detailed evidence*, not incomplete user-reported testing. Browser/static tests do not substitute for native testing.
 
 | Case | Native outcome | Evidence/limitation |
 | --- | --- | --- |
-| N1 — Identity and populated in-place upgrade | NOT SPECIFIED | Previous build, install method and inventory comparison not supplied |
-| N2 — Existing records, folders and provenance | NOT SPECIFIED | Per-record comparison not supplied |
-| N3 — Keyboard/IME/Enter/Back | NOT SPECIFIED | Device/IME and per-action outcomes not supplied |
-| N4 — Draft restoration and interrupted saves | NOT SPECIFIED | Interruption and acknowledgement timing not supplied |
-| N5 — Long-press versus scroll | NOT SPECIFIED | Gesture-specific results not supplied |
-| N6 — Parent/child completion | NOT SPECIFIED | Hierarchy-specific results not supplied |
-| N7 — Offline force-stop/reboot | NOT SPECIFIED | Offline/restart method and recovery results not supplied |
-| N8 — Legacy notification cleanup | NOT SPECIFIED | Historical notification fixture and outcome not supplied |
-| N9 — Native failure/Retry | NOT SPECIFIED | Native fault-injection setup and outcome not supplied |
+| N1 — Identity and populated in-place upgrade | USER-REPORTED PASS | Previous build, install method and inventory comparison not supplied |
+| N2 — Existing records, folders and provenance | USER-REPORTED PASS | Per-record comparison not supplied |
+| N3 — Keyboard/IME/Enter/Back | USER-REPORTED PASS | Device/IME and per-action outcomes not supplied |
+| N4 — Draft restoration and interrupted saves | USER-REPORTED PASS | Interruption and acknowledgement timing not supplied |
+| N5 — Long-press versus scroll | USER-REPORTED PASS | Gesture-specific results not supplied |
+| N6 — Parent/child completion | USER-REPORTED PASS | Hierarchy-specific results not supplied |
+| N7 — Offline force-stop/reboot | USER-REPORTED PASS | Offline/restart method and recovery results not supplied |
+| N8 — Legacy notification cleanup | USER-REPORTED PASS | Historical notification fixture and outcome not supplied |
+| N9 — Native failure/Retry | USER-REPORTED PASS | Native fault-injection setup and outcome not supplied |
 
 ### Historical verification checkpoints
 
@@ -407,7 +419,7 @@ The user chose Notes and Tasks as the only primary screens, each with search and
 
 ## 2. Exact next action — only maintained here
 
-**Next action:** Obtain the explicit merge decision for [PR #9](https://github.com/jrkovacic12-arch/Noeting/pull/9) after recording the user's successful APK test report. Keep the PR draft until that decision; latest reviewed CI passes, with this documentation-only follow-up to be checked on its own head. If merge is authorized, merge the reviewed head and verify main CI. Preserve unspecified N1–N9 coverage and security/data risks as open evidence limits; do not claim full native or production acceptance. No release/new APK is authorized. D-018 remains in effect; adopting P-008 requires a separate accepted decision.
+**Next action — proposed, not yet approved for implementation:** Scope a focused triage of the **22 reported dependency advisories** (direct vs transitive, development vs production, reachability, Expo-compatible remediation). Make no bulk upgrades without evidence. After selecting justified fixes, validate TypeScript/SQLite/browser/export gates and relevant native behavior; then use disposable data for focused real-workflow usability evaluation. Implement only a demonstrably useful minimal follow-up change. See `04_ROADMAP.md` for the proposed sequence. PR #9 is already merged and main CI passed; **N1–N9 are fully passed per user report**. No additional test APK, release, merge or code-change authorization is inferred. D-018 defers backup/restore during this test-data-only phase; P-008 remains unaccepted. Production readiness is a separate decision.
 
 **Handoff context:** The user agreed to the first-app feature set (D-010), to React Native + Expo + TypeScript + SQLite (D-011), and to implement using Codex. The user said the updated prototype was tested and **“worked as intended”**; the test device and per-scenario results were not specified. Do not claim full S1–S4 validation or verified native runtime from that prototype report or the static APK checks.
 
