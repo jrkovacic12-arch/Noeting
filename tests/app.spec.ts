@@ -487,12 +487,31 @@ test("outside tap, swipe and Escape restore matching creation drafts automatical
   session,
 }) => {
   let { page } = session;
+  // Keep real SQLite writes, but make their completion deterministically later
+  // than the backdrop click. A click acknowledges the event, not the KV flush.
+  await page.evaluate(() => {
+    const original = Worker.prototype.postMessage;
+    const writes = new Set<number>();
+    Worker.prototype.postMessage = function (message: any, options?: any) {
+      if (message.type === "prepare" && message.data.source.startsWith("INSERT INTO storage"))
+        writes.add(message.data.nativeStatementId);
+      if (message.type === "run" && writes.has(message.data.nativeStatementId) &&
+        Object.values(message.data.bindParams).includes("noeting.editor-drafts.v2")) {
+        setTimeout(() => original.call(this, message, options), 150);
+        return;
+      }
+      return original.call(this, message, options);
+    };
+  });
   await tab(page, "task");
   await page.getByRole("button", { name: "Add task" }).click();
   await page
     .getByRole("textbox", { name: "Task text", exact: true })
     .fill("Retained draft");
   await page.getByRole("button", { name: "Dismiss task sheet" }).click();
+  // The sheet disappears only after safeNavigate confirms drafts.flush().
+  // Restarting on click acknowledgement can terminate the pending SQLite write.
+  await expect(page.getByTestId("task-sheet")).toHaveCount(0);
   page = await session.restart();
   await expect(page.getByRole("button", { name: "Resume draft" })).toHaveCount(
     0,
