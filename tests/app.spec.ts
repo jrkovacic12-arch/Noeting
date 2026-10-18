@@ -1327,6 +1327,9 @@ test.describe('draft migration recovery', () => {
     let { page } = session;
     await page.getByRole('button', { name: 'Add note' }).click();
     await page.getByRole('textbox', { name: 'Note text', exact: true }).fill('Current v2 draft remains');
+    // The first Back/Escape dismisses the focused keyboard; the second closes
+    // the editor once the draft has been flushed (same native Back contract).
+    await page.keyboard.press('Escape');
     await page.keyboard.press('Escape');
     await expect(page.getByRole('textbox', { name: 'Note text', exact: true })).toHaveCount(0);
     await expect.poll(async () => {
