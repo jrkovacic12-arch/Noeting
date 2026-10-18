@@ -1,5 +1,12 @@
 # Noeting — Documentation Change Log (started 2026-10-11)
 
+## 2026-10-18 — Post-PR #9 status, native acceptance and test-data scope (documentation only)
+
+- Align current source and CI with merged PR #9 (`dfdb642`), successful main run `39099547696`; retire stale pending-merge/failed-CI instructions without deleting dated historical evidence.
+- Record the user's explicit confirmation that **all N1–N9 Android acceptance cases were fully completed successfully** on the 0.10.3 APK. Distinguish reported passes from unavailable device/test-specific artifacts; no independent native test was executed as part of this documentation change.
+- Record the user's explicit acceptance of possible loss of **disposable test data** during current development. Keep D-018's account-phase backup deferral and P-008's unaccepted status; security/durability requirements must be reconsidered when storing valuable data.
+- Add an unapproved next-development sequence: dependency advisory triage, observed workflow evaluation using test data, one narrow evidence-based change, and separate release/agent decisions. No runtime, package, migration, APK, merge or release changes.
+
 ## 2026-10-17 — Post-merge documentation alignment (documentation only)
 
 - Record PR #6 merge into `main` (`519c16cf75c5fa9d43a8f96244ca1ae7ef30d5c2`). The previously documented native-before-merge gate is not shown as passed or explicitly waived; current native/device acceptance remains pending. Merge does not prove release readiness.
