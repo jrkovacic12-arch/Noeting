@@ -1,6 +1,6 @@
 import { randomUUID } from "expo-crypto";
 import { useEffect, useMemo, useRef, useState } from "react";
-import Storage from "expo-sqlite/kv-store";
+import { useListPreferences } from "./src/ui/useListPreferences";
 import {
   ActivityIndicator,
   AppState,
@@ -50,15 +50,10 @@ function Noeting() {
     tasks: [],
     chosenEntryId: null,
   });
-  const [tab, setTab] = useState<EntryKind>("note");
-  const [queries, setQueries] = useState({ note: "", task: "" });
-  const [folder, setFolder] = useState("all");
-  const [preferencesReady, setPreferencesReady] = useState(false);
-  const preferenceQueue = useRef(Promise.resolve());
-  const [preferenceWarning, setPreferenceWarning] = useState<string | null>(null);
   const [notes, setNotes] = useState<NoteRoute[]>([]);
   const [taskRoutes, setTaskRoutes] = useState<TaskRoute[]>([]);
   const drafts = useDraft(!!repo);
+  const { tab, setTab, queries, setQueries, folder, setFolder, preferencesReady, preferenceWarning } = useListPreferences(drafts.ready);
   const [editorContext, setEditorContext] = useState<string | null>(null);
   const draft = editorContext ? drafts.get(editorContext) : null;
   const [busy, setBusy] = useState(false);
@@ -116,42 +111,6 @@ function Noeting() {
     });
     return () => listener.remove();
   }, []);
-  useEffect(() => {
-    if (!drafts.ready) return;
-    let active = true;
-    Storage.getItem("noeting.list-context.v1")
-      .then((raw) => {
-        if (!active || !raw) return;
-        const p: unknown = JSON.parse(raw);
-        if (!p || typeof p !== "object" || Array.isArray(p))
-          throw new Error("Invalid list preferences");
-        const saved = p as { tab?: unknown; folder?: unknown; queries?: { note?: unknown; task?: unknown } };
-        if ((saved.tab !== "note" && saved.tab !== "task") ||
-          typeof saved.folder !== "string" ||
-          typeof saved.queries?.note !== "string" || typeof saved.queries?.task !== "string")
-          throw new Error("Invalid list preferences");
-        setTab(saved.tab);
-        setFolder(saved.folder);
-        setQueries({ note: saved.queries.note, task: saved.queries.task });
-      })
-      .catch(() => {
-        if (active) setPreferenceWarning("Could not restore list preferences. Using defaults.");
-      })
-      .finally(() => {
-        if (active) setPreferencesReady(true);
-      });
-    return () => { active = false; };
-  }, [drafts.ready]);
-  useEffect(() => {
-    if (!preferencesReady) return;
-    const raw = JSON.stringify({ tab, queries, folder });
-    preferenceQueue.current = preferenceQueue.current
-      .then(async () => {
-        await Storage.setItem("noeting.list-context.v1", raw);
-        setPreferenceWarning((warning) => warning === "Could not keep list preferences." ? null : warning);
-      })
-      .catch(() => setPreferenceWarning("Could not keep list preferences."));
-  }, [tab, queries, folder, preferencesReady]);
   useEffect(() => {
     if (
       preferencesReady &&

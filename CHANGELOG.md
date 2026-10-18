@@ -312,3 +312,7 @@ Added PR/main quality gates and portable browser harness. Measured and reduced r
 ### 2026-10-18 — Performance evidence
 
 Added reproducible synthetic real-SQLite/browser benchmarks at 3,000 Notes and 1,000 task groups. Measurements do not justify repository/selector infrastructure changes on this host; Android performance remains unverified.
+
+### 2026-10-18 — Incremental module cleanup
+
+Extracted optional saved navigation preferences from App and all ten historical SQL definitions from repository operations. SQL text/order, schema v10, native version and Back/modal behavior are unchanged; regression evidence belongs to `06_CURRENT_STATE.md`.
