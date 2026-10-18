@@ -1208,6 +1208,61 @@ test("draft write measurement: typing, context switch, save and reload", async (
 });
 
 
+test.describe("performance evidence", () => {
+  test.use({ observeSQLite: true });
+  test("benchmark 3000 notes and 1000 task groups in real browser SQLite", async ({ session }) => {
+    const { page } = session;
+    await databaseSQL(page, await readFile(join(process.cwd(), "scripts/benchmark-fixture.sql"), "utf8"));
+    const results: Record<string, number> = {};
+    async function measure(name: string, action: () => Promise<void>) {
+      const start = performance.now(); await action(); results[name] = Math.round(performance.now() - start);
+    }
+    await measure("startupMs", async () => {
+      await page.reload();
+      await expect(page.getByRole("button", { name: "Open note: Note 0", exact: true })).toBeVisible();
+    });
+    await measure("noteSearchMs", async () => {
+      await page.getByRole("textbox", { name: "Search notes" }).fill("Note 2999");
+      await expect(page.getByRole("button", { name: "Open note: Note 2999", exact: true })).toBeVisible();
+    });
+    await measure("openDetailMs", async () => {
+      await open(page, "note", "Note 2999");
+      await expect(page.getByRole("textbox", { name: "Note body" })).toHaveValue("Note 2999");
+    });
+    await measure("oneCharacterSaveMs", async () => {
+      await page.getByRole("textbox", { name: "Note body" }).fill("Note 2999x");
+      await page.getByRole("textbox", { name: "Note body" }).blur();
+      await expect(page.getByText("Unsaved", { exact: true })).toHaveCount(0);
+      await expect(page.getByText("Saving…", { exact: true })).toHaveCount(0);
+    });
+    await close(page, "note");
+    await measure("tabAndChildSearchMs", async () => {
+      await tab(page, "task");
+      await page.getByRole("textbox", { name: "Search tasks" }).fill("needle 999");
+      await expect(page.getByRole("button", { name: "Open task: Parent 999", exact: true })).toBeVisible();
+    });
+    await measure("folderFilterMs", async () => {
+      await tab(page, "note");
+      await page.getByRole("button", { name: "Clear search" }).click();
+      await page.getByRole("button", { name: "Folder: Uncategorized", exact: true }).click();
+      await expect(page.getByRole("button", { name: "Open note: Note 2999x", exact: true })).toBeVisible();
+    });
+    await measure("largeListScrollMs", async () => {
+      const scroller = page.getByTestId("entry-list");
+      await scroller.evaluate(async (node) => {
+        for (let i = 0; i < 10; i++) {
+          node.scrollTop += 600;
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        }
+      });
+      await expect.poll(() => scroller.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+    });
+    console.log("BROWSER_PERFORMANCE", JSON.stringify(results));
+    // Virtualization keeps the rendered row count bounded at this fixture scale.
+    expect(await page.getByRole("button", { name: /^Open note:/ }).count()).toBeLessThan(200);
+  });
+});
+
 test.describe('draft migration recovery', () => {
   test.use({ observeSQLite: true });
   test('failed v1 draft migration retries without deleting the original words', async ({ session }) => {

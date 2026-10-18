@@ -308,3 +308,7 @@ Optional list preferences fall back safely after read/parse/shape failures; nonb
 ### 2026-10-18 — CI and draft persistence
 
 Added PR/main quality gates and portable browser harness. Measured and reduced redundant draft KV writes with a bounded leading/trailing schedule and immediate flush barrier; fixed concurrent-edit discard loss and cleared recovered migration errors. Execution evidence and publication blocker: `06_CURRENT_STATE.md`.
+
+### 2026-10-18 — Performance evidence
+
+Added reproducible synthetic real-SQLite/browser benchmarks at 3,000 Notes and 1,000 task groups. Measurements do not justify repository/selector infrastructure changes on this host; Android performance remains unverified.

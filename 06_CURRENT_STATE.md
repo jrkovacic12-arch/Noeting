@@ -8,6 +8,11 @@
 
 ## 1. Verified progress
 
+### 2026-10-18 — Reproducible performance finding (no repository optimization)
+
+- Shared synthetic fixture: 3,000 Notes plus 1,000 roots/1,000 children; Node 24.19.0, real file SQLite, 20 repeats. Procedure: `README.md`, `scripts/benchmark.ts`, `scripts/benchmark-fixture.sql`; raw results: `work/reliability-performance-{before,after}.json`. Snapshot load, selectors and edit+refresh are measured, including driver calls and approximate GC-controlled retained heap. Driver "writes" count BEGIN/COMMIT/PRAGMA, not physical disk writes. The browser benchmark checks virtualized rendered-row bounds and ten scroll steps; it is not a frame-rate benchmark.
+- On original source, one browser sample (`work/reliability-measurement-before.log`) measured startup/search/detail/one-character save/tab+child-search/folder/scroll at **325/38/37/117/102/143/247 ms**. With draft changes (`work/reliability-drafts-ui.log`): **341/33/45/122/108/120/214 ms**. These include Playwright overhead and scheduler noise, not Android performance. No repository/selector optimization was justified; ordering, query semantics, full refresh and virtualization are preserved. No device was attached; midrange Android timings and abrupt process termination remain NOT RUN.
+
 ### 2026-10-18 — CI and measured draft persistence
 
 - CI commit `01c1653` adds PR/main gates with read-only contents permission, Node 24, `npm ci`, actual SQLite tests, Playwright Chromium/dependencies, bounded web-server readiness, all-platform exports, concurrency cancellation and seven-day failure artifacts. Browser selection is portable; failure screenshots capture the actual session. Local commands/required-check settings/manual Android gate are documented in `README.md`. **GitHub execution NOT RUN:** automatic approval review rejected the public push because code publication needs explicit user authorization. No remote branch/PR/settings were changed; no green Actions run is claimed.
