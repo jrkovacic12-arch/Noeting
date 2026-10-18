@@ -1,4 +1,6 @@
 import { randomUUID } from "expo-crypto";
+import Storage from "expo-sqlite/kv-store";
+import { createMirror, publishMirror } from "./src/sync/mirror";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useListPreferences } from "./src/ui/useListPreferences";
 import {
@@ -70,11 +72,36 @@ function Noeting() {
   const [recent, setRecent] = useState(false);
   const [recentQuery, setRecentQuery] = useState("");
   const [menu, setMenu] = useState<
-    "notes" | "new-folder" | "delete-folders" | "rename" | "move" | null
+    "notes" | "sync" | "new-folder" | "delete-folders" | "rename" | "move" | null
   >(null);
   const [folderTarget, setFolderTarget] = useState<string | null>(null);
   const [folderName, setFolderName] = useState("");
   const [menuError, setMenuError] = useState<string | null>(null);
+  const [syncUrl, setSyncUrl] = useState("");
+  const [syncToken, setSyncToken] = useState("");
+  const [syncRunning, setSyncRunning] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  async function sendMirror() {
+    if (!repo || syncRunning || busy) return;
+    setSyncRunning(true);
+    setSyncMessage(null);
+    try {
+      if (!(await drafts.flush())) throw new Error("Unsaved draft. Retry before syncing.");
+      let deviceId = await Storage.getItem("noeting.sync-mirror-device.v1");
+      if (!deviceId) {
+        deviceId = randomUUID();
+        await Storage.setItem("noeting.sync-mirror-device.v1", deviceId);
+      }
+      const snapshot = await repo.readSnapshot();
+      const mirror = createMirror(snapshot, deviceId);
+      await publishMirror(syncUrl, syncToken, mirror);
+      setSyncMessage(`Sent ${mirror.entries.length} entries to PC (read-only preview).`);
+    } catch (error) {
+      setSyncMessage(error instanceof Error ? error.message : "PC mirror failed.");
+    } finally {
+      setSyncRunning(false);
+    }
+  }
   useEffect(() => {
     let active = true;
     setError(null);
@@ -719,16 +746,35 @@ function Noeting() {
           <Popover onClose={() => setMenu(null)}>
             <ScrollView keyboardShouldPersistTaps="handled">
               {menu === "notes" ? (
-                <Button
-                  quiet
-                  label="Recently deleted"
-                  onPress={() => {
-                    setMenu(null);
-                    setSelection(new Set());
-                    setRecentQuery("");
-                    setRecent(true);
-                  }}
-                />
+                <>
+                  <Button
+                    quiet
+                    label="Recently deleted"
+                    onPress={() => {
+                      setMenu(null);
+                      setSelection(new Set());
+                      setRecentQuery("");
+                      setRecent(true);
+                    }}
+                  />
+                  <Button quiet label="Sync preview to PC" onPress={() => {setSyncMessage(null);setMenu("sync");}} />
+                </>
+              ) : menu === "sync" ? (
+                <>
+                  <Text accessibilityRole="header" style={styles.section}>PC sync preview</Text>
+                  <Text style={styles.hint}>Manually send active Notes and Tasks to your authenticated PC mirror. PC edits will not sync back yet. Use an HTTPS address such as Tailscale Serve. Never expose the receiver publicly.</Text>
+                  <TextInput accessibilityLabel="PC HTTPS address" placeholder="https://your-pc.example/"
+                    autoCapitalize="none" autoCorrect={false} value={syncUrl} onChangeText={setSyncUrl}
+                    style={[styles.search, { marginHorizontal: 0 }]} />
+                  <TextInput accessibilityLabel="PC pairing token" placeholder="Pairing token (32+ characters)"
+                    autoCapitalize="none" autoCorrect={false} secureTextEntry value={syncToken} onChangeText={setSyncToken}
+                    style={[styles.search, { marginHorizontal: 0 }]} />
+                  <Button label={syncRunning ? "Syncing…" : "Send to PC"} disabled={syncRunning || busy}
+                    onPress={() => void sendMirror()} />
+                  {syncMessage && <Text accessibilityRole="alert" style={styles.hint}>{syncMessage}</Text>}
+                  <Button quiet label="Close PC sync" disabled={syncRunning} onPress={() => {setSyncToken("");setMenu(null);}} />
+                </>
+              
               ) : menu === "delete-folders" ? (
                 <>
                   <Text accessibilityRole="header" style={styles.cardText}>Delete {folderSelection.size} {folderSelection.size === 1 ? "folder" : "folders"}?</Text>
