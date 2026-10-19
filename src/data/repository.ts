@@ -1,3 +1,6 @@
+import { journal } from '../sync/records';
+import { SyncStore } from '../sync/store';
+import { migrationV11 } from '../sync/schema';
 import { migrationV1, migrationV2, migrationV3, migrationV4, migrationV5, migrationV6, migrationV7, migrationV8, migrationV9, migrationV10 } from "./migrations";
 export type EntryKind = "note" | "task";
 export type ThinkingKind = "reflection" | "creation";
@@ -77,6 +80,7 @@ export interface Removal {
 }
 
 export interface Repository {
+  sync<T>(operation: (store: SyncStore) => Promise<T>): Promise<T>;
   createFolder(id: string, name: string): Promise<void>;
   renameFolder(id: string, name: string): Promise<void>;
   removeFolder(id: string): Promise<void>;
@@ -128,7 +132,7 @@ export interface PinSchedule {
   status: "waiting" | "applied" | "cancelled";
 }
 
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 type EntryRow = {
   id: string;
@@ -197,6 +201,13 @@ class SQLiteRepository implements Repository {
       driverMutexes.set(db, mutex);
     }
     this.mutex = mutex;
+  }
+
+  sync<T>(operation: (store: SyncStore) => Promise<T>): Promise<T> {
+    return this.mutex.run(async () => {
+      await this.initializeLocked();
+      return operation(new SyncStore(this.db));
+    });
   }
 
   initialize(): Promise<void> {
@@ -1097,6 +1108,7 @@ class SQLiteRepository implements Repository {
       if (version.user_version < 8) await this.db.exec(migrationV8);
       if (version.user_version < 9) await this.db.exec(migrationV9);
       if (version.user_version < 10) await this.db.exec(migrationV10);
+      if (version.user_version < 11) await this.db.exec(migrationV11);
       if (version.user_version < SCHEMA_VERSION)
         await this.db.exec(`PRAGMA user_version = ${SCHEMA_VERSION};`);
     });
@@ -1107,6 +1119,7 @@ class SQLiteRepository implements Repository {
     await this.db.exec("BEGIN IMMEDIATE;");
     try {
       const result = await operation();
+      if (this.initialized) await journal(this.db);
       await this.db.exec("COMMIT;");
       return result;
     } catch (error) {
