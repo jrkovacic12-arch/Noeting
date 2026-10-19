@@ -1,5 +1,5 @@
 import type { SQLiteDriver } from '../data/repository';
-import { applyRecords, readRecords, validateOperation, equal } from './records';
+import { applyRecords, readRecords, validateOperation, equal, SyncValidationError } from './records';
 import { type Operation, type RecordValue, type Change, type Event, keyOf, PAGE_SIZE } from './schema';
 export type Identity = {device_id:string;library_id:string|null;peer_id:string|null;cursor:number;last_success:string|null};
 export type Conflict = {operation:Operation;current:Change[];reason:string};
@@ -113,7 +113,7 @@ export class SyncStore {
     // dependency conflicts without partially applying a logical transaction.
     await this.db.exec('SAVEPOINT replay;');
     try{await applyRecords(this.db,operation.changes);await this.db.exec('RELEASE replay;');}
-    catch(e){await this.db.exec('ROLLBACK TO replay; RELEASE replay;');reason=e instanceof Error?e.message:'Invalid dependencies.';}
+    catch(e){await this.db.exec('ROLLBACK TO replay; RELEASE replay;');if(!domainFailure(e))throw e;reason=e instanceof Error?e.message:'Invalid dependencies.';}
    }
    if(reason){
     const conflict={operation,current:await this.current(operation.changes),reason};
@@ -150,6 +150,19 @@ export class SyncStore {
    if(event.revision!==i.cursor+1)throw new Error('Remote cursor gap; retry without skipping changes.');
    const [seen]=await this.db.all('SELECT id FROM sync_v2_seen WHERE id=?',[event.operation.id]);
    if(!seen){
+    if(event.operation.resolves){
+     const [row]=await this.db.all<{payload:string}>("SELECT payload FROM sync_v2_conflicts WHERE id=? AND state='open'",[event.operation.resolves]);
+     if(row){
+      const conflict=JSON.parse(row.payload) as Conflict;
+      const local=await this.current(conflict.operation.changes);
+      // PC-side choices may replace the retained version only when it has not
+      // changed since conflict capture. A newer phone edit remains a conflict.
+      if(local.every(c=>equal(c.value,conflict.operation.changes.find(r=>keyOf(r)===keyOf(c))?.value))){
+       await this.db.run("UPDATE sync_v2_outbox SET state='superseded' WHERE id=?",[event.operation.resolves]);
+       await this.db.run("UPDATE sync_v2_conflicts SET state='resolved' WHERE id=?",[event.operation.resolves]);
+      }
+     }
+    }
     const pending=await this.db.all<{payload:string}>("SELECT payload FROM sync_v2_outbox WHERE state IN ('pending','conflict')");
     const keys=new Set(event.operation.changes.map(keyOf));
     const overlaps=pending.map(r=>JSON.parse(r.payload) as Operation).filter(op=>op.changes.some(c=>keys.has(keyOf(c))));
@@ -161,6 +174,7 @@ export class SyncStore {
      catch(e){
       // Preserve the entire event and cursor atomically as a visible conflict.
       await this.db.exec('ROLLBACK TO replay; RELEASE replay;');
+      if(!domainFailure(e))throw e;
       await this.rememberConflict({operation:event.operation,current:await this.current(event.operation.changes),reason:e instanceof Error?e.message:'Incoming dependency conflict.'});
      }
     }
@@ -201,3 +215,5 @@ export class SyncStore {
   await this.transaction(()=>this.db.run('INSERT INTO sync_v2_ack VALUES(?,?) ON CONFLICT(device_id) DO UPDATE SET cursor=MAX(cursor,excluded.cursor)',[device,cursor]));
  }
 }
+
+function domainFailure(e:unknown){return e instanceof SyncValidationError || (typeof (e as {errcode?:number})?.errcode==='number'&&((e as {errcode:number}).errcode&255)===19);}

@@ -4,11 +4,7 @@ import { test } from 'node:test';
 import { createRepository, type SQLiteDriver } from '../src/data/repository';
 import { migrationV1,migrationV2,migrationV3,migrationV4,migrationV5,migrationV6,migrationV7,migrationV8,migrationV9,migrationV10 } from '../src/data/migrations';
 import type { Operation } from '../src/sync/schema';
-export function replica(path=':memory:') {
- const db=new DatabaseSync(path);db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
- const driver:SQLiteDriver={async exec(s){db.exec(s);},async run(s,p=[]){return {changes:Number(db.prepare(s).run(...p).changes)};},async all<T>(s:string,p=[]){return db.prepare(s).all(...p) as T[];}};
- return {db,driver,repo:createRepository(driver)};
-}
+import { replica } from './syncFixtures';
 test('v10 migration preserves removed parent, provenance, pins and hidden Task persistence',async()=>{
  const p=replica();
  for(const sql of [migrationV1,migrationV2,migrationV3,migrationV4,migrationV5,migrationV6,migrationV7,migrationV8,migrationV9,migrationV10])p.db.exec(sql);
@@ -52,4 +48,20 @@ test('server accepts once, rejects stale and immutable changes, preserves confli
  const rejected=await p.repo.sync(s=>s.accept(stale));assert.ok('conflict'in rejected);assert.equal((await p.repo.readSnapshot()).entries[0].text,'phone');
  const current=await p.repo.sync(s=>s.current(op.changes));const bad={...op,id:'tamper',changes:current.map(c=>({...c,value:{...c.value!,original_text:'tampered'}}))};
  assert.ok('conflict'in await p.repo.sync(s=>s.accept(bad)));assert.equal((await p.repo.readSnapshot()).entries[0].originalText,'original');p.db.close();
+});
+test('remote storage failure rolls back domain, seen-operation and cursor together',async()=>{
+ const p=replica();const n=await p.repo.saveCapture({requestId:'n',kind:'note',text:'local'});await p.repo.sync(s=>s.publishLocal());
+ const current=await p.repo.sync(s=>s.current([{table:'entries',id:n.entryId,value:null}]));
+ const op:Operation={protocol:2,id:'remote-edit',origin:'b'.repeat(32),changes:current.map(c=>({...c,value:{...c.value!,edited_text:'remote'}}))};
+ const run=p.driver.run;let fail=true;p.driver.run=async(sql,values)=>{if(fail&&sql.startsWith('INSERT INTO entries')){fail=false;throw Error('storage interruption');}return run(sql,values);};
+ await assert.rejects(p.repo.sync(s=>s.replay({revision:1,operation:op})),/storage interruption/);
+ assert.equal((await p.repo.sync(s=>s.identity())).cursor,0);assert.equal((await p.repo.readSnapshot()).entries[0].text,'local');
+ await p.repo.sync(s=>s.replay({revision:1,operation:op}));assert.equal((await p.repo.readSnapshot()).entries[0].text,'remote');assert.equal((await p.repo.sync(s=>s.pending())).length,0);p.db.close();
+});
+test('stale PC editor save rolls back every affected record and journal event',async()=>{
+ const p=replica();const n=await p.repo.saveCapture({requestId:'n',kind:'note',text:'initial'});
+ const expected=await p.repo.sync(async s=>s.current(await s.records()));
+ await p.repo.editEntry(n.entryId,'incoming');const before=await p.repo.sync(s=>s.pending());
+ await assert.rejects(p.repo.checked(expected,r=>r.editEntry(n.entryId,'stale editor')),/changed while/);
+ assert.equal((await p.repo.readSnapshot()).entries[0].text,'incoming');assert.deepEqual(await p.repo.sync(s=>s.pending()),before);p.db.close();
 });

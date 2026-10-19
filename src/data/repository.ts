@@ -1,3 +1,4 @@
+import { keyOf, type Change } from '../sync/schema';
 import { journal } from '../sync/records';
 import { SyncStore } from '../sync/store';
 import { migrationV11 } from '../sync/schema';
@@ -80,6 +81,7 @@ export interface Removal {
 }
 
 export interface Repository {
+  checked<T>(expected: Change[], operation: (repository: Repository) => Promise<T>): Promise<T>;
   sync<T>(operation: (store: SyncStore) => Promise<T>): Promise<T>;
   createFolder(id: string, name: string): Promise<void>;
   renameFolder(id: string, name: string): Promise<void>;
@@ -193,6 +195,7 @@ const driverMutexes = new WeakMap<SQLiteDriver, Mutex>();
 class SQLiteRepository implements Repository {
   private readonly mutex: Mutex;
   private initialized = false;
+  private expected?: Map<string,{base:number;previous:string|null}>;
 
   constructor(private readonly db: SQLiteDriver) {
     let mutex = driverMutexes.get(db);
@@ -201,6 +204,18 @@ class SQLiteRepository implements Repository {
       driverMutexes.set(db, mutex);
     }
     this.mutex = mutex;
+  }
+
+  checked<T>(expected: Change[], operation: (repository: Repository) => Promise<T>): Promise<T> {
+    return this.mutex.run(async () => {
+      await this.initializeLocked();
+      // A private facade uses its own queue while the shared driver mutex stays
+      // held. Its BEGIN IMMEDIATE validates affected revisions before COMMIT.
+      const scoped = new SQLiteRepository({exec: s => this.db.exec(s), run: (s,p) => this.db.run(s,p), all: (s,p) => this.db.all(s,p)});
+      scoped.initialized = true;
+      scoped.expected = new Map(expected.map(c => [keyOf(c),{base:c.base,previous:c.previous}]));
+      return operation(scoped);
+    });
   }
 
   sync<T>(operation: (store: SyncStore) => Promise<T>): Promise<T> {
@@ -1119,7 +1134,7 @@ class SQLiteRepository implements Repository {
     await this.db.exec("BEGIN IMMEDIATE;");
     try {
       const result = await operation();
-      if (this.initialized) await journal(this.db);
+      if (this.initialized) await journal(this.db,this.expected);
       await this.db.exec("COMMIT;");
       return result;
     } catch (error) {
