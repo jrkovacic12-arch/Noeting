@@ -797,6 +797,9 @@ test("folders, long-press multi-select, mixed Pin/Unpin, move, search restart an
     page.getByRole("button", { name: "Open note: Alpha" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Folders", exact: true }).click();
+  // Navigation now waits for the replay/snapshot barrier. The quick bar has
+  // the same folder label, so wait for the management screen before holding.
+  await expect(page.getByRole("button", { name: "New folder", exact: true })).toBeVisible();
   await hold(page.getByRole("button", { name: "Folder: Ideas", exact: true }));
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await page.getByRole("textbox", { name: "Folder name" }).fill("Thoughts");
