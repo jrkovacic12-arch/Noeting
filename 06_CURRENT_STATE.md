@@ -6,6 +6,10 @@
 
 Implemented: automatic three-second committed-change coalescing, launch/resume and debounced network hints, configurable 60-second foreground incremental polling, bounded exponential retry/jitter, and opt-in native Android WorkManager (minimum 15 minutes, OS-delayed). Native secure pairing requires explicit consent and identity binding; canonical private Serve origin is pinned, redirects/public/LAN/IP/HTTP/custom-port fallback refused, TLS preserved. OFF/disconnect/reauthorization fence old attempts and unregister/cancel work. Expiring SQLite lease serializes all contexts; HTTP runs outside the repository mutex. Durable transfer progress/budgets, CAS/conflicts, persisted-draft inspection and foreground editor coordination preserve offline work. Manual Sync now and PC editor/admin separation remain. Detailed files, dependencies, security, private setup and limits: `03_ARCHITECTURE.md`; device checklist: `07_V1_WORKFLOW_DRAFT.md`; scoped authorization: D-029.
 
+### GitHub browser-check follow-up — 2026-10-19
+
+[GitHub run 39206398118](https://github.com/jrkovacic12-arch/Noeting/actions/runs/39206398118) passed installation and all 96 core checks, then failed two folder browser workflows with detached DOM elements; export was consequently skipped. The earlier one-case navigation wait did not cover the other folder-screen callers. All test entry points now share `openFolders`, which waits for the management screen's New folder control before interacting with rows that share quick-bar labels. No runtime, workflow, retries, timeouts or assertion thresholds changed. Local verification: TypeScript passed; CI-mode folder/PC-browser regression selection passed **12/12 across three repetitions**. The new commit's GitHub workflow is the authority for its remote outcome; earlier local passes are not a claim that the failed run was green.
+
 ### Executed automated/native-build evidence
 
 | Command/check | Actual result and boundary |
