@@ -1,5 +1,22 @@
 # Noeting — V1 Workflow Specification (Draft)
 
+
+## V2 synchronization acceptance — D-028 (2026-10-19)
+
+Automated coverage uses real SQLite, the actual localhost HTTP server, a PC browser, and the Expo SQLite web app. The browser phone workflow uses a **test HTTPS request adapter** forwarding to localhost; it proves application integration, not certificate trust, a physical Android receiver, Tailscale or a real phone network. Actual commands/results belong only to `06_CURRENT_STATE.md`.
+
+Real-device checklist (all **NOT RUN for v11** until explicitly recorded):
+
+1. Install/upgrade a matching development APK on Android with disposable populated v10 records. Inventory original/current words, links/frozen provenance, capture IDs, pins, removed records and Task states. Confirm v11 upgrade and offline capture/restart.
+2. Configure a private trusted HTTPS forwarder to the localhost v2 server. Pair/initialize only an empty PC. Verify the phone rejects HTTP/untrusted TLS/wrong secrets, does not import v1 JSON, and refuses another library/PC identity.
+3. Create/edit a Note and Task independently on both devices while disconnected. Phone Sync now must transfer both directions exactly once; originals/IDs remain. Repeat without changes. Verify PC-to-phone edits wait for Sync now.
+4. Exercise root/child complete/reopen, new children, removed-parent fallback, folder creation/assignment/pins and PC folder deletion/unfiling, links to removed sources, soft removal and restoration with the same metadata on both sides.
+5. Edit the same Note offline on both; also edit versus remove. Inspect both values/revisions, restart both, then resolve each choice and a valid standalone Note keep-both. Verify structural conflicts require valid choices and unrelated changes continue.
+6. Leave an inline edit failed/unsaved (including a child), retain new creation drafts, and invoke sync from Notes. Existing unsaved edits must defer incoming replay and retain words; committed retry then sync must converge. Check keyboard, Back and background transitions during sync on the actual device.
+7. Interrupt Wi-Fi/HTTPS, force-stop/reboot phone/server around bootstrap, upload, pull and acknowledgement. Retry with no lost committed text, duplicate identities/side effects or skipped remote operations. Use a representative large library and record native memory/latency.
+8. Disconnect on Android and revoke on PC. Verify the revoked phone cannot exchange, offline local data still works, explicit reauthorization restores the same library, and restarting with a rotated secret invalidates old authentication. Confirm no token persists in KV/SQLite/logs.
+
+Do not call sync a production backup or encryption system after these checks. Valuable-data durability, account/restore policy and production security remain separate acceptance decisions under D-018. Historical N1–N9 results below validate the earlier release, not this new synchronization runtime.
 > Created: 2026-10-11. Current acceptance refreshed: 2026-10-18 (0.10.3/code 20/schema v10; PR #8 merged). D-027/D-026 define active Notes/Tasks behavior. Actual outcomes and device/release gates belong only to `06_CURRENT_STATE.md`.
 > Historical boundary: D-025 and earlier Capture → Today examples are superseded research/validation history, not current UI requirements. Execution results belong to `06_CURRENT_STATE.md`.
 

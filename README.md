@@ -1,10 +1,16 @@
 # Noeting
 
+
+## Development: manual two-way PC sync (PR #13, schema v11)
+
+The PR #13 branch implements opt-in Android-initiated two-way exchange and a local PC editor behind `NOETING_ENABLE_SYNC_V2=1`. Use **disposable test data only**. Node 24+ and a separately trusted private HTTPS access layer are required. Start with `npm ci`, provide distinct temporary 32+ character `NOETING_SYNC_TOKEN` (phone) and `NOETING_PC_TOKEN` (PC administration) through the process environment, then `NOETING_ENABLE_SYNC_V2=1 npm run pc:sync`. PC UI: `http://127.0.0.1:8788/`. Android: Notes → More → Sync with PC → Initialize empty PC from Android, then Sync now.
+
+Read [the v2 architecture/setup/security section](03_ARCHITECTURE.md) before pairing. Existing PC libraries are never replaced; v1 mirror previews are not imported. Secrets stay in memory and must be re-entered. PC edits reach Android on its next Sync now. [Current verification/limits](06_CURRENT_STATE.md) and [native acceptance checklist](07_V1_WORKFLOW_DRAFT.md) distinguish automated evidence from unperformed device tests. Earlier source/release headers below describe the v10 merged baseline.
 **Notice. Note. Think. Originate from nothing.**
 
 Noeting is a minimal, local-first Notes and Tasks app built with React Native, Expo, TypeScript and SQLite. Xiaomi Notes is an interface reference: quiet lists, quick capture and focused writing.
 
-## Current source — 0.10.3/code 20/schema v10 (PRs #8 and #9 merged)
+## Merged v10 baseline — 0.10.3/code 20 (historical development reference)
 
 - **Folders:** header icon opens the dedicated management screen. Long-press selects folders for Pin/Unpin, Delete or single-folder Edit; deleting folders preserves their notes. Quick bar remains All → pinned/other user folders → Uncategorized.
 - **Notes:** compact responsive cards, scoped folder search, folders, long-press selection and atomic Pin/Unpin/Move/Remove with Undo and Recently deleted recovery.

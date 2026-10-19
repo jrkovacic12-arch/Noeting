@@ -1,5 +1,11 @@
 # Noeting — Documentation Change Log (started 2026-10-11)
 
+
+## 2026-10-19 — Safe two-way sync development implementation
+
+- Preserve original PR #13 history and add S1 v11 transaction journals/canonical replay, S2 durable authenticated paginated v2 exchange/conflicts, and S3 shared-domain PC editing with Android manual sync controls.
+- Retain original captures, removed records/provenance, folder/task invariants and local drafts. Add real SQLite/HTTP/browser checks, stale-PC-editor CAS and interrupted-bootstrap/cursor recovery coverage.
+- Record scoped D-028 and exact setup/security/native acceptance in existing authoritative documents. Keep explicit development/disposable-data limits; no AI, accounts, backup guarantee, encryption-at-rest or production release is introduced.
 ## 2026-10-18 — Manual read-only PC mirror sync foundation
 
 - User prioritized PC–phone synchronization ahead of PC-hosted Ollama/AI. Introduce explicit Notes-menu manual transfer of active Notes/Tasks/folders to a localhost-only paired PC receiver over a separately configured trusted HTTPS endpoint.

@@ -1,5 +1,9 @@
 # Noeting — Start Here
 
+
+## Current development scope — manual two-way sync (2026-10-19)
+
+The uploaded implementation task explicitly authorizes S1–S3 on draft PR #13, superseding earlier no-sync priority only. Development source is `feat/pc-sync-readonly-mirror-20261018`, application version 0.10.3/code 20 with additive **schema v11**; this is not a newly accepted production release. Read the v2 sections in `03_ARCHITECTURE.md` for architecture and exact setup, D-028 in `05_DECISIONS.md` for scope, and `06_CURRENT_STATE.md` for actual checks and remaining acceptance. Earlier baseline headers describe the merged v10 release. Disposable test data only; no AI/accounts/backup or production-security authorization.
 > **Documentation refreshed:** 2026-10-18 (post-PR #9 merge and user-confirmed test-phase scope)
 >
 > **Motto:** *Notice. Note. Think. Originate from nothing.*

@@ -1,10 +1,18 @@
 # Noeting — Roadmap and Work Plan
 
+
+## Authorized S1–S3 implementation — D-028 (2026-10-19)
+
+- **S1 implemented:** additive v11 canonical representation, transactional trigger/outbox journal, device/version metadata, tombstones and SQLite rollback/legacy tests.
+- **S2 implemented for development:** durable localhost SQLite server, authenticated versioned staged exchange, initial empty-PC adoption, replay/ack/cursors, deduplication, conservative explicit conflicts and real HTTP integration tests.
+- **S3 implemented for development:** shared-domain PC editor, Android manual sync/status/error/revocation instructions, conflict choices and browser workflow coverage. PC-to-phone delivery always waits for Android Sync now.
+- **Acceptance remains separate:** keep `NOETING_ENABLE_SYNC_V2=1` and disposable data restriction. Physical Android trusted-HTTPS pairing, native draft/interruption/reboot and production durability/security acceptance are unperformed until recorded in `06_CURRENT_STATE.md`.
+- **S4/AI is not authorized or implemented.** Account, backup/export/restore and encryption-at-rest decisions under D-018 remain unresolved/deferred. The S0-first sequence below is historical; current exact next action remains solely in `06_CURRENT_STATE.md`.
 > **Status:** Working plan, not a committed schedule. Checked work items distinguish implemented changes, user-reported acceptance and independently verified evidence.
 >
 > **Current phase:** Version 0.10.3/code 20/schema v10 is merged through PRs #8 and #9. The user reports successful completion of all nine native N1–N9 checks, while detailed case/device records were not provided. Exact status and next action belong to `06_CURRENT_STATE.md`.
 
-## PC–phone synchronization before AI — 2026-10-18
+## Historical S0-first sequence — 2026-10-18
 
 The user explicitly prioritizes sync ahead of AI. **Stage S0 (first reviewable slice)** is a manual phone-to-PC **read-only mirror**, implemented without schema upgrades, automatic background traffic or hidden state mutation. The phone remains authoritative; the PC receiver and credentials are configured manually and are not publicly exposed. This is not a second writable client or a lossless backup. No Ollama/AI work is in this slice.
 

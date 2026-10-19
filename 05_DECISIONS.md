@@ -248,6 +248,14 @@ Behavior and design belong to `02_PRODUCT.md` and `03_ARCHITECTURE.md`; acceptan
 
 **Post-merge factual note (2026-10-17; not a new scope decision):** [PR #6](https://github.com/jrkovacic12-arch/Noeting/pull/6) merged into `main` at commit `519c16cf75c5fa9d43a8f96244ca1ae7ef30d5c2`. D-026/D-027 called for native acceptance before merge, but the recorded 0.10.2 evidence still shows physical-device acceptance pending; no explicit waiver or device approval is documented. Source integration is not native validation, security acceptance or release authorization. `06_CURRENT_STATE.md` owns the sole current next action.
 
+## D-028 — Manual safe two-way Android/PC sync (2026-10-19)
+
+**Accepted scope:** The user uploaded “Implement Safe Two-Way Sync for Noeting” and instructed “proceed as instructions,” then resumed the implementation. This explicitly prioritizes S1–S3 on existing draft PR #13 over the earlier S0-only/no-sync direction. Preserve its nine original commits and implement additional reviewable stages, with data integrity ahead of breadth.
+
+Authorize one-phone/one-PC, opt-in, Android-initiated bidirectional committed-content exchange, additive version/journal/tombstone metadata, durable localhost PC SQLite, shared-domain PC editing and explicit conflict choices. Preserve two Android tabs and every existing capture/provenance/draft/Task/folder/removal invariant. No unfinished destructive replay may be enabled outside an explicit development gate. Keep disposable tests only pending native/durability/security acceptance.
+
+This authorizes synchronization, **not** accounts, guaranteed backups/disaster recovery, general restore/import, encryption-at-rest, production security acceptance, scheduled/background sync, AI/Ollama or an unrelated redesign. D-018 retains those separate deferrals/open decisions. HTTPS is transport protection and is not E2EE. Temporary memory-only client secrets avoid silently choosing persistent credential storage. Architecture/setup: `03_ARCHITECTURE.md`; acceptance: `07_V1_WORKFLOW_DRAFT.md`; verified status: `06_CURRENT_STATE.md`.
+
 ## Proposal register — accepted items reference decision records
 
 ### P-001 — Bounded background AI

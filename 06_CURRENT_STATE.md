@@ -1,5 +1,33 @@
 # Noeting — Current State and Session Handoff
 
+
+## Current development verification — two-way sync, 2026-10-19
+
+**Source:** existing draft [PR #13](https://github.com/jrkovacic12-arch/Noeting/pull/13), branch `feat/pc-sync-readonly-mirror-20261018`. All nine original commits are preserved through `efb454eeb09ba344f4883d51fb60464e1a966831`. Incremental implementation commits: **S1 `243f369`**, **S2 `7f0a934`**, **S3 `715cd8f`**. This remains application 0.10.3/code 20 with new **schema v11**, a development/test build rather than a production release. Older baseline/version and N1–N9 statements below describe the previously merged v10 release; they do not validate v11 sync.
+
+Implemented: committed-content exchange in both directions, durable PC SQLite/history, trigger-backed atomic local journals, stable identity/library bootstrap, paging/deduplication/CAS, removal/restoration/provenance, durable explicit conflicts and connected resolutions, PC shared-domain editing, Android manual sync/status/draft guard, and separate temporary phone/admin credentials with durable phone revocation. No AI/accounts, scheduled sync, unrelated library replacement or backup guarantee. Exact files, schema/protocol design, setup and limits belong to `03_ARCHITECTURE.md`; native procedure belongs to `07_V1_WORKFLOW_DRAFT.md`; scoped authorization is D-028.
+
+### Verification executed on this implementation
+
+| Command/check | Result and boundary |
+| --- | --- |
+| `npm ci` | **PASS**, clean lockfile install; no dependency/lockfile changes. Shell network permission was needed to reach the configured proxy. |
+| `npm run check` | **PASS 69/69**: TypeScript plus real SQLite/repository/draft/v1 mirror/v2/actual HTTP tests. Includes v10 upgrade, atomic journal rollback, original immutability, removed-parent bootstrap, frozen provenance/pins, concurrent stale uploads, conflict chains and folder-name dependency conflicts, Note keep-both, conflict/record restart, lost bootstrap response, cursor rollback on storage failure, token roles/revocation and >2 MB paged libraries. |
+| `npm run test:ui` | **PASS 28/28 in the final full run**, including all existing workflows, PC browser edits/folders/tasks/restoration/stale-save retention, and Android web UI round-trip against the actual PC server through a test HTTPS request adapter. This is not a native HTTPS/device test. |
+| Large browser fixture | 3,000 Notes and 1,000 Task groups: startup **2,591 ms**, one-character committed save **498 ms** in this run. Synthetic browser numbers, not a native performance promise. Set-based journal reads/version writes avoid per-row worker round trips. |
+| `npm run export` | **PASS Android/iOS/web** using offline Expo and a workspace-local Expo settings directory. |
+| PC CLI smoke | **PASS** with distinct disposable phone/admin secrets: starts only on numeric localhost behind the explicit development flag; deliberately stopped after startup. No real pairing/access-layer configuration was performed. |
+| Android build/static APK | **PASS** `npm run build:android:test` (final incremental Gradle build: 44 seconds) and `npm run verify:android:apk`. ARM64 standalone development-signed APK, version 0.10.3/code 20, SHA-256 `b28fed0b3e1887664466c0431aa4bd8e1aee1936244971671976a3923b48fae6`. Static verification is not device execution. |
+| Physical Android ↔ PC HTTPS | **NOT RUN**. No physical phone, certificate/Tailscale acceptance, device interruption/reboot or native draft coordination is claimed. |
+
+During verification, legacy fixture resets were updated to remove new metadata before constructing true v6/v7/v8/v9 fixtures. A changing web export caused an intermediate 404 restart failure; the final full run used fixed assets. A genuine large-fixture journal regression was fixed with set-based operations; the final performance case passes. Intermediate failures are not called green. Initial stale generated Android configuration was preserved under local `work/` and regenerated deliberately; generated native files remain untracked.
+
+### Remaining acceptance and risk
+
+Keep **disposable test data only** and **`NOETING_ENABLE_SYNC_V2=1`**. The feature is implemented/automatically exercised for development, **not accepted for production durability/security or physical native synchronization**. One phone/one PC only; no automatic unrelated-library merge, new-phone recovery, persistent OS credential manager or rich conflict diff. Secrets are memory-only and must be re-entered; the server requires separate `NOETING_SYNC_TOKEN` and `NOETING_PC_TOKEN`. Phone/PC databases, journals and local drafts are unencrypted at rest; HTTPS is not E2EE. History/tombstones are retained indefinitely; staging limits fail explicitly. Full graph/bootstrap validation still materializes data in memory and native large-library behavior is unmeasured. PC textarea drafts survive rejected saves in memory, not a browser crash. Existing dependency advisories were not remediated or security-triaged in this feature. Synchronization is not a guaranteed backup/disaster-recovery mechanism. D-018's separate decisions remain open.
+
+The sole current next action is in section 2 below. All earlier dated status/evidence below is historical.
+
 > **Updated:** 2026-10-18 (post-PR #9 merge; user-confirmed N1–N9 completion and test-data scope)
 >
 > **Current source:** `main` merge `dfdb64286192e9508312a9f4a9d1b70e2d771298`, 0.10.3/code 20/schema v10. PRs #8 and #9 are merged. PR #9 changed tests/documentation, not application runtime, schema, dependencies or the published APK.
@@ -419,7 +447,7 @@ The user chose Notes and Tasks as the only primary screens, each with search and
 
 ## 2. Exact next action — only maintained here
 
-**Next action — proposed, not yet approved for implementation:** Scope a focused triage of the **22 reported dependency advisories** (direct vs transitive, development vs production, reachability, Expo-compatible remediation). Make no bulk upgrades without evidence. After selecting justified fixes, validate TypeScript/SQLite/browser/export gates and relevant native behavior; then use disposable data for focused real-workflow usability evaluation. Implement only a demonstrably useful minimal follow-up change. See `04_ROADMAP.md` for the proposed sequence. PR #9 is already merged and main CI passed; **N1–N9 are fully passed per user report**. No additional test APK, release, merge or code-change authorization is inferred. D-018 defers backup/restore during this test-data-only phase; P-008 remains unaccepted. Production readiness is a separate decision.
+**Next action:** Review the S1–S3 source on draft PR #13 and execute the **v11 real-device synchronization checklist** in `07_V1_WORKFLOW_DRAFT.md` using a private trusted HTTPS access layer and disposable data. Record actual device/Android/IME, matching source/build identity, initialization/round trips, conflicts, source/Task/folder/removal preservation, draft deferral, interrupted transfers/reboots and revocation. Keep the development gate until that acceptance and separate durability/security decisions are recorded. No merge, production release, valuable-data use or account/backup/encryption/AI expansion is inferred. Earlier advisory-triage proposals and historical v10 N1–N9 reports do not replace this v11 acceptance.
 
 **Handoff context:** The user agreed to the first-app feature set (D-010), to React Native + Expo + TypeScript + SQLite (D-011), and to implement using Codex. The user said the updated prototype was tested and **“worked as intended”**; the test device and per-scenario results were not specified. Do not claim full S1–S4 validation or verified native runtime from that prototype report or the static APK checks.
 

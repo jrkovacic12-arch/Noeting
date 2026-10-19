@@ -1,10 +1,20 @@
 # Noeting — Product Requirements and Workflows
 
+
+## Accepted manual two-way sync — D-028 (2026-10-19)
+
+Android and one paired PC may independently commit supported Notes, Tasks/Subtasks and folders while disconnected. Notes More → **Sync with PC** uploads committed phone transactions and downloads PC transactions. Android initiates every exchange; PC edits are stored immediately on the PC and arrive on the next successful phone Sync now. Exactly two Android tabs remain. No scheduled/background traffic or receiver on Android is introduced.
+
+The localhost PC editor supports literal current-text search, creation/editing, Note links, Task/Subtask completion/reopen, Note folder assignment/pins, folder create/rename/pin/delete, soft removal/restoration, original capture/source inspection and explicit conflicts. PC saves check the editor's captured revisions and retain stale unsaved text on rejection. Tasks keep Entry text as their title source; shared repository methods enforce ownership, completion and folder rules.
+
+Both values survive concurrent edits. Explicit transaction-level choices keep Android or PC; Android additionally offers a new independent copy for an active standalone Note text conflict. Structural records are never blindly duplicated. A version absent from PC may not be a valid structural choice; preserve Android and correct dependencies/unique folder names before retrying. New copies are new captures in Uncategorized and do not rewrite old originals or provenance. Drafts are retained locally, excluded from sync, and unfinished inline edits defer replay until saved/retried.
+
+Initialization deliberately adopts Android only into an empty PC sync database, including removed records and historical relationships. Existing v1 mirror JSON is never imported. Unrelated libraries/changed PC identities are refused. Disconnect clears the temporary secret; PC revocation prevents further phone exchanges. Identity, unsent edits and conflicts remain durable. No account, general library merge, backup guarantee, encryption-at-rest or E2EE is implied. Disposable tests and the server development gate remain required. The older S0-only section below is historical.
 > **Current baseline:** 0.10.3/code 20/schema v10 (D-024–D-027; reliability work merged through PR #8). Verified status and device/release gates belong to `06_CURRENT_STATE.md`. The current contract below supersedes the 0.7.1 Today/Review/scheduled-pin UI; those descriptions remain historical evidence, not active requirements.
 >
 > **Source of truth for:** user needs, product objects, features, UX behavior, and MVP boundaries.
 
-## PC mirror sync — first staged feature (2026-10-18)
+## Historical S0 — PC mirror preview (2026-10-18)
 
 The user has prioritized PC–phone sync ahead of AI. The first **opt-in manual transfer** mirrors active Notes, Tasks and folders from the phone to a PC for read-only inspection. It does not permit PC-to-phone edits, background sync or deletion reconciliation, and it does not mirror unsaved drafts or removed records. "Sync preview to PC" is placed under Notes More, not as an extra primary tab. A compatible TLS front end and pairing token are required; app usage remains offline when the PC is unreachable. Test data remains disposable.
 
@@ -22,7 +32,7 @@ D-026 supersedes D-025's interaction design and independent hierarchy completion
 - Note More/Link are anchored, dimmed overlays that leave content in place. Copy, relevant original capture, Connections and Remove are contextual. Connections alone shows source/children; Note-only link creation and frozen provenance remain unchanged. Task-source Notes remain read-only.
 - Task sheets initially size to content (minimum 190 dp, maximum 82% usable viewport), expand/scroll and adapt to keyboard/safe areas. Scrim appears immediately; only the sheet animates. Circular + is 60×60/radius 30. Existing Tasks do not autofocus. Enter in a nonempty Task title saves/focuses Next step; Enter in a nonempty pending child commits it once and focuses the next blank. Empty Enter creates nothing. Pending child blur saves, with scoped recovery on failure. One level only.
 - Tasks list groups indented children under roots with count and session collapse, then a collapsible Completed section. Child-only search retains its parent and matching rows; removed-parent children retain fallback access. Parent completion/reopen propagates atomically to active children; last-child completion completes parent, reopening/adding pending children reopens parent. Child removal/restore recomputes from remaining active children; zero-child parents retain manual state. Removed parents are unchanged by child actions and reconciled on restore.
-- System theme, offline storage, original words, historical source links and notification cleanup remain. No scheduling, Task pin UI, AI/accounts/sync/backend or Xiaomi dependency. SQLite/drafts remain unencrypted and export/restore deferred (D-018).
+- System theme, offline storage, original words, historical source links and notification cleanup remain. No scheduling, Task pin UI, AI/accounts or Xiaomi dependency; D-028 adds only the scoped manual sync/PC backend above. SQLite/drafts remain unencrypted and export/restore deferred (D-018).
 
 ## Historical contract — D-025, focused Notes and Task/Subtask sheets (0.9.0 source)
 
