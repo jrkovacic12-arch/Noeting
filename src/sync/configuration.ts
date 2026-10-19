@@ -24,9 +24,10 @@ export class SyncConfiguration {
  async credential(settings?:AutoSettings):Promise<SavedCredential>{
   settings ??= await this.load();
   if(!settings.origin||!settings.credential_key||!await this.vault.available())throw new SyncError('credential','Sync requires protected pairing credentials. Reauthorize in Sync with PC.');
-  let value:SavedCredential;
-  try{const raw=await this.vault.get(settings.credential_key);if(!raw)throw Error();value=JSON.parse(raw);}
-  catch{throw new SyncError('credential','Protected pairing credentials are unavailable. Reauthorize in Sync with PC.');}
+  let value:SavedCredential;let raw:string|null;
+  try{raw=await this.vault.get(settings.credential_key);}catch{throw new SyncError('credential','Protected credentials cannot be accessed now. Sync will retry after device unlock.');}
+  if(!raw)throw new SyncError('auth','Protected pairing credentials are unavailable. Reauthorize in Sync with PC.');
+  try{value=JSON.parse(raw);}catch{throw new SyncError('auth','Protected pairing credentials are invalid. Reauthorize in Sync with PC.');}
   const identity=await this.repo.sync(s=>s.identity());
   if(value.version!==1||!validToken(value.token)||value.origin!==tailscaleOrigin(settings.origin)||value.device!==identity.device_id||value.peer!==identity.peer_id||value.library!==identity.library_id||settings.device_id!==value.device||settings.peer_id!==value.peer||settings.library_id!==value.library)
     throw new SyncError('identity','Saved pairing no longer matches this device or library. Reauthorize; local data is unchanged.');
