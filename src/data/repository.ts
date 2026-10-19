@@ -1,7 +1,7 @@
 import { keyOf, type Change } from '../sync/schema';
 import { journal } from '../sync/records';
 import { SyncStore } from '../sync/store';
-import { migrationV1, migrationV2, migrationV3, migrationV4, migrationV5, migrationV6, migrationV7, migrationV8, migrationV9, migrationV10, migrationV11 } from "./migrations";
+import { migrationV1, migrationV2, migrationV3, migrationV4, migrationV5, migrationV6, migrationV7, migrationV8, migrationV9, migrationV10, migrationV11, migrationV12 } from "./migrations";
 export type EntryKind = "note" | "task";
 export type ThinkingKind = "reflection" | "creation";
 
@@ -133,7 +133,7 @@ export interface PinSchedule {
   status: "waiting" | "applied" | "cancelled";
 }
 
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 12;
 
 type EntryRow = {
   id: string;
@@ -1123,6 +1123,7 @@ class SQLiteRepository implements Repository {
       if (version.user_version < 9) await this.db.exec(migrationV9);
       if (version.user_version < 10) await this.db.exec(migrationV10);
       if (version.user_version < 11) await this.db.exec(migrationV11);
+      if (version.user_version < 12) await this.db.exec(migrationV12);
       if (version.user_version < SCHEMA_VERSION)
         await this.db.exec(`PRAGMA user_version = ${SCHEMA_VERSION};`);
     });

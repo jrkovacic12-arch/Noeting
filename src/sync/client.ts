@@ -1,3 +1,4 @@
+import { tailscaleOrigin } from './origin';
 import type { Repository } from "../data/repository";
 import type { SyncStore, Outcome } from "./store";
 import { type Operation, type Event, type Change } from "./schema";
@@ -7,23 +8,7 @@ export type RPC = (
 ) => Promise<any>;
 const CHUNK = 160_000;
 export function httpsRPC(address: string, token: string): RPC {
-  let url: URL;
-  try {
-    url = new URL(address.trim());
-  } catch {
-    throw new Error("Enter the PC HTTPS origin.");
-  }
-  if (
-    url.protocol !== "https:" ||
-    url.pathname !== "/" ||
-    url.username ||
-    url.password ||
-    url.search ||
-    url.hash
-  )
-    throw new Error(
-      "Use the trusted PC HTTPS origin without paths or credentials.",
-    );
+  const url=new URL(tailscaleOrigin(address));
   if (!/^[\x21-\x7e]{32,512}$/.test(token))
     throw new Error("Enter the temporary PC pairing secret (32+ characters).");
   return async (action, input) => {

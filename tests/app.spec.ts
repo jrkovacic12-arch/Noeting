@@ -566,7 +566,7 @@ test.describe("preservation and failure recovery against real SQLite", () => {
       );
       await databaseSQL(
         page,
-        `PRAGMA foreign_keys=OFF; DROP TABLE note_organization; DROP TABLE note_folders; DROP TABLE entry_sources; DROP TABLE thinking_links; DROP TABLE task_sources; DROP TABLE today_selection; DROP TABLE scheduled_pins; DROP TABLE reminders; DROP TABLE tasks; DROP TABLE entries; ${['identity','versions','outbox','seen','history','conflicts','dirty','bootstrap','transfers','pairing','reads','ack','runtime'].map(t=>`DROP TABLE sync_v2_${t};`).join(' ')} ${fixture}`,
+        `PRAGMA foreign_keys=OFF; DROP TABLE note_organization; DROP TABLE note_folders; DROP TABLE entry_sources; DROP TABLE thinking_links; DROP TABLE task_sources; DROP TABLE today_selection; DROP TABLE scheduled_pins; DROP TABLE reminders; DROP TABLE tasks; DROP TABLE entries; DROP TABLE sync_auto_settings; DROP TABLE sync_session_lease; DROP TABLE sync_foreground_presence; DROP TABLE sync_transfer_progress; ${['identity','versions','outbox','seen','history','conflicts','dirty','bootstrap','transfers','pairing','reads','ack','runtime'].map(t=>`DROP TABLE sync_v2_${t};`).join(' ')} ${fixture}`,
       );
       page = await session.restart();
       if (version === 8) {

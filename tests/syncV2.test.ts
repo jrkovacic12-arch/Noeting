@@ -35,7 +35,7 @@ test("v10 migration preserves removed parent, provenance, pins and hidden Task p
     "PRAGMA user_version=10; INSERT INTO entries(id,capture_request_id,kind,original_text,created_at) VALUES('n','r','note','original','2026-01-01'); INSERT INTO note_folders VALUES('f','Folder','folder','2026-01-01','2026-01-02'); INSERT INTO note_organization VALUES('n','f','2026-01-03',NULL);",
   );
   await p.repo.initialize();
-  assert.equal(p.db.prepare("PRAGMA user_version").get()!.user_version, 11);
+  assert.equal(p.db.prepare("PRAGMA user_version").get()!.user_version, 12);
   assert.equal(
     (await p.repo.readSnapshot()).entries[0].originalText,
     "original",

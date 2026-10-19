@@ -2286,6 +2286,7 @@ test("v9 folder pins migrate additively, survive restart, and bulk actions roll 
     await r.organizeNotes([note.entryId], { pinned: true });
     const receipt = await r.removeNotes([note.entryId]);
     const before = (await r.readSnapshot()).entries;
+    db.exec('DROP TABLE sync_auto_settings; DROP TABLE sync_session_lease; DROP TABLE sync_foreground_presence; DROP TABLE sync_transfer_progress;');
     db.exec('DROP TRIGGER subtasks_validate_insert; DROP TRIGGER subtasks_validate_update;');
     db.exec(migrationV8.slice(migrationV8.indexOf('  CREATE TRIGGER')));
     // Build an actual pre-v11 fixture before exercising the historical v10 migration.
@@ -2334,6 +2335,7 @@ test("interrupted v10 migration rolls back and retries without changing populate
     await r.createFolder("work", "Work");
     await r.saveCapture({ requestId: "migration", kind: "note", text: "Preserved", folderId: "work" });
     const before = (await r.readSnapshot()).entries;
+    db.exec('DROP TABLE sync_auto_settings; DROP TABLE sync_session_lease; DROP TABLE sync_foreground_presence; DROP TABLE sync_transfer_progress;');
     db.exec('DROP TRIGGER subtasks_validate_insert; DROP TRIGGER subtasks_validate_update;');
     db.exec(migrationV8.slice(migrationV8.indexOf('  CREATE TRIGGER')));
     // Build an actual pre-v11 fixture before exercising the historical v10 migration.

@@ -155,7 +155,7 @@ test("Android browser UI exchanges with actual PC server through a test HTTPS ad
     const page = await context.newPage();
     // This adapter forwards test HTTPS requests to the real localhost HTTP server.
     // It does not validate certificates, Tailscale or a physical Android network.
-    await page.route("https://pc.noeting.test/**", async (route) => {
+    await page.route("https://pc.noeting.ts.net/**", async (route) => {
       const req = route.request();
       if (req.method() === "OPTIONS")
         return route.fulfill({
@@ -201,7 +201,7 @@ test("Android browser UI exchanges with actual PC server through a test HTTPS ad
         .click();
       await page
         .getByRole("textbox", { name: "PC HTTPS address" })
-        .fill("https://pc.noeting.test/");
+        .fill("https://pc.noeting.ts.net/");
       await page.getByRole("textbox", { name: "PC pairing token" }).fill(token);
     }
     await panel();

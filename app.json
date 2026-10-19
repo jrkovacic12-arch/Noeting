@@ -35,7 +35,14 @@
       "expo-sqlite",
       "expo-system-ui",
       "expo-notifications",
-      "./plugins/with-clean-android-launch.cjs"
+      "./plugins/with-clean-android-launch.cjs",
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": false
+        }
+      ],
+      "expo-background-task"
     ]
   }
 }
