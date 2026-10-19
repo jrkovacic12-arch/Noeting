@@ -80,6 +80,7 @@ export interface Removal {
 }
 
 export interface Repository {
+  subscribeCommitted(listener:()=>void):()=>void;
   checked<T>(expected: Change[], operation: (repository: Repository) => Promise<T>): Promise<T>;
   sync<T>(operation: (store: SyncStore) => Promise<T>): Promise<T>;
   createFolder(id: string, name: string): Promise<void>;
@@ -188,12 +189,14 @@ class Mutex {
 
 // Sharing a driver must also share its queue: two repositories may not interleave transactions.
 const driverMutexes = new WeakMap<SQLiteDriver, Mutex>();
+const driverListeners = new WeakMap<SQLiteDriver, Set<()=>void>>();
 
 
 
 class SQLiteRepository implements Repository {
   private readonly mutex: Mutex;
   private initialized = false;
+  private listeners: Set<()=>void>;
   private expected?: Map<string,{base:number;previous:string|null}>;
 
   constructor(private readonly db: SQLiteDriver) {
@@ -203,7 +206,11 @@ class SQLiteRepository implements Repository {
       driverMutexes.set(db, mutex);
     }
     this.mutex = mutex;
+    this.listeners = driverListeners.get(db) ?? new Set();
+    driverListeners.set(db,this.listeners);
   }
+
+  subscribeCommitted(listener:()=>void){this.listeners.add(listener);return ()=>{this.listeners.delete(listener);};}
 
   checked<T>(expected: Change[], operation: (repository: Repository) => Promise<T>): Promise<T> {
     return this.mutex.run(async () => {
@@ -212,6 +219,7 @@ class SQLiteRepository implements Repository {
       // held. Its BEGIN IMMEDIATE validates affected revisions before COMMIT.
       const scoped = new SQLiteRepository({exec: s => this.db.exec(s), run: (s,p) => this.db.run(s,p), all: (s,p) => this.db.all(s,p)});
       scoped.initialized = true;
+      scoped.listeners = this.listeners;
       scoped.expected = new Map(expected.map(c => [keyOf(c),{base:c.base,previous:c.previous}]));
       return operation(scoped);
     });
@@ -1134,8 +1142,9 @@ class SQLiteRepository implements Repository {
     await this.db.exec("BEGIN IMMEDIATE;");
     try {
       const result = await operation();
-      if (this.initialized) await journal(this.db,this.expected);
+      const changed = this.initialized ? await journal(this.db,this.expected) : 0;
       await this.db.exec("COMMIT;");
+      if(changed)for(const listener of this.listeners){try{listener();}catch{/* A scheduler cannot invalidate a committed edit. */}}
       return result;
     } catch (error) {
       try {

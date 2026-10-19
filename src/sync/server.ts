@@ -343,6 +343,21 @@ export function createPCServer(
             "SELECT part,text FROM sync_v2_transfers WHERE transfer_id=? AND device_id=? ORDER BY part",
             [input.transfer, input.device],
           );
+          // A bounded client may resume after the final response was lost.
+          // Accepted transfers have already cleared staging, but their exact
+          // durable outcome remains available under the stable operation ID.
+          if(parts.length===0){
+            const [known]=await store.db.all<{outcome:string}>('SELECT outcome FROM sync_v2_seen WHERE id=?',[input.transfer]);
+            if(known){const outcome=JSON.parse(known.outcome) as import('./store').Outcome;
+              const operation='event' in outcome?outcome.event.operation:outcome.conflict.operation;
+              if(operation.origin!==input.device)throw new Error('Operation origin does not match paired identity.');
+              if(action==='bootstrap'){
+                if(input.initialize!==true||input.initialLibrary!==identity.library_id||!('event' in outcome))throw new Error('Bootstrap identity mismatch.');
+                return {revision:outcome.event.revision,library:identity.library_id,device:identity.device_id};
+              }
+              return {outcomeId:operation.id,parts:Math.ceil(known.outcome.length/CHUNK)};
+            }
+          }
           if (
             parts.length !== input.parts ||
             parts.some((p, i) => p.part !== i)

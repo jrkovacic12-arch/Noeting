@@ -424,4 +424,5 @@ export async function journal(
     );
   }
   await db.exec("DELETE FROM sync_v2_dirty;");
+  return changes.length;
 }

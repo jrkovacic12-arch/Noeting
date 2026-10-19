@@ -31,10 +31,12 @@ type Version = { revision: number; operation_id: string | null };
 /** Call only while holding Repository.sync's shared driver mutex. Every public
  * mutation below owns a SQLite transaction; no HTTP awaits occur inside one. */
 export class SyncStore {
+  beforeTransaction?: () => Promise<void>;
   constructor(readonly db: SQLiteDriver) {}
   async transaction<T>(work: () => Promise<T>): Promise<T> {
     await this.db.exec("BEGIN IMMEDIATE;");
     try {
+      await this.beforeTransaction?.();
       const r = await work();
       await this.db.exec("COMMIT;");
       return r;
@@ -51,10 +53,11 @@ export class SyncStore {
   async records() {
     return readRecords(this.db);
   }
-  async pending() {
+  async pending(limit = 100000) {
     return (
       await this.db.all<{ payload: string }>(
-        "SELECT payload FROM sync_v2_outbox WHERE state='pending' ORDER BY rowid",
+        "SELECT payload FROM sync_v2_outbox WHERE state='pending' ORDER BY rowid LIMIT ?",
+        [limit],
       )
     ).map((r) => JSON.parse(r.payload) as Operation);
   }
@@ -197,6 +200,7 @@ export class SyncStore {
     });
   }
   async beginBootstrap() {
+    return this.transaction(async()=>{
     const [saved] = await this.db.all<{ payload: string }>(
       "SELECT payload FROM sync_v2_bootstrap WHERE session='client-initialization'",
     );
@@ -221,13 +225,12 @@ export class SyncStore {
       operation,
       captured: (await this.pending()).map((op) => op.id),
     };
-    await this.transaction(() =>
-      this.db.run(
+    await this.db.run(
         "INSERT INTO sync_v2_bootstrap VALUES('client-initialization','manifest','1',?)",
         [JSON.stringify(manifest)],
-      ),
-    );
+      );
     return manifest;
+    });
   }
   async finishBootstrap(
     event: Event,
@@ -408,11 +411,12 @@ export class SyncStore {
       operation: JSON.parse(r.payload) as Operation,
     }));
   }
-  async replay(event: Event) {
+  async replay(event: Event, beforeApply?: () => Promise<void>) {
     validateOperation(event.operation);
     if (!Number.isSafeInteger(event.revision) || event.revision < 1)
       throw new Error("Invalid remote revision.");
     return this.transaction(async () => {
+      await beforeApply?.();
       const i = await this.identity();
       if (event.revision <= i.cursor) return;
       if (event.revision !== i.cursor + 1)
@@ -551,8 +555,10 @@ export class SyncStore {
       current: await this.current([...records.values()]),
     };
   }
-  async finishResolution(event: Event, ids: string[], conflictId: string) {
+  async finishResolution(event: Event, ids: string[], conflictId: string, expected?: Change[], beforeApply?:()=>Promise<void>) {
     return this.transaction(async () => {
+      await beforeApply?.();
+      if(expected){const current=await this.current(expected);if(current.some((c,index)=>!equal(c.value,expected[index].value)||c.previous!==expected[index].previous||c.base!==expected[index].base))throw new SyncValidationError('Local changes arrived during resolution. Both versions are retained; synchronize again before resolving.');}
       await applyRecords(this.db, event.operation.changes);
       for (const id of ids)
         await this.db.run(

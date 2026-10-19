@@ -35,7 +35,7 @@
     "ios": "expo run:ios",
     "web": "npm run export:web && npm run serve:web",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test --test-reporter=tap tests/repository.test.ts tests/draftPersistence.test.ts tests/syncMirror.test.ts tests/syncV2.test.ts tests/syncHttp.test.ts tests/autoConfig.test.ts",
+    "test": "node --import tsx --test --test-reporter=tap tests/repository.test.ts tests/draftPersistence.test.ts tests/syncMirror.test.ts tests/syncV2.test.ts tests/syncHttp.test.ts tests/autoConfig.test.ts tests/syncSession.test.ts",
     "test:ui": "playwright test",
     "export": "expo export --platform all --max-workers 2",
     "check": "npm run typecheck && npm test",
