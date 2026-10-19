@@ -1,5 +1,40 @@
 # Noeting — V1 Workflow Specification (Draft)
 
+## Automatic-sync Android/private Tailscale acceptance — D-029 (0.11.0/code 21)
+
+**All physical cases below are NOT RUN in this implementation environment.** No physical phone/private tailnet or configured VPN was available. Node HTTP, browser, native adapter mocks and APK static checks are separate evidence. Use disposable data, matching source/build, private Serve with Funnel off and device-restricted tailnet policies (`03_ARCHITECTURE.md`). Record device/Android/IME, battery/VPN settings, source/APK hash, expected/observed data and timing for each case; do not report an exact 15-minute guarantee.
+
+| Case | Required observation |
+| --- | --- |
+| A1 Pair/opt-in | Start off with no scheduled transfer; reject HTTP/LAN/public/custom-port/redirect/untrusted certificate endpoints without fallback. Pair exact Serve origin, verify PC/library, consent to protected save, enable. Keep separate PC admin authorization. Verify one named task and no secret in SQLite/KV/URLs/logs. |
+| A2 Wi-Fi/cellular | With VPN/PC/Serve running, commit phone Note, Task/child completion, folders/pins/links/removal/restore; expect automatic upload after coalescing. Create/edit on PC; expect next eligible foreground poll to pull without Sync now. Switch Wi-Fi/cellular and measure actual retry/delivery. |
+| A3 Offline/VPN | Disconnect/reconnect PC and disable/re-enable Tailscale while general internet remains available. Edits remain immediately local; only paired endpoint attempted, no content elsewhere; quiet backoff, later automatic recovery, no duplication/cursor loss. |
+| A4 Background/lock | Background app and lock screen. Observe actual WorkManager runs, safe credential retrieval, bounded progress and later completion. Inspect Doze/battery restrictions; record delays and failures. No persistent sync notification/service. |
+| A5 Termination/reboot | Interrupt network/staged transfer, terminate process, relaunch; then reboot and test before/after first unlock. Retain settings, pending IDs, transfer progress, conflicts and data; recover expired lease safely. Force-stop may suppress jobs until user launches again. Distinguish OS limitations from protocol failures. |
+| A6 Drafts/concurrent edits | Keep unsaved Note/Task recovery text and open editor through foreground/background/resume. Incoming application pauses and reason appears; no text reset, auto-save by sync, discard or cursor skip. Save/retry normally, close editor, verify later pull. Edit another Note during slow HTTP; local saves remain responsive. Concurrent PC edits retain explicit conflicts and unrelated changes continue. Review each supported conflict choice explicitly. |
+| A7 Disable/disconnect/revoke | OFF during an in-flight attempt cancels/fences subsequent work and removes jobs/timers; no later automatic requests. Disconnect clears protected secret/address, preserves IDs/history/domain and does not revoke PC automatically. PC revocation or secret rotation pauses attempts for reauthorization. Old scheduled callbacks cannot revive access. |
+| A8 Recovery/permissions | Safely test missing/inaccessible/invalidated protected credentials using disposable setup; no silent new-library adoption or database reset. Reject changed PC/library. Confirm `allowBackup=false`, no credential export, no location/VPN-management/background-location prompt. Reinstall does not silently restore pairing. |
+
+For instrumented development builds, Expo supports `BackgroundTask.triggerTaskWorkerForTestingAsync()`; this runs registered worker tasks, requires a supported development environment and is not a shipped UI control. Inspect `adb shell dumpsys jobscheduler` (filter for `com.noeting.app`), `adb shell dumpsys package com.noeting.app`, and device logs without secrets. Where supported, use `adb shell cmd jobscheduler run -f com.noeting.app <observed-job-id>` and record the actual job ID/result; do not assume a stable ID or force production timing. Background attempts budget 25 seconds/5 operations/10 events, HTTP at most 20 seconds; test enough queued work to prove resume over multiple executions. Do not clear app storage or corrupt the only copy of data to force success.
+
+Native N1–N9 historical 0.10.3 acceptance does not validate new native modules, schema v12, private transport or automatic execution. Existing two-way/domain/device scenarios below still apply alongside A1–A8.
+
+## V2 synchronization acceptance — D-028 (2026-10-19)
+
+Automated coverage uses real SQLite, the actual localhost HTTP server, a PC browser, and the Expo SQLite web app. The browser phone workflow uses a **test HTTPS request adapter** forwarding to localhost; it proves application integration, not certificate trust, a physical Android receiver, Tailscale or a real phone network. Actual commands/results belong only to `06_CURRENT_STATE.md`.
+
+Real-device checklist (all **NOT RUN for v11** until explicitly recorded):
+
+1. Install/upgrade a matching development APK on Android with disposable populated v10 records. Inventory original/current words, links/frozen provenance, capture IDs, pins, removed records and Task states. Confirm v11 upgrade and offline capture/restart.
+2. Configure a private trusted HTTPS forwarder to the localhost v2 server. Pair/initialize only an empty PC. Verify the phone rejects HTTP/untrusted TLS/wrong secrets, does not import v1 JSON, and refuses another library/PC identity.
+3. Create/edit a Note and Task independently on both devices while disconnected. Phone Sync now must transfer both directions exactly once; originals/IDs remain. Repeat without changes. Verify PC-to-phone edits wait for Sync now.
+4. Exercise root/child complete/reopen, new children, removed-parent fallback, folder creation/assignment/pins and PC folder deletion/unfiling, links to removed sources, soft removal and restoration with the same metadata on both sides.
+5. Edit the same Note offline on both; also edit versus remove. Inspect both values/revisions, restart both, then resolve each choice and a valid standalone Note keep-both. Verify structural conflicts require valid choices and unrelated changes continue.
+6. Leave an inline edit failed/unsaved (including a child), retain new creation drafts, and invoke sync from Notes. Existing unsaved edits must defer incoming replay and retain words; committed retry then sync must converge. Check keyboard, Back and background transitions during sync on the actual device.
+7. Interrupt Wi-Fi/HTTPS, force-stop/reboot phone/server around bootstrap, upload, pull and acknowledgement. Retry with no lost committed text, duplicate identities/side effects or skipped remote operations. Use a representative large library and record native memory/latency.
+8. Disconnect on Android and revoke on PC. Verify the revoked phone cannot exchange, offline local data still works, explicit reauthorization restores the same library, and restarting with a rotated secret invalidates old authentication. Confirm no token persists in KV/SQLite/logs.
+
+Do not call sync a production backup or encryption system after these checks. Valuable-data durability, account/restore policy and production security remain separate acceptance decisions under D-018. Historical N1–N9 results below validate the earlier release, not this new synchronization runtime.
 > Created: 2026-10-11. Current acceptance refreshed: 2026-10-18 (0.10.3/code 20/schema v10; PR #8 merged). D-027/D-026 define active Notes/Tasks behavior. Actual outcomes and device/release gates belong only to `06_CURRENT_STATE.md`.
 > Historical boundary: D-025 and earlier Capture → Today examples are superseded research/validation history, not current UI requirements. Execution results belong to `06_CURRENT_STATE.md`.
 

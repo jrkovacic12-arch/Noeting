@@ -1,4 +1,7 @@
-import { migrationV1, migrationV2, migrationV3, migrationV4, migrationV5, migrationV6, migrationV7, migrationV8, migrationV9, migrationV10 } from "./migrations";
+import { keyOf, type Change } from '../sync/schema';
+import { journal } from '../sync/records';
+import { SyncStore } from '../sync/store';
+import { migrationV1, migrationV2, migrationV3, migrationV4, migrationV5, migrationV6, migrationV7, migrationV8, migrationV9, migrationV10, migrationV11, migrationV12 } from "./migrations";
 export type EntryKind = "note" | "task";
 export type ThinkingKind = "reflection" | "creation";
 
@@ -77,6 +80,9 @@ export interface Removal {
 }
 
 export interface Repository {
+  subscribeCommitted(listener:()=>void):()=>void;
+  checked<T>(expected: Change[], operation: (repository: Repository) => Promise<T>): Promise<T>;
+  sync<T>(operation: (store: SyncStore) => Promise<T>): Promise<T>;
   createFolder(id: string, name: string): Promise<void>;
   renameFolder(id: string, name: string): Promise<void>;
   removeFolder(id: string): Promise<void>;
@@ -128,7 +134,7 @@ export interface PinSchedule {
   status: "waiting" | "applied" | "cancelled";
 }
 
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 12;
 
 type EntryRow = {
   id: string;
@@ -183,12 +189,15 @@ class Mutex {
 
 // Sharing a driver must also share its queue: two repositories may not interleave transactions.
 const driverMutexes = new WeakMap<SQLiteDriver, Mutex>();
+const driverListeners = new WeakMap<SQLiteDriver, Set<()=>void>>();
 
 
 
 class SQLiteRepository implements Repository {
   private readonly mutex: Mutex;
   private initialized = false;
+  private listeners: Set<()=>void>;
+  private expected?: Map<string,{base:number;previous:string|null}>;
 
   constructor(private readonly db: SQLiteDriver) {
     let mutex = driverMutexes.get(db);
@@ -197,6 +206,30 @@ class SQLiteRepository implements Repository {
       driverMutexes.set(db, mutex);
     }
     this.mutex = mutex;
+    this.listeners = driverListeners.get(db) ?? new Set();
+    driverListeners.set(db,this.listeners);
+  }
+
+  subscribeCommitted(listener:()=>void){this.listeners.add(listener);return ()=>{this.listeners.delete(listener);};}
+
+  checked<T>(expected: Change[], operation: (repository: Repository) => Promise<T>): Promise<T> {
+    return this.mutex.run(async () => {
+      await this.initializeLocked();
+      // A private facade uses its own queue while the shared driver mutex stays
+      // held. Its BEGIN IMMEDIATE validates affected revisions before COMMIT.
+      const scoped = new SQLiteRepository({exec: s => this.db.exec(s), run: (s,p) => this.db.run(s,p), all: (s,p) => this.db.all(s,p)});
+      scoped.initialized = true;
+      scoped.listeners = this.listeners;
+      scoped.expected = new Map(expected.map(c => [keyOf(c),{base:c.base,previous:c.previous}]));
+      return operation(scoped);
+    });
+  }
+
+  sync<T>(operation: (store: SyncStore) => Promise<T>): Promise<T> {
+    return this.mutex.run(async () => {
+      await this.initializeLocked();
+      return operation(new SyncStore(this.db));
+    });
   }
 
   initialize(): Promise<void> {
@@ -1097,6 +1130,8 @@ class SQLiteRepository implements Repository {
       if (version.user_version < 8) await this.db.exec(migrationV8);
       if (version.user_version < 9) await this.db.exec(migrationV9);
       if (version.user_version < 10) await this.db.exec(migrationV10);
+      if (version.user_version < 11) await this.db.exec(migrationV11);
+      if (version.user_version < 12) await this.db.exec(migrationV12);
       if (version.user_version < SCHEMA_VERSION)
         await this.db.exec(`PRAGMA user_version = ${SCHEMA_VERSION};`);
     });
@@ -1107,7 +1142,9 @@ class SQLiteRepository implements Repository {
     await this.db.exec("BEGIN IMMEDIATE;");
     try {
       const result = await operation();
+      const changed = this.initialized ? await journal(this.db,this.expected) : 0;
       await this.db.exec("COMMIT;");
+      if(changed)for(const listener of this.listeners){try{listener();}catch{/* A scheduler cannot invalidate a committed edit. */}}
       return result;
     } catch (error) {
       try {

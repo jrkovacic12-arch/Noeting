@@ -1,8 +1,29 @@
 # Noeting — Roadmap and Work Plan
 
+## Authorized automatic-sync extension — D-029 (2026-10-19)
+
+Reviewable stages A–E extend S1–S3 on the existing draft PR: secure explicit configuration; fenced shared sessions; foreground triggers/backoff; global headless WorkManager integration; UI/verification/documentation. Schema v12 holds orchestration metadata while retaining v11 domain/protocol behavior. See `03_ARCHITECTURE.md` for implementation and setup; actual evidence/remaining acceptance is owned only by `06_CURRENT_STATE.md`.
+
+The new gate is physical Android/private Tailscale execution across foreground/background, lock/reboot/interruption, drafts/concurrency and revocation (`07_V1_WORKFLOW_DRAFT.md`). Mocked tasks, browser checks and native compilation cannot satisfy it. Keep PR #13 draft with disposable data and `NOETING_ENABLE_SYNC_V2=1` until native acceptance and separate production decisions. No merge, AI/account/backup/encryption expansion or public endpoint is authorized. Earlier S0/manual-only sequencing below is historical.
+
+## Historical authorized S1–S3 implementation — D-028 (2026-10-19)
+
+- **S1 implemented:** additive v11 canonical representation, transactional trigger/outbox journal, device/version metadata, tombstones and SQLite rollback/legacy tests.
+- **S2 implemented for development:** durable localhost SQLite server, authenticated versioned staged exchange, initial empty-PC adoption, replay/ack/cursors, deduplication, conservative explicit conflicts and real HTTP integration tests.
+- **S3 implemented for development:** shared-domain PC editor, Android manual sync/status/error/revocation instructions, conflict choices and browser workflow coverage. PC-to-phone delivery always waits for Android Sync now.
+- **Acceptance remains separate:** keep `NOETING_ENABLE_SYNC_V2=1` and disposable data restriction. Physical Android trusted-HTTPS pairing, native draft/interruption/reboot and production durability/security acceptance are unperformed until recorded in `06_CURRENT_STATE.md`.
+- **S4/AI is not authorized or implemented.** Account, backup/export/restore and encryption-at-rest decisions under D-018 remain unresolved/deferred. The S0-first sequence below is historical; current exact next action remains solely in `06_CURRENT_STATE.md`.
 > **Status:** Working plan, not a committed schedule. Checked work items distinguish implemented changes, user-reported acceptance and independently verified evidence.
 >
 > **Current phase:** Version 0.10.3/code 20/schema v10 is merged through PRs #8 and #9. The user reports successful completion of all nine native N1–N9 checks, while detailed case/device records were not provided. Exact status and next action belong to `06_CURRENT_STATE.md`.
+
+## Historical S0-first sequence — 2026-10-18
+
+The user explicitly prioritizes sync ahead of AI. **Stage S0 (first reviewable slice)** is a manual phone-to-PC **read-only mirror**, implemented without schema upgrades, automatic background traffic or hidden state mutation. The phone remains authoritative; the PC receiver and credentials are configured manually and are not publicly exposed. This is not a second writable client or a lossless backup. No Ollama/AI work is in this slice.
+
+**Further required stages (not yet implemented):** S1—complete data model/versioned sync journal, tombstones, rollback and deterministic reconciliation tests; S2—paired PC–phone bidirectional transport with strict identity, authentication, TLS, retry/outbox and explicit conflict review; S3—actual PC editor and sustained offline-concurrent-edit testing; S4—optional local AI reading the properly synchronized PC library. Revisit D-018 durability/account policy before relying on valuable data. The model/provider and PC storage/security choices are separate decisions.
+
+**Gate:** Verify S0 TypeScript/SQLite/unit/browser checks, a real phone-to-localhost-over-HTTPS test, receiver authentication, malformed/stale/oversized payload rejection and no automatic uploads. Current main CI has an existing browser-draft timeout and is not a green baseline. No Android binary or merged release is implied.
 
 ## Proposed development checkpoint after 0.10.3 — 2026-10-18
 

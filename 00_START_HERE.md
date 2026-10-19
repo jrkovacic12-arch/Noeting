@@ -1,5 +1,14 @@
 # Noeting — Start Here
 
+## Current development scope — automatic private Tailscale sync (D-029, 2026-10-19)
+
+The latest uploaded task authorizes automatic foreground and Android WorkManager synchronization on the existing **draft PR #13**, branch `feat/pc-sync-readonly-mirror-20261018`. Application **0.11.0/code 21** adds orchestration schema **v12**; v11 protocol/domain tables and earlier migration SQL remain intact. This is development on disposable data, pending physical Android/Tailscale and separate security acceptance. D-029 extends D-028 without rewriting its historical exclusion of background work; D-018 remains unresolved/deferred.
+
+Read `02_PRODUCT.md` for current behavior, `03_ARCHITECTURE.md` for exact private setup, credential policy and concurrency, `06_CURRENT_STATE.md` for measured verification/current action, and `07_V1_WORKFLOW_DRAFT.md` for the new device checklist. Older “no background / secrets memory-only / arbitrary trusted HTTPS” statements below describe previous stages only.
+
+## Historical S1–S3 scope — manual two-way sync (2026-10-19)
+
+The uploaded implementation task explicitly authorizes S1–S3 on draft PR #13, superseding earlier no-sync priority only. Development source is `feat/pc-sync-readonly-mirror-20261018`, application version 0.10.3/code 20 with additive **schema v11**; this is not a newly accepted production release. Read the v2 sections in `03_ARCHITECTURE.md` for architecture and exact setup, D-028 in `05_DECISIONS.md` for scope, and `06_CURRENT_STATE.md` for actual checks and remaining acceptance. Earlier baseline headers describe the merged v10 release. Disposable test data only; no AI/accounts/backup or production-security authorization.
 > **Documentation refreshed:** 2026-10-18 (post-PR #9 merge and user-confirmed test-phase scope)
 >
 > **Motto:** *Notice. Note. Think. Originate from nothing.*

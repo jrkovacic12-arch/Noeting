@@ -75,6 +75,21 @@ export function InlineEditor({
     flight.current = null;
     if (succeeded && current.current !== saved.current) await flush();
   }
+  // A headless replay may finish before resume. Refresh only a clean editor;
+  // retained or in-memory edits remain authoritative until the user saves them.
+  useEffect(() => {
+    const retained = drafts.get(context);
+    if (
+      !flight.current &&
+      current.current === saved.current &&
+      (!retained || retained.text === saved.current)
+    ) {
+      saved.current = entry.text;
+      current.current = entry.text;
+      setText(entry.text);
+      setState("saved");
+    }
+  }, [entry.text]);
   const flushRef = useRef(flush);
   flushRef.current = flush;
   useEffect(() => {

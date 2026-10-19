@@ -2,7 +2,7 @@
   "expo": {
     "name": "Noeting",
     "slug": "noeting",
-    "version": "0.10.3",
+    "version": "0.11.0",
     "orientation": "portrait",
     "icon": "./assets/brand/generated/icon.png",
     "userInterfaceStyle": "automatic",
@@ -25,7 +25,7 @@
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.VIBRATE"
       ],
-      "versionCode": 20
+      "versionCode": 21
     },
     "web": {
       "favicon": "./assets/brand/generated/favicon.png",
@@ -35,7 +35,14 @@
       "expo-sqlite",
       "expo-system-ui",
       "expo-notifications",
-      "./plugins/with-clean-android-launch.cjs"
+      "./plugins/with-clean-android-launch.cjs",
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": false
+        }
+      ],
+      "expo-background-task"
     ]
   }
 }

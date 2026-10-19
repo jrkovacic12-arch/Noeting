@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Noeting PC · test library</title
+  ><link rel="stylesheet" href="/pc.css" />
+  <script src="/pc.js" defer></script>
+  <body>
+    <header>
+      <h1>Noeting</h1>
+      <span>Disposable test library</span
+      ><button id="disconnect">Disconnect</button>
+    </header>
+    <main>
+      <form id="pair">
+        <label
+          >Temporary PC admin secret
+          <input
+            id="secret"
+            type="password"
+            autocomplete="off"
+            required
+            minlength="32" /></label
+        ><button>Open local library</button>
+        <p>
+          Use the separate NOETING_PC_TOKEN secret configured for this localhost
+          server. It stays in memory. Phone sync requires a trusted HTTPS access
+          layer.
+        </p>
+      </form>
+      <p id="message" role="status" aria-live="polite"></p>
+      <div id="library" hidden>
+        <nav>
+          <button id="notes">Notes</button><button id="tasks">Tasks</button
+          ><button id="removed">Recently deleted</button
+          ><button id="reload">Reload</button>
+        </nav>
+        <p id="status"></p>
+        <section aria-label="Organization">
+          <label
+            >Folder
+            <select id="folder"></select></label
+          ><button id="new-folder">New folder</button
+          ><button id="rename-folder">Rename folder</button
+          ><button id="pin-folder">Pin / unpin folder</button
+          ><button id="delete-folder">Delete folder</button>
+        </section>
+        <label>Search <input id="search" type="search" /></label
+        ><button id="create">New note</button>
+        <div class="columns">
+          <section id="list" aria-label="Entries"></section>
+          <section id="detail" aria-label="Editor"></section>
+        </div>
+        <section>
+          <h2>Conflicts</h2>
+          <p>
+            A choice resolves the complete transaction. Android receives PC
+            edits and resolutions on its next Sync now.
+          </p>
+          <div id="conflicts"></div>
+        </section>
+        <button id="revoke">Revoke paired phone</button
+        ><button id="allow">Allow paired phone again</button>
+      </div>
+    </main>
+  </body>
+</html>

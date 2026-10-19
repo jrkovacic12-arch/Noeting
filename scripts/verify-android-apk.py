@@ -158,6 +158,12 @@ def verify(args, result):
     result["permissions"] = sorted(set(re.findall(r"^uses-permission(?:-sdk-\d+)?: name='([^']+)'", permissions, re.MULTILINE)))
     blocked = {"android.permission.READ_EXTERNAL_STORAGE", "android.permission.WRITE_EXTERNAL_STORAGE", "android.permission.SYSTEM_ALERT_WINDOW", "android.permission.VIBRATE"}
     require(not blocked.intersection(result["permissions"]), "APK declares unused M1 permissions that should be blocked")
+    forbidden_sync_permissions = {"android.permission.ACCESS_FINE_LOCATION", "android.permission.ACCESS_COARSE_LOCATION", "android.permission.ACCESS_BACKGROUND_LOCATION", "android.permission.BIND_VPN_SERVICE", "android.permission.FOREGROUND_SERVICE_LOCATION"}
+    require(not forbidden_sync_permissions.intersection(result["permissions"]), "Synchronization must not add location or VPN-management permissions")
+    for component in ["androidx.work.WorkManagerInitializer", "androidx.work.impl.background.systemjob.SystemJobService", "android.permission.BIND_JOB_SERVICE"]:
+        require(component in xmltree, f"Missing Android WorkManager configuration: {component}")
+    require({"android.permission.WAKE_LOCK", "android.permission.RECEIVE_BOOT_COMPLETED", "android.permission.ACCESS_NETWORK_STATE"}.issubset(result["permissions"]), "Missing standard WorkManager/network permissions")
+    result["workManagerConfiguration"] = "standard initializer/job service and bounded-worker permissions present; runtime not executed"
     result["status"] = "passed"
 
 

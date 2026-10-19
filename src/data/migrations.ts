@@ -175,3 +175,33 @@ export const migrationV9 = `
 `;
 
 export const migrationV10 = `ALTER TABLE note_folders ADD COLUMN pinned_at TEXT;`;
+
+// v11 generates canonical change-tracking triggers from the versioned sync schema.
+export { migrationV11 } from "../sync/schema";
+
+// Orchestration metadata only. v11 canonical records/protocol/journal stay intact.
+export const migrationV12 = `
+CREATE TABLE sync_auto_settings (
+ id INTEGER PRIMARY KEY CHECK(id=1), origin TEXT, credential_key TEXT,
+ device_id TEXT, peer_id TEXT, library_id TEXT,
+ enabled INTEGER NOT NULL DEFAULT 0 CHECK(enabled IN (0,1)),
+ generation INTEGER NOT NULL DEFAULT 0, auth_required INTEGER NOT NULL DEFAULT 0,
+ last_attempt TEXT, last_reason TEXT, failures INTEGER NOT NULL DEFAULT 0,
+ retry_after INTEGER NOT NULL DEFAULT 0, poll_ms INTEGER NOT NULL DEFAULT 60000,
+ cleanup_pending INTEGER NOT NULL DEFAULT 0
+);
+INSERT INTO sync_auto_settings(id) VALUES(1);
+CREATE TABLE sync_session_lease (
+ id INTEGER PRIMARY KEY CHECK(id=1), owner TEXT, epoch INTEGER NOT NULL DEFAULT 0,
+ expires_at INTEGER NOT NULL DEFAULT 0
+);
+INSERT INTO sync_session_lease(id) VALUES(1);
+CREATE TABLE sync_foreground_presence (
+ id INTEGER PRIMARY KEY CHECK(id=1), owner TEXT, expires_at INTEGER NOT NULL DEFAULT 0
+);
+INSERT INTO sync_foreground_presence(id) VALUES(1);
+CREATE TABLE sync_transfer_progress (
+ id TEXT PRIMARY KEY, descriptor TEXT NOT NULL, next_part INTEGER NOT NULL DEFAULT 0,
+ payload TEXT NOT NULL DEFAULT ''
+);
+`;

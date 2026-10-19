@@ -275,8 +275,14 @@ async function hold(locator: Locator) {
   await page.waitForTimeout(360);
   await page.mouse.up();
 }
-async function newFolder(page: Page, name: string) {
+async function openFolders(page: Page) {
   await page.getByRole("button", { name: "Folders", exact: true }).click();
+  // Quick-bar buttons share labels with management rows. Wait for the new
+  // screen after the asynchronous replay/snapshot navigation barrier.
+  await expect(page.getByRole("button", { name: "New folder", exact: true })).toBeVisible();
+}
+async function newFolder(page: Page, name: string) {
+  await openFolders(page);
   await page.getByRole("button", { name: "New folder", exact: true }).click();
   await page.getByRole("textbox", { name: "Folder name" }).fill(name);
   await page.getByRole("button", { name: "Save folder", exact: true }).click();
@@ -566,7 +572,7 @@ test.describe("preservation and failure recovery against real SQLite", () => {
       );
       await databaseSQL(
         page,
-        `PRAGMA foreign_keys=OFF; DROP TABLE note_organization; DROP TABLE note_folders; DROP TABLE entry_sources; DROP TABLE thinking_links; DROP TABLE task_sources; DROP TABLE today_selection; DROP TABLE scheduled_pins; DROP TABLE reminders; DROP TABLE tasks; DROP TABLE entries; ${fixture}`,
+        `PRAGMA foreign_keys=OFF; DROP TABLE note_organization; DROP TABLE note_folders; DROP TABLE entry_sources; DROP TABLE thinking_links; DROP TABLE task_sources; DROP TABLE today_selection; DROP TABLE scheduled_pins; DROP TABLE reminders; DROP TABLE tasks; DROP TABLE entries; DROP TABLE sync_auto_settings; DROP TABLE sync_session_lease; DROP TABLE sync_foreground_presence; DROP TABLE sync_transfer_progress; ${['identity','versions','outbox','seen','history','conflicts','dirty','bootstrap','transfers','pairing','reads','ack','runtime'].map(t=>`DROP TABLE sync_v2_${t};`).join(' ')} ${fixture}`,
       );
       page = await session.restart();
       if (version === 8) {
@@ -796,7 +802,7 @@ test("folders, long-press multi-select, mixed Pin/Unpin, move, search restart an
   await expect(
     page.getByRole("button", { name: "Open note: Alpha" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Folders", exact: true }).click();
+  await openFolders(page);
   await hold(page.getByRole("button", { name: "Folder: Ideas", exact: true }));
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await page.getByRole("textbox", { name: "Folder name" }).fill("Thoughts");
@@ -845,7 +851,7 @@ test("Notes captured or linked within a folder remain there after restart", asyn
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("textbox", { name: "Note text" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Folders", exact: true }).click();
+  await openFolders(page);
   await hold(page.getByRole("button", { name: "Folder: Project", exact: true }));
   await page.getByRole("button", { name: "Delete", exact: true }).click();
   await page.getByRole("button", { name: "Delete folders", exact: true }).click();
@@ -1121,7 +1127,7 @@ test("folder screen long-press selection, pin ordering, rename and safe bulk del
   const strip = page.getByTestId("folder-strip");
   await expect(strip.getByRole("button")).toHaveText(["All", "Alpha", "Beta", "Uncategorized"]);
   await page.getByRole("textbox", { name: "Search notes" }).fill("not a match");
-  await page.getByRole("button", { name: "Folders", exact: true }).click();
+  await openFolders(page);
   await page.screenshot({ path: "work/folders-screen.png" });
   const beta = page.getByRole("button", { name: "Folder: Beta", exact: true });
   await expect(beta).toContainText("1"); // Counts ignore search.
@@ -1141,7 +1147,7 @@ test("folder screen long-press selection, pin ordering, rename and safe bulk del
   await page.getByRole("button", { name: "Back to notes", exact: true }).click();
   page = await session.restart();
   await expect(page.getByTestId("folder-strip").getByRole("button")).toHaveText(["All", "Alpha", "Beta", "Uncategorized"]);
-  await page.getByRole("button", { name: "Folders", exact: true }).click();
+  await openFolders(page);
   await hold(page.getByRole("button", { name: "Folder: Alpha", exact: true }));
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await page.getByRole("textbox", { name: "Folder name" }).fill("Zebra");
@@ -1149,7 +1155,7 @@ test("folder screen long-press selection, pin ordering, rename and safe bulk del
   await page.getByRole("button", { name: "Close folder selection" }).click();
   await page.getByRole("button", { name: "Back to notes", exact: true }).click();
   await expect(page.getByTestId("folder-strip").getByRole("button")).toHaveText(["All", "Zebra", "Beta", "Uncategorized"]);
-  await page.getByRole("button", { name: "Folders", exact: true }).click();
+  await openFolders(page);
   await page.getByRole("button", { name: "Select folders to delete" }).click();
   await page.getByRole("button", { name: "Folder: Zebra", exact: true }).click();
   await page.getByRole("button", { name: "Folder: Beta", exact: true }).click();
@@ -1165,7 +1171,7 @@ test("folder screen long-press selection, pin ordering, rename and safe bulk del
   await expect(page.getByRole("button", { name: "Open note: Keep these words" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Open note: Beta note" })).toBeVisible();
   await page.setViewportSize({ width: 320, height: 700 });
-  await page.getByRole("button", { name: "Folders", exact: true }).click();
+  await openFolders(page);
   await expect(page.getByRole("button", { name: "New folder", exact: true })).toBeVisible();
   await page.screenshot({ path: "work/folders-small.png" });
 });
@@ -1361,4 +1367,35 @@ test.describe('draft migration recovery', () => {
     await page.reload();
     await expect(page.getByRole('button',{name:'Open note: Migration retained words'})).toBeVisible();
   });
+});
+
+test("automatic sync starts off, requires protected pairing, and rejects public endpoints without requests", async ({
+  session,
+}) => {
+  const { page } = session;
+  let transfers = 0;
+  page.on("request", (request) => {
+    if (request.url().includes("/api/sync/v2/")) transfers++;
+  });
+  await page
+    .getByRole("button", { name: "More notes options", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Sync with PC", exact: true }).click();
+  await expect(
+    page.getByRole("switch", { name: "Automatic sync" }),
+  ).not.toBeChecked();
+  await expect(
+    page.getByRole("switch", { name: "Automatic sync" }),
+  ).toBeDisabled();
+  await page
+    .getByRole("textbox", { name: "PC HTTPS address" })
+    .fill("https://public.example");
+  await page
+    .getByRole("textbox", { name: "PC pairing token" })
+    .fill("disposable-invalid-endpoint-secret-".repeat(2));
+  await page.getByRole("button", { name: "Sync now", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Tailscale");
+  expect(transfers).toBe(0);
+  await page.getByRole("button", { name: "Close PC sync" }).click();
+  await capture(page, "note", "Local editing remains available");
 });

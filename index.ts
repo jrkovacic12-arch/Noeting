@@ -1,3 +1,4 @@
+import './src/sync/background';
 import { registerRootComponent } from 'expo';
 
 import App from './App';

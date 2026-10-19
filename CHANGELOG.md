@@ -1,5 +1,25 @@
 # Noeting — Documentation Change Log (started 2026-10-11)
 
+## 2026-10-19 — 0.11.0 automatic private Tailscale synchronization (development)
+
+- Add explicit protected-pairing consent, pinned canonical Serve origin, opt-in settings and generation-fenced off/disconnect/reauthorization; preserve v11 via additive orchestration schema v12.
+- Reuse v2 CAS/journal/conflicts with short repository transactions outside HTTP, recoverable SQLite lease, durable chunk progress, editor/draft barriers and bounded sessions.
+- Add committed-change debounce, resume/network hints, incremental foreground polling/backoff and global Android WorkManager execution (minimum 15 minutes, OS-delayed), SDK-compatible native adapters and tests.
+- Extend Notes → More → Sync with PC status/settings while retaining manual Sync now, PC editor/local saves and separate phone/admin roles. Version 0.11.0/code 21 distinguishes the new native test build.
+- Record D-029/private setup and separate physical checklist in existing documents. D-028 history and D-018 boundaries remain; draft PR/development flag/disposable-data restrictions continue. Exact executed evidence belongs to `06_CURRENT_STATE.md`.
+
+## 2026-10-19 — Safe two-way sync development implementation
+
+- Preserve original PR #13 history and add S1 v11 transaction journals/canonical replay, S2 durable authenticated paginated v2 exchange/conflicts, and S3 shared-domain PC editing with Android manual sync controls.
+- Retain original captures, removed records/provenance, folder/task invariants and local drafts. Add real SQLite/HTTP/browser checks, stale-PC-editor CAS and interrupted-bootstrap/cursor recovery coverage.
+- Record scoped D-028 and exact setup/security/native acceptance in existing authoritative documents. Keep explicit development/disposable-data limits; no AI, accounts, backup guarantee, encryption-at-rest or production release is introduced.
+## 2026-10-18 — Manual read-only PC mirror sync foundation
+
+- User prioritized PC–phone synchronization ahead of PC-hosted Ollama/AI. Introduce explicit Notes-menu manual transfer of active Notes/Tasks/folders to a localhost-only paired PC receiver over a separately configured trusted HTTPS endpoint.
+- Add transport validation, size cap, per-device identity, temporary token input, protected PC mirror file and unit tests; no automatic push, PC editing, conflict resolution, remote-to-phone writes or migration.
+- Call out that the preview omits removed records/drafts and is not a backup/restore mechanism. True bidirectional sync, pairing/revocation, full tombstones and PC editor remain future stages.
+- Main's pre-existing draft-storage browser timeout is not declared fixed by this work.
+
 ## 2026-10-18 — Post-PR #9 status, native acceptance and test-data scope (documentation only)
 
 - Align current source and CI with merged PR #9 (`dfdb642`), successful main run `39099547696`; retire stale pending-merge/failed-CI instructions without deleting dated historical evidence.

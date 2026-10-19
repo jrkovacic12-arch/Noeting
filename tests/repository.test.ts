@@ -1,3 +1,4 @@
+import { migrationV8 } from '../src/data/migrations';
 import assert from "node:assert/strict";
 import { mkdtemp, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -2285,10 +2286,16 @@ test("v9 folder pins migrate additively, survive restart, and bulk actions roll 
     await r.organizeNotes([note.entryId], { pinned: true });
     const receipt = await r.removeNotes([note.entryId]);
     const before = (await r.readSnapshot()).entries;
+    db.exec('DROP TABLE sync_auto_settings; DROP TABLE sync_session_lease; DROP TABLE sync_foreground_presence; DROP TABLE sync_transfer_progress;');
+    db.exec('DROP TRIGGER subtasks_validate_insert; DROP TRIGGER subtasks_validate_update;');
+    db.exec(migrationV8.slice(migrationV8.indexOf('  CREATE TRIGGER')));
+    // Build an actual pre-v11 fixture before exercising the historical v10 migration.
+    for (const r of db.prepare("SELECT name,type FROM sqlite_master WHERE name LIKE 'sync_v2_%' ORDER BY type DESC").all())
+      db.exec(`DROP ${r.type === 'trigger' ? 'TRIGGER' : 'TABLE'} IF EXISTS ${r.name}`);
     db.exec("ALTER TABLE note_folders DROP COLUMN pinned_at; PRAGMA user_version=9;");
     db.close(); db = new DatabaseSync(path); r = createRepository(sqliteDriver(db));
     assert.deepEqual((await r.readSnapshot()).entries, before);
-    assert.equal(db.prepare("PRAGMA user_version").get()!.user_version, 10);
+    assert.equal(db.prepare("PRAGMA user_version").get()!.user_version, SCHEMA_VERSION);
     assert.ok((await r.readSnapshot()).folders!.every((f) => f.pinnedAt === null));
     db.exec("CREATE TRIGGER fail_pin BEFORE UPDATE OF pinned_at ON note_folders WHEN NEW.id='b' BEGIN SELECT RAISE(ABORT,'pin failed'); END;");
     await assert.rejects(r.pinFolders(["a", "b"], true), /pin failed/);
@@ -2328,6 +2335,12 @@ test("interrupted v10 migration rolls back and retries without changing populate
     await r.createFolder("work", "Work");
     await r.saveCapture({ requestId: "migration", kind: "note", text: "Preserved", folderId: "work" });
     const before = (await r.readSnapshot()).entries;
+    db.exec('DROP TABLE sync_auto_settings; DROP TABLE sync_session_lease; DROP TABLE sync_foreground_presence; DROP TABLE sync_transfer_progress;');
+    db.exec('DROP TRIGGER subtasks_validate_insert; DROP TRIGGER subtasks_validate_update;');
+    db.exec(migrationV8.slice(migrationV8.indexOf('  CREATE TRIGGER')));
+    // Build an actual pre-v11 fixture before exercising the historical v10 migration.
+    for (const r of db.prepare("SELECT name,type FROM sqlite_master WHERE name LIKE 'sync_v2_%' ORDER BY type DESC").all())
+      db.exec(`DROP ${r.type === 'trigger' ? 'TRIGGER' : 'TABLE'} IF EXISTS ${r.name}`);
     db.exec("ALTER TABLE note_folders DROP COLUMN pinned_at; PRAGMA user_version=9;");
     const driver = sqliteDriver(db);
     let fail = true;

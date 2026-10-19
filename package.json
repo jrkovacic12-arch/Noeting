@@ -2,16 +2,20 @@
   "name": "noeting",
   "description": "Minimal offline Notes and Tasks with intentional links",
   "license": "0BSD",
-  "version": "0.10.3",
+  "version": "0.11.0",
   "main": "index.ts",
   "dependencies": {
+    "@react-native-community/netinfo": "12.0.1",
     "expo": "~57.0.28",
+    "expo-background-task": "~57.0.21",
     "expo-clipboard": "~57.0.2",
     "expo-crypto": "~57.0.4",
     "expo-notifications": "~57.0.22",
+    "expo-secure-store": "~57.0.4",
     "expo-sqlite": "~57.0.4",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.4",
+    "expo-task-manager": "~57.0.21",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
@@ -31,7 +35,7 @@
     "ios": "expo run:ios",
     "web": "npm run export:web && npm run serve:web",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test --test-reporter=tap tests/repository.test.ts tests/draftPersistence.test.ts",
+    "test": "node --import tsx --test --test-reporter=tap tests/repository.test.ts tests/draftPersistence.test.ts tests/syncMirror.test.ts tests/syncV2.test.ts tests/syncHttp.test.ts tests/autoConfig.test.ts tests/syncSession.test.ts tests/automatic.test.ts tests/background.test.ts",
     "test:ui": "playwright test",
     "export": "expo export --platform all --max-workers 2",
     "check": "npm run typecheck && npm test",
@@ -39,7 +43,8 @@
     "serve:web": "node scripts/serve-web.mjs",
     "build:android:test": "node scripts/build-android.mjs",
     "verify:android:apk": "python3 scripts/verify-android-apk.py",
-    "prepare:android": "node scripts/build-android.mjs --prepare-only"
+    "prepare:android": "node scripts/build-android.mjs --prepare-only",
+    "pc:sync": "node --import tsx scripts/pc-sync-server.mts"
   },
   "private": true
 }
