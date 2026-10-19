@@ -1,7 +1,12 @@
 # Noeting — Roadmap and Work Plan
 
+## Authorized automatic-sync extension — D-029 (2026-10-19)
 
-## Authorized S1–S3 implementation — D-028 (2026-10-19)
+Reviewable stages A–E extend S1–S3 on the existing draft PR: secure explicit configuration; fenced shared sessions; foreground triggers/backoff; global headless WorkManager integration; UI/verification/documentation. Schema v12 holds orchestration metadata while retaining v11 domain/protocol behavior. See `03_ARCHITECTURE.md` for implementation and setup; actual evidence/remaining acceptance is owned only by `06_CURRENT_STATE.md`.
+
+The new gate is physical Android/private Tailscale execution across foreground/background, lock/reboot/interruption, drafts/concurrency and revocation (`07_V1_WORKFLOW_DRAFT.md`). Mocked tasks, browser checks and native compilation cannot satisfy it. Keep PR #13 draft with disposable data and `NOETING_ENABLE_SYNC_V2=1` until native acceptance and separate production decisions. No merge, AI/account/backup/encryption expansion or public endpoint is authorized. Earlier S0/manual-only sequencing below is historical.
+
+## Historical authorized S1–S3 implementation — D-028 (2026-10-19)
 
 - **S1 implemented:** additive v11 canonical representation, transactional trigger/outbox journal, device/version metadata, tombstones and SQLite rollback/legacy tests.
 - **S2 implemented for development:** durable localhost SQLite server, authenticated versioned staged exchange, initial empty-PC adoption, replay/ack/cursors, deduplication, conservative explicit conflicts and real HTTP integration tests.

@@ -1,7 +1,18 @@
 # Noeting — Product Requirements and Workflows
 
+## Current automatic-sync contract — D-029 (0.11.0)
 
-## Accepted manual two-way sync — D-028 (2026-10-19)
+Exactly **Notes** and **Tasks** remain the main tabs. Notes → More → Sync with PC contains manual pairing/Sync now, approved PC address, secure-pairing consent, Automatic sync switch, foreground interval, pairing status, last successful sync, last attempt/reason, pending count and unresolved conflicts. Initialize only an empty PC explicitly. After a successful pair, the canonical private Tailscale Serve origin is pinned; changing it requires Disconnect. Saving the phone secret securely is a separate explicit action; automatic sync starts **off** and must then be enabled.
+
+Committed local transactions trigger one attempt after roughly three seconds of inactivity. Enabled sync also attempts on launch/resume and debounced network changes, then polls incrementally every 60 seconds while foregrounded (configurable 15–300 seconds). Network events do not establish that Tailscale works. Android WorkManager schedules bounded background attempts with a minimum 15-minute interval; actual delivery can be much later because of Doze, battery restrictions, force-stop, lock state or unavailable VPN. PC/server/Serve must remain running. Wi-Fi or cellular may carry the private tailnet connection; Noeting manages neither VPN nor accounts.
+
+Local editing remains offline-capable and does not wait for HTTP. Failed connections leave committed changes pending and show a quiet status with bounded backoff. Authentication/identity failures pause automatic attempts for reauthorization. Conflicts retain both versions until explicit choices; unrelated operations can continue. An empty phone outbox does not imply there are no unseen PC changes.
+
+Recovery drafts never become uploaded committed content. Incoming application pauses while an editor is open or persisted unfinished edits cannot be safely coordinated. It never commits/discards a draft to sync. Resume refreshes committed data; dirty editor words survive. Turning Automatic sync off cancels timers and unregisters background work. Disconnect additionally clears protected credentials and the approved address, preserving Notes/Tasks, identities, history and conflicts. Revocation remains a separate PC administration action.
+
+Bearer credentials are saved only after explicit consent in native protected storage. Web has manual sync but no automatic credential fallback. Only the exact paired `https://<pc>.<tailnet>.ts.net` origin is accepted: no public/LAN/IP endpoints, custom ports, paths or redirects. Private Serve, Funnel off, restricted tailnet policies, TLS and paired identity checks are all required. Polling and scheduled attempts consume battery/network only after opt-in; inexact timing and development/disposable-data limits are visible.
+
+## Historical manual two-way sync scope — D-028 (2026-10-19)
 
 Android and one paired PC may independently commit supported Notes, Tasks/Subtasks and folders while disconnected. Notes More → **Sync with PC** uploads committed phone transactions and downloads PC transactions. Android initiates every exchange; PC edits are stored immediately on the PC and arrive on the next successful phone Sync now. Exactly two Android tabs remain. No scheduled/background traffic or receiver on Android is introduced.
 

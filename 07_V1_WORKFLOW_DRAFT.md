@@ -1,5 +1,23 @@
 # Noeting — V1 Workflow Specification (Draft)
 
+## Automatic-sync Android/private Tailscale acceptance — D-029 (0.11.0/code 21)
+
+**All physical cases below are NOT RUN in this implementation environment.** No physical phone/private tailnet or configured VPN was available. Node HTTP, browser, native adapter mocks and APK static checks are separate evidence. Use disposable data, matching source/build, private Serve with Funnel off and device-restricted tailnet policies (`03_ARCHITECTURE.md`). Record device/Android/IME, battery/VPN settings, source/APK hash, expected/observed data and timing for each case; do not report an exact 15-minute guarantee.
+
+| Case | Required observation |
+| --- | --- |
+| A1 Pair/opt-in | Start off with no scheduled transfer; reject HTTP/LAN/public/custom-port/redirect/untrusted certificate endpoints without fallback. Pair exact Serve origin, verify PC/library, consent to protected save, enable. Keep separate PC admin authorization. Verify one named task and no secret in SQLite/KV/URLs/logs. |
+| A2 Wi-Fi/cellular | With VPN/PC/Serve running, commit phone Note, Task/child completion, folders/pins/links/removal/restore; expect automatic upload after coalescing. Create/edit on PC; expect next eligible foreground poll to pull without Sync now. Switch Wi-Fi/cellular and measure actual retry/delivery. |
+| A3 Offline/VPN | Disconnect/reconnect PC and disable/re-enable Tailscale while general internet remains available. Edits remain immediately local; only paired endpoint attempted, no content elsewhere; quiet backoff, later automatic recovery, no duplication/cursor loss. |
+| A4 Background/lock | Background app and lock screen. Observe actual WorkManager runs, safe credential retrieval, bounded progress and later completion. Inspect Doze/battery restrictions; record delays and failures. No persistent sync notification/service. |
+| A5 Termination/reboot | Interrupt network/staged transfer, terminate process, relaunch; then reboot and test before/after first unlock. Retain settings, pending IDs, transfer progress, conflicts and data; recover expired lease safely. Force-stop may suppress jobs until user launches again. Distinguish OS limitations from protocol failures. |
+| A6 Drafts/concurrent edits | Keep unsaved Note/Task recovery text and open editor through foreground/background/resume. Incoming application pauses and reason appears; no text reset, auto-save by sync, discard or cursor skip. Save/retry normally, close editor, verify later pull. Edit another Note during slow HTTP; local saves remain responsive. Concurrent PC edits retain explicit conflicts and unrelated changes continue. Review each supported conflict choice explicitly. |
+| A7 Disable/disconnect/revoke | OFF during an in-flight attempt cancels/fences subsequent work and removes jobs/timers; no later automatic requests. Disconnect clears protected secret/address, preserves IDs/history/domain and does not revoke PC automatically. PC revocation or secret rotation pauses attempts for reauthorization. Old scheduled callbacks cannot revive access. |
+| A8 Recovery/permissions | Safely test missing/inaccessible/invalidated protected credentials using disposable setup; no silent new-library adoption or database reset. Reject changed PC/library. Confirm `allowBackup=false`, no credential export, no location/VPN-management/background-location prompt. Reinstall does not silently restore pairing. |
+
+For instrumented development builds, Expo supports `BackgroundTask.triggerTaskWorkerForTestingAsync()`; this runs registered worker tasks, requires a supported development environment and is not a shipped UI control. Inspect `adb shell dumpsys jobscheduler` (filter for `com.noeting.app`), `adb shell dumpsys package com.noeting.app`, and device logs without secrets. Where supported, use `adb shell cmd jobscheduler run -f com.noeting.app <observed-job-id>` and record the actual job ID/result; do not assume a stable ID or force production timing. Background attempts budget 25 seconds/5 operations/10 events, HTTP at most 20 seconds; test enough queued work to prove resume over multiple executions. Do not clear app storage or corrupt the only copy of data to force success.
+
+Native N1–N9 historical 0.10.3 acceptance does not validate new native modules, schema v12, private transport or automatic execution. Existing two-way/domain/device scenarios below still apply alongside A1–A8.
 
 ## V2 synchronization acceptance — D-028 (2026-10-19)
 

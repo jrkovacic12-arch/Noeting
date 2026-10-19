@@ -1,7 +1,54 @@
 # Noeting — Architecture, Privacy and Agent Design
 
+## Automatic private Tailscale orchestration — D-029 (0.11.0/code 21)
 
-## Implemented v2 development architecture — D-028 (2026-10-19)
+### Preserved domain and new storage
+
+The v2 protocol, v11 canonical records/journal, CAS, tombstones, replay deduplication, PC editor, role separation and server development flag remain. Additive migration **v12** creates only `sync_auto_settings`, `sync_session_lease`, `sync_foreground_presence` and `sync_transfer_progress` in the existing database. v1–v11 SQL is unchanged. The Node server keeps numeric localhost binding. Its only protocol-compatible adjustment returns a durable known outcome when a finalize retry follows server staging cleanup; changed staged content is still rejected.
+
+| Implementation | Responsibility |
+| --- | --- |
+| `configuration.ts`, `origin.ts`, `errors.ts`, `credentialVault.ts` / `.web.ts` | Explicit consent, canonical origin policy, settings generation, identity-bound secret, safe errors, protected native store; no web fallback |
+| `session.ts`, refactored `client.ts` / `store.ts` | One cross-context SQLite lease, bounded HTTP outside repository mutex, fenced short replay/ack transactions, durable upload/download progress |
+| `draftSafety.ts` | Pure persisted-draft inspection, foreground editor/apply barrier, expiring foreground ownership for headless coordination |
+| `automatic.ts` | Shared bounded attempt, incremental cursor use, foreground coalescing/polling, failure backoff and attention state |
+| `backgroundRegistration.ts`, `headless.ts`, `background.ts` | Idempotent named task registration, global task definition, independent repository/configuration opening and cancellation/budget handling |
+| `nativeAdapters.ts`, `fetchTransport.ts` and web variants | AppState/NetInfo, WorkManager adapter, persisted draft reads and verified-TLS/no-redirect Expo fetch |
+| `runtime.ts`, `ui/useSyncRuntime.ts`, `App.tsx`, `InlineEditor.tsx` | Native composition, manual/shared orchestration, settings/status, navigation barrier and clean-editor refresh |
+
+All sync files above are under `src/sync/` unless a path is specified. `index.ts` imports the task definition before registering the root; React rendering is not needed for execution. `repository.ts` publishes successful nonempty domain-journal commits only, never draft writes, rollbacks or replay. Tests add secure-config/session/scheduler/background coverage to the existing SQLite/HTTP/browser suites.
+
+### Security and private networking
+
+`origin.ts` accepts exactly canonical HTTPS with two hostname labels before `.ts.net`, allowing only an optional trailing slash. It rejects explicit ports (including :443), URL userinfo/path/query/fragment, IPs, HTTP and other hosts. The approved origin is durable and pinned after pairing, including manual pairing. Every ordinary session verifies the paired **PC device and library identity before staging content**. Automatic sessions require an existing paired library and never bootstrap. Redirects are rejected; native production uses `expo/fetch` whose Android `redirect: error` disables both OkHttp redirect modes. Certificate verification remains normal. No fallback addresses or discovery destinations exist. `.ts.net` syntax alone cannot prove routing privacy: the operator must disable Funnel and restrict tailnet policy.
+
+Expo SecureStore stores a JSON credential bound to origin, phone device ID, PC peer ID and library ID under a random key. Only its key and nonsecret configuration enter SQLite. A known protected slot is reserved in disabled nonsecret settings before the write; reauthorization reuses that slot so rotation or a failed write cannot leave an untracked old secret. Options use a service namespace, no per-use interactive authentication, and `AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY` where supported; Android uses Keystore-backed native storage. Access exceptions skip/retry with a safe reason; missing/invalid secrets or identity mismatch require explicit authorization. No token URLs, SQLite/KV/AsyncStorage secrets, logging or insecure export are introduced. `allowBackup: false` is preserved and the SecureStore backup plugin is explicitly disabled. Lock/unlock, restore/invalidation and unattended access require device evidence, not assumptions about iOS accessibility options on Android. Uninstall/restore must not silently re-pair. Web cannot save unattended credentials.
+
+Settings generations fence disabled/replaced/revoked sessions before further requests or application. OFF cancels foreground timers/HTTP and unregisters WorkManager while retaining identity/credential metadata. Disconnect first disables/increments generation/clears origin, then deletes the protected secret; failed cleanup retains a nonsecret key for retry. It never deletes domain/history/device IDs. Server revocation uses the distinct PC administration secret. An already transmitted request cannot be recalled; stable IDs/deduplication safely reconcile an acknowledgment lost during cancellation.
+
+### Concurrency, drafts and bounded execution
+
+`withSyncSession` acquires a transactional owner/epoch lease in the same SQLite file with a 120-second expiry. Every short transaction checks owner, fencing epoch, expiry and automatic generation **inside BEGIN**, then renews. HTTP occurs with neither repository mutex nor SQLite transaction held; pre/post checks reject stale owners. An expired owner cannot apply a late response or release a newer lease. Abrupt termination recovers at expiry. Ordinary Note/Task saves may interleave and journal subsequent operations; no timestamp winner is introduced. Conflict resolutions compare their expected local versions again inside the final transaction.
+
+Foreground attempts have a 45-second budget, at most 50 uploads/100 history events. Background attempts have 25 seconds, at most 5 uploads/10 events. Each HTTP request is capped at 20 seconds or the remaining session budget. Durable staged-part acknowledgments and received chunks allow later attempts to resume stable operations/cursors without requiring full-library completion. Initial full bootstrap remains manual. Existing paging/schema/size limits remain; a single graph validation can still be expensive for a very large database.
+
+Foreground `DraftGate` blocks incoming replay while any editor is open; navigation waits for the short apply barrier and refreshes a snapshot before mounting. Recovery KV v2/v1 is inspected separately without deleting drafts. Headless work opens storage itself and checks an expiring foreground-presence row before network and inside replay; resume registers presence and refreshes committed data. There is a 30-second inactive grace and 20-second foreground heartbeat (60-second ownership). Dirty retained edits defer incoming application. Clean mounted inline editors can refresh on resume; dirty words cannot be reset by snapshot refresh. Committed upload outcomes do not replace local text.
+
+Failures use exponential 15-second to 15-minute retry backoff with jitter; auth/identity failures set an attention flag and stop scheduled attempts. Draft/lease contention defers safely. No automatic conflict choice exists. Cursor/success advancement requires durable outcomes and successful bounded work; status never claims “Everything synced.”
+
+### Reproducible private PC / Android setup
+
+1. Use disposable libraries and Node 24+. Run `npm ci` on the PC. Supply separate randomly generated 32+ character `NOETING_SYNC_TOKEN` (phone) and `NOETING_PC_TOKEN` (admin) through a protected process environment, then run `NOETING_ENABLE_SYNC_V2=1 npm run pc:sync`. Do not paste secrets into shared commands/logs. Keep `NOETING_HOST` at its numeric localhost default and port 8788; the CLI refuses non-localhost binding. Keep the same PC SQLite file across restarts.
+2. On the PC, authenticate Tailscale into the intended private tailnet. Configure access grants/ACLs for only the intended paired Android user/device to reach this PC HTTPS service. Remove broad tailnet access that defeats this restriction. Configure **Serve**, not Funnel: `tailscale serve --bg http://127.0.0.1:8788`. Inspect `tailscale serve status` and `tailscale funnel status`; Funnel/public access must be disabled. Consult the installed Tailscale CLI for its version's policy/status syntax. Do not expose port 8788 or a public reverse proxy. Private Serve also exposes the admin route to permitted tailnet clients, but that route still requires its separate admin secret; use the editor locally at `http://127.0.0.1:8788/`.
+3. On Android enable Tailscale on the same permitted tailnet. Install the matching native build (Expo Go/web cannot demonstrate the protected headless path). Notes → More → Sync with PC: enter the exact `https://<pc>.<tailnet>.ts.net` address and **phone** secret. Explicitly Initialize empty PC from Android once; an unrelated existing PC library is refused. Verify Sync now in both directions before unattended setup.
+4. Select **Save pairing securely for automatic sync** to consent to native protected storage, then turn **Automatic sync on**. Default foreground interval is 60 seconds. Keep both Tailscale clients, Serve and PC server running. Background work is at least 15 minutes apart and OS-delayed; there is no always-on notification/service or exact timing guarantee.
+5. For connection failures check Tailscale/Serve/PC process and restricted access policies on both ends; ordinary internet connectivity is insufficient. For auth/identity attention, verify the original PC/database and current phone authorization, re-enter the current secret and save pairing again. No automatic new-library adoption occurs. OFF removes jobs; Disconnect additionally clears saved origin/secret; use PC **Revoke paired phone** separately. No domain reset is a troubleshooting step.
+
+Native dependencies added with SDK-compatible `expo install`: `expo-secure-store ~57.0.4` (protected secrets), `expo-background-task ~57.0.21` and `expo-task-manager ~57.0.21` (WorkManager/global entry), `@react-native-community/netinfo 12.0.1` (network hints). Expo/React Native are unchanged. Foreground lifecycle uses React Native AppState; transport uses installed Expo fetch. Generated native configuration must be rebuilt after these additions. No location, VPN-management, background-location, custom foreground service or permanent wakelock is requested by Noeting. WorkManager's standard permissions/services are verified separately in the APK; they do not imply physical execution. Its dependency manifest includes `WAKE_LOCK`, `RECEIVE_BOOT_COMPLETED`, `FOREGROUND_SERVICE`, `SystemJobService` and a standard `SystemForegroundService` declaration; Noeting does not start a persistent/expedited foreground worker or request an unrestricted wakelock. NetInfo adds network/Wi-Fi state; SecureStore declares biometric permissions without requiring interactive authentication. Existing notification-library permissions remain, with no new sync notifications or permission prompt.
+
+D-018 production security/recovery/encryption decisions remain open. SQLite, drafts and PC data remain unencrypted at rest; TLS/Keystore is not E2EE or a backup guarantee. History/tombstones and partial-transfer data are retained; native large-library resource behavior and real private routing need acceptance. Keep the development flag and PR draft.
+
+## Historical S1–S3 v2 architecture — D-028 (2026-10-19)
 
 ### Storage and transaction boundaries
 
@@ -59,7 +106,7 @@ Manual setup for a test-only deployment:
 
 Before two-way sync: immutable device ID and credentials with OS protected storage, DB transaction/outbox for changes, stable per-entity versioned events, deletions/tombstones, conflict preview and offline retry, multiple-client pairing/revocation, encryption/backup decision, real PC editor, and native/CI acceptance tests. The current server is for disposable test data only.
 
-## Current architecture — D-027/D-026, 0.10.3/schema v10
+## Inherited domain architecture — D-027/D-026, 0.10.3/schema v10
 
 Reliability maintenance (2026-10-18) preserves the same schema and public repository API. Historical migration SQL definitions live in `src/data/migrations.ts`; initialization, version ordering and transaction boundaries remain in `repository.ts`. Saved tab/search/folder context is isolated in `useListPreferences`: optional, shape-checked, cancellable during load and nonblocking on failure. Database/draft startup failures retain their separate retry paths; Back/modal handling remains in App.
 

@@ -1,5 +1,12 @@
 # Noeting — Documentation Change Log (started 2026-10-11)
 
+## 2026-10-19 — 0.11.0 automatic private Tailscale synchronization (development)
+
+- Add explicit protected-pairing consent, pinned canonical Serve origin, opt-in settings and generation-fenced off/disconnect/reauthorization; preserve v11 via additive orchestration schema v12.
+- Reuse v2 CAS/journal/conflicts with short repository transactions outside HTTP, recoverable SQLite lease, durable chunk progress, editor/draft barriers and bounded sessions.
+- Add committed-change debounce, resume/network hints, incremental foreground polling/backoff and global Android WorkManager execution (minimum 15 minutes, OS-delayed), SDK-compatible native adapters and tests.
+- Extend Notes → More → Sync with PC status/settings while retaining manual Sync now, PC editor/local saves and separate phone/admin roles. Version 0.11.0/code 21 distinguishes the new native test build.
+- Record D-029/private setup and separate physical checklist in existing documents. D-028 history and D-018 boundaries remain; draft PR/development flag/disposable-data restrictions continue. Exact executed evidence belongs to `06_CURRENT_STATE.md`.
 
 ## 2026-10-19 — Safe two-way sync development implementation
 

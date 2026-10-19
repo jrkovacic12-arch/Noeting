@@ -256,6 +256,18 @@ Authorize one-phone/one-PC, opt-in, Android-initiated bidirectional committed-co
 
 This authorizes synchronization, **not** accounts, guaranteed backups/disaster recovery, general restore/import, encryption-at-rest, production security acceptance, scheduled/background sync, AI/Ollama or an unrelated redesign. D-018 retains those separate deferrals/open decisions. HTTPS is transport protection and is not E2EE. Temporary memory-only client secrets avoid silently choosing persistent credential storage. Architecture/setup: `03_ARCHITECTURE.md`; acceptance: `07_V1_WORKFLOW_DRAFT.md`; verified status: `06_CURRENT_STATE.md`.
 
+
+## D-029 — Opt-in automatic synchronization only through private Tailscale (2026-10-19)
+
+- **Status:** Accepted direction; explicit latest user implementation task. Development implementation/evidence is recorded in `06_CURRENT_STATE.md`; physical/security acceptance is separate.
+- **Decision:** Extend existing PR #13 S1–S3 with Android-initiated automatic foreground and WorkManager background exchange over the exact paired private Tailscale Serve HTTPS origin. D-028's manual/no-background scope remains historical and unchanged; this new decision authorizes only this extension.
+- **Consent/security:** Pair explicitly, verify PC/library, pin canonical origin, separately consent to protected SecureStore phone-secret storage, then enable Automatic sync (default off). No public endpoints, redirects, fallback, Funnel, TLS bypass or insecure secret storage. Private Serve and restricted tailnet policies are mandatory. Missing/invalidated/revoked credentials stop safe unattended operation and require reauthorization.
+- **Scheduling:** Debounce committed journal changes about three seconds; launch/resume/network hints; configurable 60-second foreground incremental polling; inexact WorkManager attempts with minimum 15 minutes. No Android listener, push cloud, persistent foreground service, permanent notification or unrestricted wakelock. Battery/Doze/force-stop/VPN/lock constraints can postpone execution.
+- **Integrity:** Shared v2 orchestration uses short DB transactions outside HTTP, expiring/fenced cross-context leases, durable resumable budgets, CAS/idempotency and explicit conflicts. Recovery drafts and open editors are protected; no automatic commit/discard or conflict choice.
+- **Control:** OFF cancels automatic transfers/timers and unregisters jobs. Disconnect also removes protected credentials/origin while preserving domain, IDs and history. PC-side revocation remains separate. Manual Sync now and the localhost PC editor/auth split remain.
+- **Boundary:** Disposable tests, explicit server development flag and draft PR continue. No production acceptance, account/cloud/AI, backup guarantee or encryption-at-rest decision is implied. **D-018 remains unresolved/deferred.** Device acceptance must measure real WorkManager/private connectivity, not infer it from mocks or APK compilation.
+- **References:** `02_PRODUCT.md`, `03_ARCHITECTURE.md`, `07_V1_WORKFLOW_DRAFT.md`.
+
 ## Proposal register — accepted items reference decision records
 
 ### P-001 — Bounded background AI
