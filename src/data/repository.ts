@@ -1,8 +1,7 @@
 import { keyOf, type Change } from '../sync/schema';
 import { journal } from '../sync/records';
 import { SyncStore } from '../sync/store';
-import { migrationV11 } from '../sync/schema';
-import { migrationV1, migrationV2, migrationV3, migrationV4, migrationV5, migrationV6, migrationV7, migrationV8, migrationV9, migrationV10 } from "./migrations";
+import { migrationV1, migrationV2, migrationV3, migrationV4, migrationV5, migrationV6, migrationV7, migrationV8, migrationV9, migrationV10, migrationV11 } from "./migrations";
 export type EntryKind = "note" | "task";
 export type ThinkingKind = "reflection" | "creation";
 

@@ -64,6 +64,7 @@ export function useDraft(enabled: boolean) {
   function discard(context: string) { return store.discard(context); }
   return {
     get,
+    retained: () => Object.values(store.values),
     put,
     flush,
     discard,

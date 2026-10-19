@@ -175,3 +175,6 @@ export const migrationV9 = `
 `;
 
 export const migrationV10 = `ALTER TABLE note_folders ADD COLUMN pinned_at TEXT;`;
+
+// v11 generates canonical change-tracking triggers from the versioned sync schema.
+export { migrationV11 } from "../sync/schema";

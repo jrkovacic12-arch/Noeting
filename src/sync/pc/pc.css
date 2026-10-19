@@ -1,0 +1,134 @@
+:root {
+  color-scheme: light dark;
+  font: 16px system-ui;
+  --muted: #858585;
+}
+body {
+  margin: 0;
+  background: light-dark(#faf9f6, #171717);
+  color: light-dark(#20221f, #f3f3ee);
+}
+header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  max-width: 1200px;
+  margin: auto;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--muted);
+}
+h1 {
+  font-size: 25px;
+  letter-spacing: -1px;
+}
+header span {
+  flex: 1;
+  color: var(--muted);
+  font-size: 14px;
+}
+main {
+  max-width: 1200px;
+  margin: 24px auto;
+  padding: 0 24px;
+}
+nav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  border: 1px solid var(--muted);
+  border-radius: 8px;
+  padding: 10px;
+  min-height: 44px;
+}
+button {
+  cursor: pointer;
+  margin: 3px;
+  background: light-dark(#fff, #292929);
+  color: inherit;
+}
+button:hover {
+  border-color: #699b69;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+input,
+textarea,
+select {
+  background: transparent;
+  color: inherit;
+}
+label {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  margin: 5px;
+}
+textarea {
+  box-sizing: border-box;
+  min-height: 240px;
+  width: 100%;
+  resize: vertical;
+  line-height: 1.6;
+  margin: 12px 0;
+}
+.columns {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 2fr;
+  gap: 28px;
+  margin: 24px 0;
+}
+#list button {
+  display: block;
+  text-align: left;
+  width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+#detail {
+  padding: 16px;
+  border: 1px solid var(--muted);
+  border-radius: 12px;
+  min-height: 240px;
+}
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  font-size: 14px;
+  padding: 12px;
+  background: light-dark(#eee, #222);
+  border-radius: 8px;
+}
+#message {
+  white-space: pre-wrap;
+  color: light-dark(#7b3618, #ffbb99);
+}
+article {
+  padding: 16px 0;
+  border-top: 1px solid var(--muted);
+}
+p {
+  line-height: 1.5;
+}
+small {
+  color: var(--muted);
+}
+@media (max-width: 650px) {
+  .columns {
+    grid-template-columns: 1fr;
+  }
+  header {
+    gap: 8px;
+  }
+  header span {
+    font-size: 12px;
+  }
+}

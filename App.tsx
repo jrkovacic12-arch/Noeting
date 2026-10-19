@@ -1,6 +1,6 @@
 import { randomUUID } from "expo-crypto";
-import Storage from "expo-sqlite/kv-store";
-import { createMirror, publishMirror } from "./src/sync/mirror";
+import { syncNow, httpsRPC, resolveConflict, keepBoth } from "./src/sync/client";
+import type { Conflict } from "./src/sync/store";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useListPreferences } from "./src/ui/useListPreferences";
 import {
@@ -81,25 +81,35 @@ function Noeting() {
   const [syncToken, setSyncToken] = useState("");
   const [syncRunning, setSyncRunning] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
-  async function sendMirror() {
-    if (!repo || syncRunning || busy) return;
-    setSyncRunning(true);
-    setSyncMessage(null);
+  const [syncStatus, setSyncStatus] = useState<{pending:number;conflicts:number;peer_id:string|null;last_success:string|null}|null>(null);
+  const [syncConflicts, setSyncConflicts] = useState<Conflict[]>([]);
+  const syncLock = useRef(false);
+  async function refreshSync() {
+    if (!repo) return;
+    const result = await repo.sync(async store => ({status:await store.status(),conflicts:await store.conflicts()}));
+    setSyncStatus(result.status); setSyncConflicts(result.conflicts);
+  }
+  useEffect(() => { if(menu === "sync") void refreshSync().catch(() => setSyncMessage("Could not read sync status. Retry opening Sync with PC.")); else setSyncToken(""); }, [menu,repo]);
+  async function runSync(initialize=false, conflictId?:string, choice?:'android'|'pc'|'both') {
+    if (!repo || syncLock.current || busy) return;
+    syncLock.current=true;setSyncRunning(true);setSyncMessage(null);
     try {
-      if (!(await drafts.flush())) throw new Error("Unsaved draft. Retry before syncing.");
-      let deviceId = await Storage.getItem("noeting.sync-mirror-device.v1");
-      if (!deviceId) {
-        deviceId = randomUUID();
-        await Storage.setItem("noeting.sync-mirror-device.v1", deviceId);
-      }
-      const snapshot = await repo.readSnapshot();
-      const mirror = createMirror(snapshot, deviceId);
-      await publishMirror(syncUrl, syncToken, mirror);
-      setSyncMessage(`Sent ${mirror.entries.length} entries to PC (read-only preview).`);
+      if (!(await drafts.flush())) throw new Error("Draft storage failed. Retry before syncing.");
+      const committed = await repo.readSnapshot();
+      const pendingEdits = drafts.retained().filter(d => d && d.editEntryId && committed.entries.find(e => e.id===d.editEntryId)?.text!==d.text);
+      if (pendingEdits.length || editorContext || notes.length || taskRoutes.length) throw new Error("Unsaved editor text is retained. Open the affected entry, save or retry it, then return to Notes and sync.");
+      const rpc=httpsRPC(syncUrl,syncToken);
+      if(conflictId && choice==='both') await keepBoth(repo,rpc,conflictId);
+      else if(conflictId && (choice==='android'||choice==='pc')) await resolveConflict(repo,rpc,conflictId,choice);
+      else await syncNow(repo,rpc,initialize);
+      setData(await repo.readSnapshot());
+      setSyncMessage("Sync complete. PC edits arrive when Android runs Sync now.");
     } catch (error) {
-      setSyncMessage(error instanceof Error ? error.message : "PC mirror failed.");
+      setSyncMessage(error instanceof Error ? error.message : "Sync failed. Local changes are retained; retry.");
+      setData(await repo.readSnapshot());
     } finally {
-      setSyncRunning(false);
+      await refreshSync().catch(() => undefined);
+      syncLock.current=false;setSyncRunning(false);
     }
   }
   useEffect(() => {
@@ -205,6 +215,7 @@ function Noeting() {
   useEffect(() => {
     const listener = BackHandler.addEventListener("hardwareBackPress", () => {
       if (menu) {
+        if(syncLock.current)return true;
         setMenu(null);
         return true;
       }
@@ -743,7 +754,7 @@ function Noeting() {
           <NoteEditor {...editorProps} onDismiss={hideEditor} />
         )}
         {menu && (
-          <Popover onClose={() => setMenu(null)}>
+          <Popover onClose={() => {if(!syncLock.current)setMenu(null);}}>
             <ScrollView keyboardShouldPersistTaps="handled">
               {menu === "notes" ? (
                 <>
@@ -757,24 +768,38 @@ function Noeting() {
                       setRecent(true);
                     }}
                   />
-                  <Button quiet label="Sync preview to PC" onPress={() => {setSyncMessage(null);setMenu("sync");}} />
+                  <Button quiet label="Sync with PC" onPress={() => {setSyncMessage(null);setMenu("sync");}} />
                 </>
               ) : menu === "sync" ? (
                 <>
-                  <Text accessibilityRole="header" style={styles.section}>PC sync preview</Text>
-                  <Text style={styles.hint}>Manually send active Notes and Tasks to your authenticated PC mirror. PC edits will not sync back yet. Use an HTTPS address such as Tailscale Serve. Never expose the receiver publicly.</Text>
+                  <Text accessibilityRole="header" style={styles.section}>Sync with PC</Text>
+                  <Text style={styles.hint}>Disposable test data only. Android initiates both directions. Run the localhost PC server behind trusted HTTPS, then enter its address and temporary secret. This is not a guaranteed backup or end-to-end encryption.</Text>
+                  <Text style={styles.hint}>{syncStatus?.peer_id ? "Paired PC identity saved" : "Not initialized"} · {syncStatus?.pending ?? 0} pending changes · {syncStatus?.conflicts ?? 0} conflicts</Text>
+                  <Text style={styles.hint}>Last successful sync: {syncStatus?.last_success ?? "Never"}</Text>
                   <TextInput accessibilityLabel="PC HTTPS address" placeholder="https://your-pc.example/"
-                    autoCapitalize="none" autoCorrect={false} value={syncUrl} onChangeText={setSyncUrl}
+                    autoCapitalize="none" autoCorrect={false} value={syncUrl} onChangeText={setSyncUrl} editable={!syncRunning}
                     style={[styles.search, { marginHorizontal: 0 }]} />
-                  <TextInput accessibilityLabel="PC pairing token" placeholder="Pairing token (32+ characters)"
-                    autoCapitalize="none" autoCorrect={false} secureTextEntry value={syncToken} onChangeText={setSyncToken}
+                  <TextInput accessibilityLabel="PC pairing token" placeholder="Temporary pairing secret (32+ characters)"
+                    autoCapitalize="none" autoCorrect={false} secureTextEntry value={syncToken} onChangeText={setSyncToken} editable={!syncRunning}
                     style={[styles.search, { marginHorizontal: 0 }]} />
-                  <Button label={syncRunning ? "Syncing…" : "Send to PC"} disabled={syncRunning || busy}
-                    onPress={() => void sendMirror()} />
+                  <Button label={syncRunning ? "Syncing…" : "Sync now"} disabled={syncRunning || busy}
+                    onPress={() => void runSync()} />
+                  {!syncStatus?.peer_id && <Button quiet label="Initialize empty PC from Android" disabled={syncRunning || busy} onPress={() => void runSync(true)} />}
+                  {syncConflicts.map(conflict => <View key={conflict.operation.id}>
+                    <Text accessibilityRole="header" style={styles.section}>Unresolved conflict</Text>
+                    <Text style={styles.hint}>{conflict.reason}. Choices resolve this entire transaction.</Text>
+                    <Text style={styles.cardText}>Android submitted version</Text>
+                    <Text selectable style={styles.hint}>{JSON.stringify(conflict.operation.changes,null,2)}</Text>
+                    <Text style={styles.cardText}>PC version at conflict</Text>
+                    <Text selectable style={styles.hint}>{JSON.stringify(conflict.current,null,2)}</Text>
+                    <Button label="Keep Android version" disabled={syncRunning} onPress={() => void runSync(false,conflict.operation.id,'android')} />
+                    <Button label="Keep PC version" disabled={syncRunning || conflict.current.some(c=>c.value===null&&c.table!=='note_folders')} onPress={() => void runSync(false,conflict.operation.id,'pc')} />
+                    {conflict.operation.changes.filter(c=>c.table==='entries').length===1 && conflict.operation.changes.some(c=>c.table==='entries'&&c.value?.kind==='note'&&c.value.removed_at===null) && conflict.operation.changes.every(c=>['entries','note_organization'].includes(c.table)) && !data.entries.find(e=>e.id===conflict.operation.changes.find(c=>c.table==='entries')?.id)?.sourceEntryId && <Button label="Keep both as separate Notes" disabled={syncRunning} onPress={() => void runSync(false,conflict.operation.id,'both')} />}
+                  </View>)}
                   {syncMessage && <Text accessibilityRole="alert" style={styles.hint}>{syncMessage}</Text>}
-                  <Button quiet label="Close PC sync" disabled={syncRunning} onPress={() => {setSyncToken("");setMenu(null);}} />
+                  <Button quiet label="Disconnect / close PC sync" disabled={syncRunning} onPress={() => {setSyncToken("");setMenu(null);}} />
+                  <Text style={styles.hint}>Secrets are never saved. Disconnect clears this session secret. To revoke the phone, use Revoke paired phone on the PC. Library identity and unsent changes remain.</Text>
                 </>
-              
               ) : menu === "delete-folders" ? (
                 <>
                   <Text accessibilityRole="header" style={styles.cardText}>Delete {folderSelection.size} {folderSelection.size === 1 ? "folder" : "folders"}?</Text>
