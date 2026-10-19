@@ -1,7 +1,9 @@
 import { randomUUID } from "expo-crypto";
-import { syncNow, httpsRPC, resolveConflict, keepBoth } from "./src/sync/client";
+import { readSettings, type AutoSettings } from "./src/sync/configuration";
+import { SyncError, safeReason } from "./src/sync/errors";
+import { useSyncRuntime } from "./src/ui/useSyncRuntime";
 import type { Conflict } from "./src/sync/store";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useListPreferences } from "./src/ui/useListPreferences";
 import {
   ActivityIndicator,
@@ -55,7 +57,16 @@ function Noeting() {
   const [notes, setNotes] = useState<NoteRoute[]>([]);
   const [taskRoutes, setTaskRoutes] = useState<TaskRoute[]>([]);
   const drafts = useDraft(!!repo);
-  const { tab, setTab, queries, setQueries, folder, setFolder, preferencesReady, preferenceWarning } = useListPreferences(drafts.ready);
+  const {
+    tab,
+    setTab,
+    queries,
+    setQueries,
+    folder,
+    setFolder,
+    preferencesReady,
+    preferenceWarning,
+  } = useListPreferences(drafts.ready);
   const [editorContext, setEditorContext] = useState<string | null>(null);
   const draft = editorContext ? drafts.get(editorContext) : null;
   const [busy, setBusy] = useState(false);
@@ -67,12 +78,20 @@ function Noeting() {
   const [removal, setRemoval] = useState<Removal[] | null>(null);
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [foldersScreen, setFoldersScreen] = useState(false);
-  const [folderSelection, setFolderSelection] = useState<Set<string>>(new Set());
+  const [folderSelection, setFolderSelection] = useState<Set<string>>(
+    new Set(),
+  );
   const [selectingFolders, setSelectingFolders] = useState(false);
   const [recent, setRecent] = useState(false);
   const [recentQuery, setRecentQuery] = useState("");
   const [menu, setMenu] = useState<
-    "notes" | "sync" | "new-folder" | "delete-folders" | "rename" | "move" | null
+    | "notes"
+    | "sync"
+    | "new-folder"
+    | "delete-folders"
+    | "rename"
+    | "move"
+    | null
   >(null);
   const [folderTarget, setFolderTarget] = useState<string | null>(null);
   const [folderName, setFolderName] = useState("");
@@ -81,35 +100,122 @@ function Noeting() {
   const [syncToken, setSyncToken] = useState("");
   const [syncRunning, setSyncRunning] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
-  const [syncStatus, setSyncStatus] = useState<{pending:number;conflicts:number;peer_id:string|null;last_success:string|null}|null>(null);
+  const [syncStatus, setSyncStatus] = useState<{
+    pending: number;
+    conflicts: number;
+    peer_id: string | null;
+    last_success: string | null;
+  } | null>(null);
   const [syncConflicts, setSyncConflicts] = useState<Conflict[]>([]);
   const syncLock = useRef(false);
+  const [autoSettings, setAutoSettings] = useState<AutoSettings | null>(null);
+  const [pollSeconds, setPollSeconds] = useState("60");
+  const {
+    runtime,
+    ready: syncReady,
+    issue: syncIssue,
+    retry: syncRetry,
+  } = useSyncRuntime(repo, async () => {
+    if (repo) setData(await repo.readSnapshot());
+    await refreshSync();
+  });
+  const editorWasOpen = useRef(false);
+  useLayoutEffect(() => {
+    if (!runtime) return;
+    const editing = !!(editorContext || notes.length || taskRoutes.length);
+    runtime.gate.editing = editing;
+    if (editorWasOpen.current && !editing)
+      runtime.foreground.trigger("resume", 0);
+    editorWasOpen.current = editing;
+  });
+  const transferring = syncRunning || !!runtime?.running;
+  async function configureSync(action: () => Promise<unknown>) {
+    if (syncLock.current) return;
+    syncLock.current = true;
+    setSyncRunning(true);
+    setSyncMessage(null);
+    try {
+      await action();
+      setSyncToken("");
+    } catch (error) {
+      setSyncMessage(safeReason(error));
+    } finally {
+      await refreshSync().catch(() => undefined);
+      syncLock.current = false;
+      setSyncRunning(false);
+    }
+  }
   async function refreshSync() {
     if (!repo) return;
-    const result = await repo.sync(async store => ({status:await store.status(),conflicts:await store.conflicts()}));
-    setSyncStatus(result.status); setSyncConflicts(result.conflicts);
+    const result = await repo.sync(async (store) => ({
+      status: await store.status(),
+      conflicts: await store.conflicts(),
+      settings: await readSettings(store),
+    }));
+    setSyncStatus(result.status);
+    setSyncConflicts(result.conflicts);
+    setAutoSettings(result.settings);
   }
-  useEffect(() => { if(menu === "sync") void refreshSync().catch(() => setSyncMessage("Could not read sync status. Retry opening Sync with PC.")); else setSyncToken(""); }, [menu,repo]);
-  async function runSync(initialize=false, conflictId?:string, choice?:'android'|'pc'|'both') {
-    if (!repo || syncLock.current || busy) return;
-    syncLock.current=true;setSyncRunning(true);setSyncMessage(null);
+  useEffect(() => {
+    if (menu === "sync")
+      void refreshSync()
+        .then(async () => {
+          const settings = await runtime?.configuration.load();
+          if (settings?.origin) setSyncUrl(settings.origin);
+          setPollSeconds(String((settings?.poll_ms ?? 60000) / 1000));
+        })
+        .catch(() =>
+          setSyncMessage(
+            "Could not read sync status. Retry opening Sync with PC.",
+          ),
+        );
+    else setSyncToken("");
+  }, [menu, repo]);
+  async function runSync(
+    initialize = false,
+    conflictId?: string,
+    choice?: "android" | "pc" | "both",
+  ) {
+    if (!repo || !runtime || syncLock.current || busy) return;
+    syncLock.current = true;
+    setSyncRunning(true);
+    setSyncMessage(null);
     try {
-      if (!(await drafts.flush())) throw new Error("Draft storage failed. Retry before syncing.");
+      if (!(await drafts.flush()))
+        throw new SyncError(
+          "drafts",
+          "Draft storage failed. Retry before syncing.",
+        );
       const committed = await repo.readSnapshot();
-      const pendingEdits = drafts.retained().filter(d => d && d.editEntryId && committed.entries.find(e => e.id===d.editEntryId)?.text!==d.text);
-      if (pendingEdits.length || editorContext || notes.length || taskRoutes.length) throw new Error("Unsaved editor text is retained. Open the affected entry, save or retry it, then return to Notes and sync.");
-      const rpc=httpsRPC(syncUrl,syncToken);
-      if(conflictId && choice==='both') await keepBoth(repo,rpc,conflictId);
-      else if(conflictId && (choice==='android'||choice==='pc')) await resolveConflict(repo,rpc,conflictId,choice);
-      else await syncNow(repo,rpc,initialize);
+      const pendingEdits = drafts
+        .retained()
+        .filter(
+          (d) =>
+            d &&
+            d.editEntryId &&
+            committed.entries.find((e) => e.id === d.editEntryId)?.text !==
+              d.text,
+        );
+      if (
+        pendingEdits.length ||
+        editorContext ||
+        notes.length ||
+        taskRoutes.length
+      )
+        throw new SyncError(
+          "drafts",
+          "Unsaved editor text is retained. Open the affected entry, save or retry it, then return to Notes and sync.",
+        );
+      await runtime.manual(syncUrl, syncToken, initialize, conflictId, choice);
       setData(await repo.readSnapshot());
-      setSyncMessage("Sync complete. PC edits arrive when Android runs Sync now.");
+      setSyncMessage("Sync attempt finished. Review status and conflicts.");
     } catch (error) {
-      setSyncMessage(error instanceof Error ? error.message : "Sync failed. Local changes are retained; retry.");
+      setSyncMessage(safeReason(error));
       setData(await repo.readSnapshot());
     } finally {
       await refreshSync().catch(() => undefined);
-      syncLock.current=false;setSyncRunning(false);
+      syncLock.current = false;
+      setSyncRunning(false);
     }
   }
   useEffect(() => {
@@ -185,8 +291,18 @@ function Noeting() {
   const selectedChildren = children.get(selectedTask?.id ?? "") ?? [];
   async function safeNavigate(action: () => void) {
     if (operations.current || cancellingDraft) return;
-    if (await drafts.flush()) action();
-    else setError("Unsaved draft. Retry before leaving.");
+    if (!(await drafts.flush())) {
+      setError("Unsaved draft. Retry before leaving.");
+      return;
+    }
+    try {
+      if (runtime) await runtime.navigate(action, setData);
+      else action();
+    } catch {
+      setError(
+        "Could not coordinate saved data. Your draft is retained; retry navigation.",
+      );
+    }
   }
   function backNote() {
     void safeNavigate(() => {
@@ -215,7 +331,7 @@ function Noeting() {
   useEffect(() => {
     const listener = BackHandler.addEventListener("hardwareBackPress", () => {
       if (menu) {
-        if(syncLock.current)return true;
+        if (syncLock.current) return true;
         setMenu(null);
         return true;
       }
@@ -255,7 +371,17 @@ function Noeting() {
       return false;
     });
     return () => listener.remove();
-  }, [menu, editorContext, taskRoutes, notes, selection, recent, tab, foldersScreen, selectingFolders]);
+  }, [
+    menu,
+    editorContext,
+    taskRoutes,
+    notes,
+    selection,
+    recent,
+    tab,
+    foldersScreen,
+    selectingFolders,
+  ]);
   useEffect(() => {
     if (typeof document === "undefined") return;
     const handler = (event: KeyboardEvent) => {
@@ -469,11 +595,12 @@ function Noeting() {
       setMenuError(null);
       setMenu("rename");
     } else if (action === "delete") setMenu("delete-folders");
-    else run(async (r) => {
-      await r.pinFolders([...folderSelection], action === "pin");
-      setFolderSelection(new Set());
-      setSelectingFolders(false);
-    });
+    else
+      run(async (r) => {
+        await r.pinFolders([...folderSelection], action === "pin");
+        setFolderSelection(new Set());
+        setSelectingFolders(false);
+      });
   }
   async function folderSave() {
     if (busy) return;
@@ -502,17 +629,18 @@ function Noeting() {
             modalVisible ? "no-hide-descendants" : "auto"
           }
         >
-          {!repo || !drafts.ready || !preferencesReady ? (
+          {!repo || !drafts.ready || !preferencesReady || !syncReady ? (
             <View style={styles.empty}>
-              {error || drafts.error ? (
+              {error || drafts.error || syncIssue ? (
                 <>
                   <Text accessibilityRole="alert" style={styles.error}>
-                    {error ?? drafts.error}
+                    {error ?? drafts.error ?? syncIssue}
                   </Text>
                   <Button
                     label="Retry"
                     onPress={() => {
                       drafts.retry();
+                      syncRetry();
                       setAttempt((v) => v + 1);
                     }}
                   />
@@ -527,11 +655,13 @@ function Noeting() {
           ) : (
             <>
               {preferenceWarning && (
-                <Text accessibilityRole="alert" style={styles.error}>{preferenceWarning}</Text>
+                <Text accessibilityRole="alert" style={styles.error}>
+                  {preferenceWarning}
+                </Text>
               )}
               {(error || drafts.error) && (
                 <Text accessibilityRole="alert" style={styles.error}>
-                  {error ?? drafts.error}
+                  {error ?? drafts.error ?? syncIssue}
                 </Text>
               )}
               {drafts.error && (
@@ -576,23 +706,33 @@ function Noeting() {
                 />
               ) : foldersScreen ? (
                 <FolderScreen
-                  folders={data.folders ?? []} entries={data.entries} folder={folder}
-                  selection={folderSelection} selecting={selectingFolders} busy={busy}
+                  folders={data.folders ?? []}
+                  entries={data.entries}
+                  folder={folder}
+                  selection={folderSelection}
+                  selecting={selectingFolders}
+                  busy={busy}
                   onBack={backFolders}
                   onSelect={(id) => {
                     setSelectingFolders(true);
                     setFolderSelection((old) => {
                       const next = new Set(old);
-                      if (next.has(id)) next.delete(id); else next.add(id);
+                      if (next.has(id)) next.delete(id);
+                      else next.add(id);
                       return next;
                     });
                   }}
-                  onChoose={(id) => { setFolder(id); setFoldersScreen(false); }}
+                  onChoose={(id) => {
+                    setFolder(id);
+                    setFoldersScreen(false);
+                  }}
                   onManage={() => setSelectingFolders(true)}
                   onAction={folderAction}
                   onNew={() => {
-                    setFolderTarget(randomUUID()); setFolderName("");
-                    setMenuError(null); setMenu("new-folder");
+                    setFolderTarget(randomUUID());
+                    setFolderName("");
+                    setMenuError(null);
+                    setMenu("new-folder");
                   }}
                 />
               ) : (
@@ -631,10 +771,14 @@ function Noeting() {
                       setSelection(new Set());
                       setFolder(id);
                     }}
-                    onFolders={() => void safeNavigate(() => {
-                      setSelection(new Set()); setFoldersScreen(true);
-                      setFolderSelection(new Set()); setSelectingFolders(false);
-                    })}
+                    onFolders={() =>
+                      void safeNavigate(() => {
+                        setSelection(new Set());
+                        setFoldersScreen(true);
+                        setFolderSelection(new Set());
+                        setSelectingFolders(false);
+                      })
+                    }
                     selection={selection}
                     onSelect={(id) =>
                       setSelection((old) => {
@@ -754,7 +898,11 @@ function Noeting() {
           <NoteEditor {...editorProps} onDismiss={hideEditor} />
         )}
         {menu && (
-          <Popover onClose={() => {if(!syncLock.current)setMenu(null);}}>
+          <Popover
+            onClose={() => {
+              if (!syncLock.current) setMenu(null);
+            }}
+          >
             <ScrollView keyboardShouldPersistTaps="handled">
               {menu === "notes" ? (
                 <>
@@ -768,70 +916,302 @@ function Noeting() {
                       setRecent(true);
                     }}
                   />
-                  <Button quiet label="Sync with PC" onPress={() => {setSyncMessage(null);setMenu("sync");}} />
+                  <Button
+                    quiet
+                    label="Sync with PC"
+                    onPress={() => {
+                      setSyncMessage(null);
+                      setMenu("sync");
+                    }}
+                  />
                 </>
               ) : menu === "sync" ? (
                 <>
-                  <Text accessibilityRole="header" style={styles.section}>Sync with PC</Text>
-                  <Text style={styles.hint}>Disposable test data only. Android initiates both directions. Run the localhost PC server behind trusted HTTPS, then enter its address and temporary secret. This is not a guaranteed backup or end-to-end encryption.</Text>
-                  <Text style={styles.hint}>{syncStatus?.peer_id ? "Paired PC identity saved" : "Not initialized"} · {syncStatus?.pending ?? 0} pending changes · {syncStatus?.conflicts ?? 0} conflicts</Text>
-                  <Text style={styles.hint}>Last successful sync: {syncStatus?.last_success ?? "Never"}</Text>
-                  <TextInput accessibilityLabel="PC HTTPS address" placeholder="https://your-pc.example/"
-                    autoCapitalize="none" autoCorrect={false} value={syncUrl} onChangeText={setSyncUrl} editable={!syncRunning}
-                    style={[styles.search, { marginHorizontal: 0 }]} />
-                  <TextInput accessibilityLabel="PC pairing token" placeholder="Temporary pairing secret (32+ characters)"
-                    autoCapitalize="none" autoCorrect={false} secureTextEntry value={syncToken} onChangeText={setSyncToken} editable={!syncRunning}
-                    style={[styles.search, { marginHorizontal: 0 }]} />
-                  <Button label={syncRunning ? "Syncing…" : "Sync now"} disabled={syncRunning || busy}
-                    onPress={() => void runSync()} />
-                  {!syncStatus?.peer_id && <Button quiet label="Initialize empty PC from Android" disabled={syncRunning || busy} onPress={() => void runSync(true)} />}
-                  {syncConflicts.map(conflict => <View key={conflict.operation.id}>
-                    <Text accessibilityRole="header" style={styles.section}>Unresolved conflict</Text>
-                    <Text style={styles.hint}>{conflict.reason}. Choices resolve this entire transaction.</Text>
-                    <Text style={styles.cardText}>Android submitted version</Text>
-                    <Text selectable style={styles.hint}>{JSON.stringify(conflict.operation.changes,null,2)}</Text>
-                    <Text style={styles.cardText}>PC version at conflict</Text>
-                    <Text selectable style={styles.hint}>{JSON.stringify(conflict.current,null,2)}</Text>
-                    <Button label="Keep Android version" disabled={syncRunning} onPress={() => void runSync(false,conflict.operation.id,'android')} />
-                    <Button label="Keep PC version" disabled={syncRunning || conflict.current.some(c=>c.value===null&&c.table!=='note_folders')} onPress={() => void runSync(false,conflict.operation.id,'pc')} />
-                    {conflict.operation.changes.filter(c=>c.table==='entries').length===1 && conflict.operation.changes.some(c=>c.table==='entries'&&c.value?.kind==='note'&&c.value.removed_at===null) && conflict.operation.changes.every(c=>['entries','note_organization'].includes(c.table)) && !data.entries.find(e=>e.id===conflict.operation.changes.find(c=>c.table==='entries')?.id)?.sourceEntryId && <Button label="Keep both as separate Notes" disabled={syncRunning} onPress={() => void runSync(false,conflict.operation.id,'both')} />}
-                  </View>)}
-                  {syncMessage && <Text accessibilityRole="alert" style={styles.hint}>{syncMessage}</Text>}
-                  <Button quiet label="Disconnect / close PC sync" disabled={syncRunning} onPress={() => {setSyncToken("");setMenu(null);}} />
-                  <Text style={styles.hint}>Secrets are never saved. Disconnect clears this session secret. To revoke the phone, use Revoke paired phone on the PC. Library identity and unsent changes remain.</Text>
+                  <Text accessibilityRole="header" style={styles.section}>
+                    Sync with PC
+                  </Text>
+                  <Text style={styles.hint}>
+                    Disposable test data only. Pair through private Tailscale
+                    Serve with Funnel off and restricted tailnet access. Android
+                    initiates transfers; the PC server and Tailscale must be
+                    running. This is not a backup or end-to-end encryption.
+                  </Text>
+                  <Text style={styles.hint}>
+                    {syncStatus?.peer_id
+                      ? "Paired PC identity saved"
+                      : "Not initialized"}{" "}
+                    · {syncStatus?.pending ?? 0} pending changes ·{" "}
+                    {syncStatus?.conflicts ?? 0} conflicts
+                  </Text>
+                  <Text style={styles.hint}>
+                    Last successful sync: {syncStatus?.last_success ?? "Never"}
+                  </Text>
+                  <TextInput
+                    accessibilityLabel="PC HTTPS address"
+                    placeholder="https://your-pc.your-tailnet.ts.net/"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    value={syncUrl}
+                    onChangeText={setSyncUrl}
+                    editable={!transferring && !autoSettings?.origin}
+                    style={[styles.search, { marginHorizontal: 0 }]}
+                  />
+                  <TextInput
+                    accessibilityLabel="PC pairing token"
+                    placeholder={
+                      autoSettings?.credential_key
+                        ? "Saved securely; enter a new secret to reauthorize"
+                        : "Pairing secret (32+ characters)"
+                    }
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    secureTextEntry
+                    value={syncToken}
+                    onChangeText={setSyncToken}
+                    editable={!transferring}
+                    style={[styles.search, { marginHorizontal: 0 }]}
+                  />
+                  <Text style={styles.hint}>
+                    Last attempt: {autoSettings?.last_attempt ?? "Never"} ·{" "}
+                    {autoSettings?.last_reason ?? "Automatic sync off."}
+                  </Text>
+                  {!!autoSettings?.auth_required && (
+                    <Text style={styles.hint}>
+                      Sync requires authentication. Enter the current secret and
+                      save pairing again.
+                    </Text>
+                  )}
+                  <Button
+                    quiet
+                    label="Save pairing securely for automatic sync"
+                    disabled={
+                      transferring || !syncStatus?.peer_id || !syncToken
+                    }
+                    onPress={() =>
+                      void configureSync(() =>
+                        runtime!.savePairing(syncUrl, syncToken),
+                      )
+                    }
+                  />
+                  <Pressable
+                    accessibilityRole="switch"
+                    accessibilityLabel="Automatic sync"
+                    accessibilityState={{
+                      checked: !!autoSettings?.enabled,
+                      disabled:
+                        syncRunning ||
+                        (!autoSettings?.enabled &&
+                          (!autoSettings?.credential_key ||
+                            !!autoSettings?.auth_required)),
+                    }}
+                    disabled={
+                      syncRunning ||
+                      (!autoSettings?.enabled &&
+                        (!autoSettings?.credential_key ||
+                          !!autoSettings?.auth_required))
+                    }
+                    onPress={() =>
+                      void configureSync(() =>
+                        runtime!.setAutomatic(!autoSettings?.enabled),
+                      )
+                    }
+                    style={styles.row}
+                  >
+                    <Text style={styles.cardText}>
+                      Automatic sync {autoSettings?.enabled ? "on" : "off"}
+                    </Text>
+                  </Pressable>
+                  <Text style={styles.hint}>
+                    {runtime?.backgroundMessage ||
+                      "Automatic sync requires native protected credential storage. Foreground polling starts at 60 seconds; Android background work is inexact, at least 15 minutes apart."}
+                  </Text>
+                  <TextInput
+                    accessibilityLabel="Foreground sync interval seconds"
+                    keyboardType="number-pad"
+                    value={pollSeconds}
+                    onChangeText={setPollSeconds}
+                    style={[styles.search, { marginHorizontal: 0 }]}
+                  />
+                  <Button
+                    quiet
+                    label="Save foreground interval"
+                    disabled={transferring}
+                    onPress={() =>
+                      void configureSync(() =>
+                        runtime!.setPollSeconds(Number(pollSeconds)),
+                      )
+                    }
+                  />
+                  <Button
+                    label={transferring ? "Syncing…" : "Sync now"}
+                    disabled={transferring || busy}
+                    onPress={() => void runSync()}
+                  />
+                  {!syncStatus?.peer_id && (
+                    <Button
+                      quiet
+                      label="Initialize empty PC from Android"
+                      disabled={transferring || busy}
+                      onPress={() => void runSync(true)}
+                    />
+                  )}
+                  {syncConflicts.map((conflict) => (
+                    <View key={conflict.operation.id}>
+                      <Text accessibilityRole="header" style={styles.section}>
+                        Unresolved conflict
+                      </Text>
+                      <Text style={styles.hint}>
+                        {conflict.reason}. Choices resolve this entire
+                        transaction.
+                      </Text>
+                      <Text style={styles.cardText}>
+                        Android submitted version
+                      </Text>
+                      <Text selectable style={styles.hint}>
+                        {JSON.stringify(conflict.operation.changes, null, 2)}
+                      </Text>
+                      <Text style={styles.cardText}>
+                        PC version at conflict
+                      </Text>
+                      <Text selectable style={styles.hint}>
+                        {JSON.stringify(conflict.current, null, 2)}
+                      </Text>
+                      <Button
+                        label="Keep Android version"
+                        disabled={transferring}
+                        onPress={() =>
+                          void runSync(false, conflict.operation.id, "android")
+                        }
+                      />
+                      <Button
+                        label="Keep PC version"
+                        disabled={
+                          transferring ||
+                          conflict.current.some(
+                            (c) =>
+                              c.value === null && c.table !== "note_folders",
+                          )
+                        }
+                        onPress={() =>
+                          void runSync(false, conflict.operation.id, "pc")
+                        }
+                      />
+                      {conflict.operation.changes.filter(
+                        (c) => c.table === "entries",
+                      ).length === 1 &&
+                        conflict.operation.changes.some(
+                          (c) =>
+                            c.table === "entries" &&
+                            c.value?.kind === "note" &&
+                            c.value.removed_at === null,
+                        ) &&
+                        conflict.operation.changes.every((c) =>
+                          ["entries", "note_organization"].includes(c.table),
+                        ) &&
+                        !data.entries.find(
+                          (e) =>
+                            e.id ===
+                            conflict.operation.changes.find(
+                              (c) => c.table === "entries",
+                            )?.id,
+                        )?.sourceEntryId && (
+                          <Button
+                            label="Keep both as separate Notes"
+                            disabled={transferring}
+                            onPress={() =>
+                              void runSync(false, conflict.operation.id, "both")
+                            }
+                          />
+                        )}
+                    </View>
+                  ))}
+                  {syncMessage && (
+                    <Text accessibilityRole="alert" style={styles.hint}>
+                      {syncMessage}
+                    </Text>
+                  )}
+                  <Button
+                    quiet
+                    label="Disconnect paired PC"
+                    disabled={syncRunning || (!autoSettings?.origin && !autoSettings?.credential_key)}
+                    onPress={() =>
+                      void configureSync(async () => {
+                        await runtime!.disconnect();
+                        setSyncUrl("");
+                      })
+                    }
+                  />
+                  <Button
+                    quiet
+                    label="Close PC sync"
+                    disabled={syncRunning}
+                    onPress={() => {
+                      setSyncToken("");
+                      setMenu(null);
+                    }}
+                  />
+                  <Text style={styles.hint}>
+                    Saving pairing explicitly consents to protected credential
+                    storage. Turning automatic sync off cancels scheduled work.
+                    Disconnect also clears the saved secret and address, while
+                    preserving Notes, Tasks, identities and sync history. To
+                    revoke phone access, use Revoke paired phone on the PC. Lock
+                    state, battery settings, force-stop and an unavailable VPN
+                    can delay Android background work.
+                  </Text>
                 </>
               ) : menu === "delete-folders" ? (
                 <>
-                  <Text accessibilityRole="header" style={styles.cardText}>Delete {folderSelection.size} {folderSelection.size === 1 ? "folder" : "folders"}?</Text>
-                  <Text style={styles.hint}>Your notes will move to Uncategorized. No notes will be deleted.</Text>
-                  <Button label="Cancel" disabled={busy} onPress={() => setMenu(null)} />
-                  <Button label="Delete folders" danger disabled={busy} onPress={() => run(async (r) => {
-                    await r.removeFolders([...folderSelection]);
-                    if (folderSelection.has(folder)) setFolder("unfiled");
-                    setFolderSelection(new Set()); setSelectingFolders(false); setMenu(null);
-                  })} />
+                  <Text accessibilityRole="header" style={styles.cardText}>
+                    Delete {folderSelection.size}{" "}
+                    {folderSelection.size === 1 ? "folder" : "folders"}?
+                  </Text>
+                  <Text style={styles.hint}>
+                    Your notes will move to Uncategorized. No notes will be
+                    deleted.
+                  </Text>
+                  <Button
+                    label="Cancel"
+                    disabled={busy}
+                    onPress={() => setMenu(null)}
+                  />
+                  <Button
+                    label="Delete folders"
+                    danger
+                    disabled={busy}
+                    onPress={() =>
+                      run(async (r) => {
+                        await r.removeFolders([...folderSelection]);
+                        if (folderSelection.has(folder)) setFolder("unfiled");
+                        setFolderSelection(new Set());
+                        setSelectingFolders(false);
+                        setMenu(null);
+                      })
+                    }
+                  />
                 </>
               ) : menu === "move" ? (
                 <>
-                  {[{ id: null, name: "Uncategorized" }, ...(data.folders ?? [])].map(
-                    (f) => (
-                      <Button
-                        key={f.id ?? "unfiled"}
-                        quiet
-                        label={`Move to ${f.name}`}
-                        disabled={busy}
-                        onPress={() =>
-                          run(async (r) => {
-                            await r.organizeNotes([...selection], {
-                              folderId: f.id,
-                            });
-                            setSelection(new Set());
-                            setMenu(null);
-                          })
-                        }
-                      />
-                    ),
-                  )}
+                  {[
+                    { id: null, name: "Uncategorized" },
+                    ...(data.folders ?? []),
+                  ].map((f) => (
+                    <Button
+                      key={f.id ?? "unfiled"}
+                      quiet
+                      label={`Move to ${f.name}`}
+                      disabled={busy}
+                      onPress={() =>
+                        run(async (r) => {
+                          await r.organizeNotes([...selection], {
+                            folderId: f.id,
+                          });
+                          setSelection(new Set());
+                          setMenu(null);
+                        })
+                      }
+                    />
+                  ))}
                 </>
               ) : (
                 <>

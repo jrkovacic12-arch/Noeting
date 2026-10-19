@@ -1362,3 +1362,34 @@ test.describe('draft migration recovery', () => {
     await expect(page.getByRole('button',{name:'Open note: Migration retained words'})).toBeVisible();
   });
 });
+
+test("automatic sync starts off, requires protected pairing, and rejects public endpoints without requests", async ({
+  session,
+}) => {
+  const { page } = session;
+  let transfers = 0;
+  page.on("request", (request) => {
+    if (request.url().includes("/api/sync/v2/")) transfers++;
+  });
+  await page
+    .getByRole("button", { name: "More notes options", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Sync with PC", exact: true }).click();
+  await expect(
+    page.getByRole("switch", { name: "Automatic sync" }),
+  ).not.toBeChecked();
+  await expect(
+    page.getByRole("switch", { name: "Automatic sync" }),
+  ).toBeDisabled();
+  await page
+    .getByRole("textbox", { name: "PC HTTPS address" })
+    .fill("https://public.example");
+  await page
+    .getByRole("textbox", { name: "PC pairing token" })
+    .fill("disposable-invalid-endpoint-secret-".repeat(2));
+  await page.getByRole("button", { name: "Sync now", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Tailscale");
+  expect(transfers).toBe(0);
+  await page.getByRole("button", { name: "Close PC sync" }).click();
+  await capture(page, "note", "Local editing remains available");
+});

@@ -199,16 +199,19 @@ test("Android browser UI exchanges with actual PC server through a test HTTPS ad
       await page
         .getByRole("button", { name: "Sync with PC", exact: true })
         .click();
-      await page
-        .getByRole("textbox", { name: "PC HTTPS address" })
-        .fill("https://pc.noeting.ts.net/");
+      const address = page.getByRole("textbox", { name: "PC HTTPS address" });
+      if (await address.isEditable())
+        await address.fill("https://pc.noeting.ts.net/");
+      else await expect(address).toHaveValue("https://pc.noeting.ts.net");
       await page.getByRole("textbox", { name: "PC pairing token" }).fill(token);
     }
     await panel();
     await page
       .getByRole("button", { name: "Initialize empty PC from Android" })
       .click();
-    await expect(page.getByRole("alert")).toContainText("Sync complete");
+    await expect(page.getByRole("alert")).toContainText(
+      "Sync attempt finished",
+    );
     const pcPage = await context.newPage();
     await login(pcPage, h.url);
     await pcPage
@@ -223,10 +226,10 @@ test("Android browser UI exchanges with actual PC server through a test HTTPS ad
       .click();
     await expect(pcPage.locator("#message")).toContainText("Saved on PC");
     await page.getByRole("button", { name: "Sync now", exact: true }).click();
-    await expect(page.getByRole("alert")).toContainText("Sync complete");
-    await page
-      .getByRole("button", { name: "Disconnect / close PC sync" })
-      .click();
+    await expect(page.getByRole("alert")).toContainText(
+      "Sync attempt finished",
+    );
+    await page.getByRole("button", { name: "Close PC sync" }).click();
     await expect(
       page.getByRole("button", {
         name: "Open note: PC to Android browser",
@@ -237,9 +240,7 @@ test("Android browser UI exchanges with actual PC server through a test HTTPS ad
     await expect(
       page.getByRole("textbox", { name: "PC pairing token" }),
     ).toHaveValue(token);
-    await page
-      .getByRole("button", { name: "Disconnect / close PC sync" })
-      .click();
+    await page.getByRole("button", { name: "Close PC sync" }).click();
     await page
       .getByRole("button", { name: "More notes options", exact: true })
       .click();
